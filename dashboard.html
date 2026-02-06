@@ -29,12 +29,12 @@
             background-color: var(--dark);
             color: var(--light);
             line-height: 1.6;
+            padding: 20px;
         }
         
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 20px;
         }
         
         /* Header */
@@ -329,7 +329,7 @@
                 <div class="form-group">
                     <textarea id="lembreteTexto" class="form-control" rows="3" placeholder="Digite seu lembrete aqui..."></textarea>
                 </div>
-                <button class="btn btn-primary btn-block" id="btnSalvarLembrete">
+                <button class="btn btn-primary btn-block" onclick="salvarLembrete()">
                     <i class="fas fa-save"></i> Salvar Lembrete
                 </button>
                 
@@ -354,10 +354,10 @@
                     <input type="text" id="aluguelNome" class="form-control" placeholder="Nome do responsável">
                 </div>
                 <div class="btn-group">
-                    <button class="btn btn-secondary" id="btnSalvarAluguel">
+                    <button class="btn btn-secondary" onclick="salvarAluguel()">
                         <i class="fas fa-save"></i> Salvar
                     </button>
-                    <button class="btn btn-warning" id="btnMostrarAlugueis">
+                    <button class="btn btn-warning" onclick="mostrarAlugueis()">
                         <i class="fas fa-eye"></i> Mostrar
                     </button>
                 </div>
@@ -379,13 +379,13 @@
                     <input type="number" id="cartaoQuantidade" class="form-control" placeholder="Quantidade de cartões" min="1">
                 </div>
                 <div class="btn-group">
-                    <button class="btn btn-secondary" id="btnSalvarCartao">
+                    <button class="btn btn-secondary" onclick="salvarCartao()">
                         <i class="fas fa-save"></i> Salvar
                     </button>
-                    <button class="btn btn-warning" id="btnMostrarCartoes">
+                    <button class="btn btn-warning" onclick="mostrarCartoes()">
                         <i class="fas fa-eye"></i> Mostrar
                     </button>
-                    <button class="btn btn-danger" id="btnLimparMesAnterior">
+                    <button class="btn btn-danger" onclick="limparMesAnterior()">
                         <i class="fas fa-trash"></i> Limpar Mês Anterior
                     </button>
                 </div>
@@ -398,69 +398,30 @@
     </div>
 
     <script>
-        // ===== VARIÁVEIS GLOBAIS =====
-        let lembretes = [];
-        let alugueis = [];
-        let cartoes = [];
+        // ===== FUNÇÃO SAIR =====
+        function sair() {
+            localStorage.removeItem('logado');
+            window.location.href = 'index.html';
+        }
         
         // ===== INICIALIZAÇÃO =====
         document.addEventListener('DOMContentLoaded', function() {
-            // Carregar dados do localStorage
-            carregarDados();
+            // Verificar login
+            if (!localStorage.getItem('logado')) {
+                window.location.href = 'index.html';
+                return;
+            }
             
             // Configurar data atual como padrão
             const hoje = new Date().toISOString().split('T')[0];
             document.getElementById('aluguelData').value = hoje;
             document.getElementById('cartaoData').value = hoje;
             
-            // Adicionar eventos aos botões
-            document.getElementById('btnSalvarLembrete').addEventListener('click', salvarLembrete);
-            document.getElementById('btnSalvarAluguel').addEventListener('click', salvarAluguel);
-            document.getElementById('btnMostrarAlugueis').addEventListener('click', mostrarAlugueis);
-            document.getElementById('btnSalvarCartao').addEventListener('click', salvarCartao);
-            document.getElementById('btnMostrarCartoes').addEventListener('click', mostrarCartoes);
-            document.getElementById('btnLimparMesAnterior').addEventListener('click', limparMesAnterior);
-            
-            // Verificar se o usuário está logado
-            if (!localStorage.getItem('logado')) {
-                window.location.href = 'index.html';
-            }
-            
-            // Mostrar dados iniciais
-            mostrarLembretes();
-            mostrarAlugueis();
-            mostrarCartoes();
+            // Carregar dados
+            carregarLembretes();
+            carregarAlugueis();
+            carregarCartoes();
         });
-        
-        // ===== FUNÇÕES DE CARREGAMENTO =====
-        function carregarDados() {
-            // Carregar lembretes
-            const lembretesSalvos = localStorage.getItem('lembretes');
-            lembretes = lembretesSalvos ? JSON.parse(lembretesSalvos) : [];
-            
-            // Carregar aluguéis
-            const alugueisSalvos = localStorage.getItem('alugueis');
-            alugueis = alugueisSalvos ? JSON.parse(alugueisSalvos) : [];
-            
-            // Carregar cartões
-            const cartoesSalvos = localStorage.getItem('cartoes');
-            cartoes = cartoesSalvos ? JSON.parse(cartoesSalvos) : [];
-            
-            // Limpar aluguéis com data passada
-            limparAlugueisPassados();
-        }
-        
-        function salvarDados() {
-            localStorage.setItem('lembretes', JSON.stringify(lembretes));
-            localStorage.setItem('alugueis', JSON.stringify(alugueis));
-            localStorage.setItem('cartoes', JSON.stringify(cartoes));
-        }
-        
-        // ===== FUNÇÃO SAIR =====
-        function sair() {
-            localStorage.removeItem('logado');
-            window.location.href = 'index.html';
-        }
         
         // ===== LEMBRETES =====
         function salvarLembrete() {
@@ -471,6 +432,9 @@
                 return;
             }
             
+            // Obter lembretes existentes
+            let lembretes = JSON.parse(localStorage.getItem('lembretes') || '[]');
+            
             // Adicionar novo lembrete
             const novoLembrete = {
                 id: Date.now(),
@@ -479,21 +443,20 @@
             };
             
             lembretes.unshift(novoLembrete);
-            
-            // Salvar no localStorage
-            salvarDados();
+            localStorage.setItem('lembretes', JSON.stringify(lembretes));
             
             // Limpar campo
             document.getElementById('lembreteTexto').value = '';
             
             // Atualizar lista
-            mostrarLembretes();
+            carregarLembretes();
             
             alert('Lembrete salvo com sucesso!');
         }
         
-        function mostrarLembretes() {
+        function carregarLembretes() {
             const container = document.getElementById('lista-lembretes');
+            const lembretes = JSON.parse(localStorage.getItem('lembretes') || '[]');
             
             if (lembretes.length === 0) {
                 container.innerHTML = '<div class="mensagem-vazia">Nenhum lembrete cadastrado</div>';
@@ -523,9 +486,11 @@
         function excluirLembrete(id) {
             if (!confirm('Excluir este lembrete?')) return;
             
+            let lembretes = JSON.parse(localStorage.getItem('lembretes') || '[]');
             lembretes = lembretes.filter(l => l.id !== id);
-            salvarDados();
-            mostrarLembretes();
+            localStorage.setItem('lembretes', JSON.stringify(lembretes));
+            
+            carregarLembretes();
         }
         
         // ===== ALUGUEL DE QUADRA =====
@@ -538,6 +503,9 @@
                 alert('Preencha todos os campos!');
                 return;
             }
+            
+            // Obter aluguéis existentes
+            let alugueis = JSON.parse(localStorage.getItem('alugueis') || '[]');
             
             // Verificar se já existe agendamento para esta data/horário
             const conflito = alugueis.find(a => a.data === data && a.horario === horario);
@@ -556,7 +524,7 @@
             };
             
             alugueis.push(novoAluguel);
-            salvarDados();
+            localStorage.setItem('alugueis', JSON.stringify(alugueis));
             
             // Limpar campos
             document.getElementById('aluguelNome').value = '';
@@ -566,6 +534,11 @@
         
         function mostrarAlugueis() {
             const container = document.getElementById('lista-alugueis');
+            let alugueis = JSON.parse(localStorage.getItem('alugueis') || '[]');
+            
+            // Remover aluguéis com data passada
+            const hoje = new Date().toISOString().split('T')[0];
+            alugueis = alugueis.filter(a => a.data >= hoje);
             
             // Ordenar por data e horário
             alugueis.sort((a, b) => {
@@ -575,6 +548,8 @@
                 return a.data.localeCompare(b.data);
             });
             
+            localStorage.setItem('alugueis', JSON.stringify(alugueis));
+            
             if (alugueis.length === 0) {
                 container.innerHTML = '<div class="mensagem-vazia">Nenhum aluguel agendado</div>';
                 return;
@@ -583,8 +558,7 @@
             let html = '';
             alugueis.forEach(aluguel => {
                 const dataObj = new Date(aluguel.data);
-                const hojeObj = new Date();
-                hojeObj.setHours(0, 0, 0, 0);
+                const hojeObj = new Date(hoje);
                 const status = dataObj < hojeObj ? 'passado' : 'futuro';
                 const statusTexto = status === 'passado' ? 'Realizado' : 'Agendado';
                 const statusClasse = status === 'passado' ? 'status-passado' : 'status-futuro';
@@ -609,22 +583,18 @@
             container.innerHTML = html;
         }
         
-        function limparAlugueisPassados() {
-            const hoje = new Date().toISOString().split('T')[0];
-            const alugueisAtuais = alugueis.filter(a => a.data >= hoje);
-            
-            if (alugueisAtuais.length !== alugueis.length) {
-                alugueis = alugueisAtuais;
-                salvarDados();
-            }
+        function carregarAlugueis() {
+            mostrarAlugueis();
         }
         
         function excluirAluguel(id) {
             if (!confirm('Excluir este agendamento?')) return;
             
+            let alugueis = JSON.parse(localStorage.getItem('alugueis') || '[]');
             alugueis = alugueis.filter(a => a.id !== id);
-            salvarDados();
-            mostrarAlugueis();
+            localStorage.setItem('alugueis', JSON.stringify(alugueis));
+            
+            carregarAlugueis();
         }
         
         // ===== CARTÕES =====
@@ -637,6 +607,9 @@
                 return;
             }
             
+            // Obter cartões existentes
+            let cartoes = JSON.parse(localStorage.getItem('cartoes') || '[]');
+            
             // Adicionar novo cartão
             const novoCartao = {
                 id: Date.now(),
@@ -646,7 +619,7 @@
             };
             
             cartoes.push(novoCartao);
-            salvarDados();
+            localStorage.setItem('cartoes', JSON.stringify(cartoes));
             
             // Limpar campo quantidade
             document.getElementById('cartaoQuantidade').value = '';
@@ -656,6 +629,7 @@
         
         function mostrarCartoes() {
             const container = document.getElementById('lista-cartoes');
+            const cartoes = JSON.parse(localStorage.getItem('cartoes') || '[]');
             
             if (cartoes.length === 0) {
                 container.innerHTML = '<div class="mensagem-vazia">Nenhum cartão registrado</div>';
@@ -692,12 +666,18 @@
             container.innerHTML = html;
         }
         
+        function carregarCartoes() {
+            mostrarCartoes();
+        }
+        
         function excluirCartao(id) {
             if (!confirm('Excluir este registro de cartões?')) return;
             
+            let cartoes = JSON.parse(localStorage.getItem('cartoes') || '[]');
             cartoes = cartoes.filter(c => c.id !== id);
-            salvarDados();
-            mostrarCartoes();
+            localStorage.setItem('cartoes', JSON.stringify(cartoes));
+            
+            carregarCartoes();
         }
         
         function limparMesAnterior() {
@@ -708,6 +688,8 @@
             const hoje = new Date();
             const mesAtual = hoje.getMonth();
             const anoAtual = hoje.getFullYear();
+            
+            let cartoes = JSON.parse(localStorage.getItem('cartoes') || '[]');
             
             // Filtrar apenas registros do mês atual e futuro
             const cartoesFiltrados = cartoes.filter(cartao => {
@@ -720,12 +702,11 @@
                        (anoCartao === anoAtual && mesCartao >= mesAtual);
             });
             
-            cartoes = cartoesFiltrados;
-            salvarDados();
+            localStorage.setItem('cartoes', JSON.stringify(cartoesFiltrados));
             
-            alert(`Registros do mês anterior removidos.`);
+            alert(`Registros do mês anterior removidos. ${cartoes.length - cartoesFiltrados.length} registro(s) excluído(s).`);
             
-            mostrarCartoes();
+            carregarCartoes();
         }
         
         // ===== FUNÇÕES AUXILIARES =====
@@ -737,11 +718,13 @@
         // Permitir Enter nos campos
         document.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
-                if (document.activeElement.id === 'lembreteTexto') {
+                const elementoAtivo = document.activeElement.id;
+                
+                if (elementoAtivo === 'lembreteTexto') {
                     salvarLembrete();
-                } else if (document.activeElement.id === 'aluguelNome') {
+                } else if (elementoAtivo === 'aluguelNome') {
                     salvarAluguel();
-                } else if (document.activeElement.id === 'cartaoQuantidade') {
+                } else if (elementoAtivo === 'cartaoQuantidade') {
                     salvarCartao();
                 }
             }
