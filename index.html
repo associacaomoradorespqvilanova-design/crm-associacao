@@ -21,33 +21,81 @@ body {
   display: flex;
   flex-direction: column;
   gap: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 input, button {
   padding: 12px;
   border-radius: 10px;
   border: none;
+  font-size: 16px;
 }
-input { background: #1e1e1e; color: #fff; }
-button { background: #2563eb; color: #fff; cursor: pointer; }
+input { 
+  background: #1e1e1e; 
+  color: #fff; 
+  border: 1px solid #333;
+}
+input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+button { 
+  background: #2563eb; 
+  color: #fff; 
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s;
+}
+button:hover {
+  background: #1d4ed8;
+}
+h2 {
+  color: #fff;
+  text-align: center;
+  margin-bottom: 20px;
+}
+.logo {
+  text-align: center;
+  color: #2563eb;
+  margin-bottom: 20px;
+}
+.logo i {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
 </style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
 <body>
 <div class="login">
-  <h2>CRM Associação</h2>
-  <input id="user" placeholder="Usuário">
-  <input id="pass" type="password" placeholder="Senha">
+  <div class="logo">
+    <i class="fas fa-handshake"></i>
+    <h2>CRM Associação</h2>
+  </div>
+  <input id="user" placeholder="Usuário" autocomplete="username">
+  <input id="pass" type="password" placeholder="Senha" autocomplete="current-password">
   <button onclick="entrar()">Entrar</button>
 </div>
 
 <script>
 function entrar() {
-  if (user.value === 'Associação' && pass.value === 'associacao2026') {
-    window.location.href = 'dashboard.html'
+  const user = document.getElementById('user').value;
+  const pass = document.getElementById('pass').value;
+  
+  if (user === 'Associação' && pass === 'associacao2026') {
+    localStorage.setItem('logado', 'true');
+    window.location.href = 'dashboard.html';
   } else {
-    alert('Usuário ou senha inválidos')
+    alert('Usuário ou senha inválidos');
   }
 }
+
+// Permitir login com Enter
+document.addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    entrar();
+  }
+});
 </script>
 </body>
 </html>
