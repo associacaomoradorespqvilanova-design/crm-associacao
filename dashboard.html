@@ -1,1 +1,113 @@
 
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>CRM Associação</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+body{
+  margin:0; font-family:'Poppins',sans-serif;
+  background:#f4f7f6;
+}
+header{
+  background:#1e6b4f; color:#fff;
+  padding:20px; font-size:20px; font-weight:600;
+}
+.container{
+  padding:20px; display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:20px;
+}
+.card{
+  background:#fff; border-radius:16px; padding:20px;
+  box-shadow:0 10px 25px rgba(0,0,0,.1);
+}
+.card h2{margin-top:0;color:#1e6b4f}
+textarea,input{
+  width:100%; border-radius:10px; border:1px solid #ccc;
+  padding:10px; font-size:14px;
+}
+button{
+  margin-top:10px; padding:10px 14px;
+  border:none; border-radius:10px;
+  background:#1e6b4f; color:#fff; cursor:pointer;
+}
+.count{
+  font-size:40px; font-weight:600; color:#1e6b4f; text-align:center;
+}
+.logout{
+  position:fixed; bottom:20px; right:20px;
+  background:#c0392b;
+}
+</style>
+</head>
+<body>
+<header>CRM Associação</header>
+
+<div class="container">
+
+  <div class="card">
+    <h2>📌 Lembretes</h2>
+    <textarea id="lembretes" rows="6" placeholder="Anotações importantes..."></textarea>
+    <button onclick="salvarLembretes()">Salvar</button>
+  </div>
+
+  <div class="card">
+    <h2>🏟️ Aluguel de Quadra</h2>
+    <input id="nomeQuadra" placeholder="Nome do responsável" />
+    <input id="dataQuadra" type="date" />
+    <button onclick="registrarQuadra()">Registrar</button>
+    <ul id="listaQuadra"></ul>
+  </div>
+
+  <div class="card">
+    <h2>💳 Contagem de Cartões</h2>
+    <div class="count" id="contador">0</div>
+    <button onclick="alterar(1)">+1</button>
+    <button onclick="alterar(-1)">-1</button>
+  </div>
+
+</div>
+
+<button class="logout" onclick="logout()">Sair</button>
+
+<script>
+if(localStorage.getItem('logado')!=='true'){
+  window.location.href='index.html';
+}
+
+// Lembretes
+function salvarLembretes(){
+  localStorage.setItem('lembretes',lembretes.value);
+}
+lembretes.value = localStorage.getItem('lembretes') || '';
+
+// Quadra
+function registrarQuadra(){
+  const nome = nomeQuadra.value;
+  const data = dataQuadra.value;
+  if(!nome||!data) return;
+  const li=document.createElement('li');
+  li.textContent = nome + ' - ' + data;
+  listaQuadra.appendChild(li);
+  nomeQuadra.value=''; dataQuadra.value='';
+}
+
+// Cartões
+let total = Number(localStorage.getItem('cartoes')||0);
+contador.innerText = total;
+function alterar(v){
+  total += v; if(total<0) total=0;
+  contador.innerText=total;
+  localStorage.setItem('cartoes',total);
+}
+
+function logout(){
+  localStorage.removeItem('logado');
+  window.location.href='index.html';
+}
+</script>
+</body>
+</html>
