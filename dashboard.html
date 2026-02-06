@@ -1,245 +1,700 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<title>Dashboard – CRM Associação</title>
-
-<style>
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #0f0f0f;
-  color: #fff;
-}
-
-header {
-  padding: 20px;
-  text-align: center;
-  font-size: 22px;
-  font-weight: bold;
-  background: linear-gradient(135deg, #2b2b2b, #151515);
-}
-
-main {
-  padding: 30px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-
-.card {
-  background: #151515;
-  padding: 20px;
-  border-radius: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-input, button {
-  padding: 10px;
-  border-radius: 10px;
-  border: none;
-  font-size: 14px;
-}
-
-input {
-  background: #1e1e1e;
-  color: #fff;
-}
-
-button {
-  background: #2563eb;
-  color: #fff;
-  cursor: pointer;
-}
-
-button.toggle {
-  background: #333;
-}
-
-.fixados {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.hidden {
-  display: none;
-}
-
-.item {
-  background: #1f1f1f;
-  padding: 10px;
-  border-radius: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.item button {
-  background: #b91c1c;
-  padding: 5px 8px;
-}
-
-@media(max-width: 900px) {
-  main { grid-template-columns: 1fr; }
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Associação</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --dark: #0f172a;
+            --dark-light: #1e293b;
+            --light: #f8fafc;
+            --gray: #64748b;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--dark);
+            color: var(--light);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--dark-light);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .logo i {
+            font-size: 2.5rem;
+            color: var(--primary);
+        }
+        
+        .logo h1 {
+            font-size: 1.8rem;
+            color: var(--light);
+        }
+        
+        .logout-btn {
+            background-color: var(--danger);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        .logout-btn:hover {
+            background-color: #dc2626;
+        }
+        
+        /* Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        /* Cards */
+        .card {
+            background-color: var(--dark-light);
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid #334155;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .card h2 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            color: var(--light);
+            padding-bottom: 10px;
+            border-bottom: 1px solid #334155;
+        }
+        
+        .card h2 i {
+            color: var(--primary);
+        }
+        
+        /* Formulários */
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #cbd5e1;
+            font-size: 0.9rem;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: var(--light);
+            font-family: inherit;
+            font-size: 16px;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        /* Botões */
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s;
+            font-size: 16px;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .btn-secondary {
+            background-color: var(--secondary);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #0da271;
+        }
+        
+        .btn-warning {
+            background-color: var(--warning);
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background-color: #d97706;
+        }
+        
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+        
+        .btn-block {
+            width: 100%;
+        }
+        
+        /* Listas */
+        .lista {
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .lista-item {
+            background-color: rgba(15, 23, 42, 0.5);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .lista-item.aluguel {
+            border-left-color: var(--secondary);
+        }
+        
+        .lista-item.cartao {
+            border-left-color: var(--warning);
+        }
+        
+        .item-info {
+            flex: 1;
+        }
+        
+        .item-info h4 {
+            margin-bottom: 5px;
+            color: var(--light);
+        }
+        
+        .item-info p {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+        
+        .item-acoes {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-excluir {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 1.1rem;
+        }
+        
+        /* Status */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        
+        .status-futuro {
+            background-color: rgba(16, 185, 129, 0.2);
+            color: var(--secondary);
+        }
+        
+        .status-passado {
+            background-color: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+        
+        /* Mensagens */
+        .mensagem-vazia {
+            text-align: center;
+            color: #64748b;
+            padding: 20px;
+            font-style: italic;
+        }
+        
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            header {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+            }
+        }
+    </style>
 </head>
-
 <body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="logo">
+                <i class="fas fa-handshake"></i>
+                <h1>CRM Associação</h1>
+            </div>
+            <button class="logout-btn" onclick="sair()">
+                <i class="fas fa-sign-out-alt"></i> Sair
+            </button>
+        </header>
+        
+        <!-- Dashboard Grid -->
+        <div class="dashboard-grid">
+            <!-- Card de Lembretes -->
+            <div class="card">
+                <h2><i class="fas fa-sticky-note"></i> Lembretes</h2>
+                <div class="form-group">
+                    <textarea id="lembreteTexto" class="form-control" rows="3" placeholder="Digite seu lembrete aqui..."></textarea>
+                </div>
+                <button class="btn btn-primary btn-block" onclick="salvarLembrete()">
+                    <i class="fas fa-save"></i> Salvar Lembrete
+                </button>
+                
+                <div class="lista" id="lista-lembretes">
+                    <!-- Lembretes serão carregados aqui -->
+                </div>
+            </div>
+            
+            <!-- Card de Aluguel de Quadra -->
+            <div class="card">
+                <h2><i class="fas fa-futbol"></i> Aluguel de Quadra</h2>
+                <div class="form-group">
+                    <label for="aluguelData">Data</label>
+                    <input type="date" id="aluguelData" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="aluguelHorario">Horário</label>
+                    <input type="time" id="aluguelHorario" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="aluguelNome">Nome</label>
+                    <input type="text" id="aluguelNome" class="form-control" placeholder="Nome do responsável">
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="salvarAluguel()">
+                        <i class="fas fa-save"></i> Salvar
+                    </button>
+                    <button class="btn btn-warning" onclick="mostrarAlugueis()">
+                        <i class="fas fa-eye"></i> Mostrar
+                    </button>
+                </div>
+                
+                <div class="lista" id="lista-alugueis">
+                    <!-- Aluguéis serão carregados aqui -->
+                </div>
+            </div>
+            
+            <!-- Card de Cartões -->
+            <div class="card">
+                <h2><i class="fas fa-id-card"></i> Cartões</h2>
+                <div class="form-group">
+                    <label for="cartaoData">Data</label>
+                    <input type="date" id="cartaoData" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="cartaoQuantidade">Quantidade</label>
+                    <input type="number" id="cartaoQuantidade" class="form-control" placeholder="Quantidade de cartões" min="1">
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="salvarCartao()">
+                        <i class="fas fa-save"></i> Salvar
+                    </button>
+                    <button class="btn btn-warning" onclick="mostrarCartoes()">
+                        <i class="fas fa-eye"></i> Mostrar
+                    </button>
+                    <button class="btn btn-danger" onclick="limparMesAnterior()">
+                        <i class="fas fa-trash"></i> Limpar Mês Anterior
+                    </button>
+                </div>
+                
+                <div class="lista" id="lista-cartoes">
+                    <!-- Cartões serão carregados aqui -->
+                </div>
+            </div>
+        </div>
+    </div>
 
-<header>CRM Associação</header>
-
-<main>
-
-<!-- LEMBRETES -->
-<section class="card">
-  <h2>Lembretes</h2>
-  <input id="lembreteTexto" placeholder="Digite o lembrete">
-  <button onclick="addLembrete()">Adicionar lembrete</button>
-  <div class="fixados" id="listaLembretes"></div>
-</section>
-
-<!-- CARTÕES -->
-<section class="card">
-  <h2>Cartões</h2>
-  <input type="date" id="dataCartao">
-  <input type="number" id="qtdCartao" placeholder="Quantidade">
-  <button onclick="registrarCartao()">Registrar</button>
-
-  <button class="toggle" onclick="toggleCartoes()">📂 Abrir registros</button>
-  <div class="fixados hidden" id="cartoesFixados"></div>
-</section>
-
-<!-- QUADRA -->
-<section class="card">
-  <h2>Aluguel de Quadra</h2>
-  <input type="date" id="dataQuadra">
-  <input type="time" id="horaQuadra">
-  <button onclick="registrarQuadra()">Registrar</button>
-
-  <button class="toggle" onclick="toggleQuadra()">📂 Abrir horários</button>
-  <div class="fixados hidden" id="quadraFixados"></div>
-</section>
-
-</main>
-
-<script>
-/* ================= STORAGE ================= */
-function salvar(key, value) {
-  localStorage.setItem(key, JSON.stringify(value))
-}
-function carregar(key) {
-  return JSON.parse(localStorage.getItem(key)) || []
-}
-
-/* ================= LEMBRETES ================= */
-let lembretes = carregar('lembretes')
-
-function addLembrete() {
-  if (!lembreteTexto.value) return
-  lembretes.push(lembreteTexto.value)
-  salvar('lembretes', lembretes)
-  lembreteTexto.value = ''
-  renderLembretes()
-}
-
-function removerLembrete(i) {
-  lembretes.splice(i, 1)
-  salvar('lembretes', lembretes)
-  renderLembretes()
-}
-
-function renderLembretes() {
-  listaLembretes.innerHTML = ''
-  lembretes.forEach((l, i) => {
-    listaLembretes.innerHTML += `
-      <div class="item">
-        ${l}
-        <button onclick="removerLembrete(${i})">❌</button>
-      </div>`
-  })
-}
-
-/* ================= CARTÕES ================= */
-let cartoes = carregar('cartoes')
-let cartoesAbertos = false
-
-function registrarCartao() {
-  if (!dataCartao.value || !qtdCartao.value) return
-  cartoes.push({ data: dataCartao.value, qtd: qtdCartao.value })
-  salvar('cartoes', cartoes)
-  renderCartoes()
-}
-
-function toggleCartoes() {
-  cartoesAbertos = !cartoesAbertos
-  cartoesFixados.classList.toggle('hidden', !cartoesAbertos)
-  event.target.innerText = cartoesAbertos
-    ? '📁 Fechar registros'
-    : '📂 Abrir registros'
-  if (cartoesAbertos) renderCartoes()
-}
-
-function renderCartoes() {
-  cartoesFixados.innerHTML = ''
-  cartoes.forEach(c => {
-    cartoesFixados.innerHTML += `
-      <div class="item">
-        📅 ${c.data} — ${c.qtd} cartões
-      </div>`
-  })
-}
-
-/* ================= QUADRA ================= */
-let alugueis = carregar('quadra')
-let quadraAberta = false
-
-function registrarQuadra() {
-  if (!dataQuadra.value || !horaQuadra.value) return
-  alugueis.push({ data: dataQuadra.value, hora: horaQuadra.value })
-  limparExpirados()
-  salvar('quadra', alugueis)
-  renderQuadra()
-}
-
-function limparExpirados() {
-  const agora = new Date()
-  alugueis = alugueis.filter(a =>
-    new Date(`${a.data}T${a.hora}`) > agora
-  )
-  salvar('quadra', alugueis)
-}
-
-function toggleQuadra() {
-  quadraAberta = !quadraAberta
-  quadraFixados.classList.toggle('hidden', !quadraAberta)
-  event.target.innerText = quadraAberta
-    ? '📁 Fechar horários'
-    : '📂 Abrir horários'
-  if (quadraAberta) renderQuadra()
-}
-
-function renderQuadra() {
-  limparExpirados()
-  quadraFixados.innerHTML = ''
-  alugueis.forEach(a => {
-    quadraFixados.innerHTML += `
-      <div class="item">
-        🏟️ ${a.data} — ${a.hora}
-      </div>`
-  })
-}
-
-/* ================= INICIALIZA ================= */
-renderLembretes()
-renderCartoes()
-renderQuadra()
-setInterval(renderQuadra, 60000)
-</script>
-
+    <script>
+        // Verificar login
+        if (!localStorage.getItem('logado')) {
+            window.location.href = 'index.html';
+        }
+        
+        // Carregar dados ao iniciar
+        document.addEventListener('DOMContentLoaded', function() {
+            carregarLembretes();
+            carregarAlugueis();
+            carregarCartoes();
+            
+            // Configurar data atual como padrão
+            const hoje = new Date().toISOString().split('T')[0];
+            document.getElementById('aluguelData').value = hoje;
+            document.getElementById('cartaoData').value = hoje;
+        });
+        
+        // Função para sair
+        function sair() {
+            localStorage.removeItem('logado');
+            window.location.href = 'index.html';
+        }
+        
+        // ===== LEMBRETES =====
+        function salvarLembrete() {
+            const texto = document.getElementById('lembreteTexto').value.trim();
+            
+            if (!texto) {
+                alert('Digite um lembrete!');
+                return;
+            }
+            
+            // Obter lembretes existentes
+            let lembretes = JSON.parse(localStorage.getItem('lembretes') || '[]');
+            
+            // Adicionar novo lembrete
+            const novoLembrete = {
+                id: Date.now(),
+                texto: texto,
+                data: new Date().toLocaleString('pt-BR')
+            };
+            
+            lembretes.unshift(novoLembrete); // Adicionar no início
+            localStorage.setItem('lembretes', JSON.stringify(lembretes));
+            
+            // Limpar campo
+            document.getElementById('lembreteTexto').value = '';
+            
+            // Atualizar lista
+            carregarLembretes();
+            
+            alert('Lembrete salvo com sucesso!');
+        }
+        
+        function carregarLembretes() {
+            const container = document.getElementById('lista-lembretes');
+            const lembretes = JSON.parse(localStorage.getItem('lembretes') || '[]');
+            
+            if (lembretes.length === 0) {
+                container.innerHTML = '<div class="mensagem-vazia">Nenhum lembrete cadastrado</div>';
+                return;
+            }
+            
+            let html = '';
+            lembretes.forEach(lembrete => {
+                html += `
+                <div class="lista-item">
+                    <div class="item-info">
+                        <p>${lembrete.texto}</p>
+                        <small>${lembrete.data}</small>
+                    </div>
+                    <div class="item-acoes">
+                        <button class="btn-excluir" onclick="excluirLembrete(${lembrete.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        function excluirLembrete(id) {
+            if (!confirm('Excluir este lembrete?')) return;
+            
+            let lembretes = JSON.parse(localStorage.getItem('lembretes') || '[]');
+            lembretes = lembretes.filter(l => l.id !== id);
+            localStorage.setItem('lembretes', JSON.stringify(lembretes));
+            
+            carregarLembretes();
+        }
+        
+        // ===== ALUGUEL DE QUADRA =====
+        function salvarAluguel() {
+            const data = document.getElementById('aluguelData').value;
+            const horario = document.getElementById('aluguelHorario').value;
+            const nome = document.getElementById('aluguelNome').value.trim();
+            
+            if (!data || !horario || !nome) {
+                alert('Preencha todos os campos!');
+                return;
+            }
+            
+            // Obter aluguéis existentes
+            let alugueis = JSON.parse(localStorage.getItem('alugueis') || '[]');
+            
+            // Verificar se já existe agendamento para esta data/horário
+            const conflito = alugueis.find(a => a.data === data && a.horario === horario);
+            if (conflito) {
+                alert('Já existe um agendamento para esta data e horário!');
+                return;
+            }
+            
+            // Adicionar novo aluguel
+            const novoAluguel = {
+                id: Date.now(),
+                data: data,
+                horario: horario,
+                nome: nome,
+                dataCadastro: new Date().toLocaleString('pt-BR')
+            };
+            
+            alugueis.push(novoAluguel);
+            localStorage.setItem('alugueis', JSON.stringify(alugueis));
+            
+            // Limpar campos
+            document.getElementById('aluguelNome').value = '';
+            
+            alert('Aluguel salvo com sucesso!');
+        }
+        
+        function mostrarAlugueis() {
+            const container = document.getElementById('lista-alugueis');
+            let alugueis = JSON.parse(localStorage.getItem('alugueis') || '[]');
+            
+            // Remover aluguéis com data passada
+            const hoje = new Date().toISOString().split('T')[0];
+            alugueis = alugueis.filter(a => a.data >= hoje);
+            
+            // Ordenar por data e horário
+            alugueis.sort((a, b) => {
+                if (a.data === b.data) {
+                    return a.horario.localeCompare(b.horario);
+                }
+                return a.data.localeCompare(b.data);
+            });
+            
+            localStorage.setItem('alugueis', JSON.stringify(alugueis));
+            
+            if (alugueis.length === 0) {
+                container.innerHTML = '<div class="mensagem-vazia">Nenhum aluguel agendado</div>';
+                return;
+            }
+            
+            let html = '';
+            alugueis.forEach(aluguel => {
+                const dataObj = new Date(aluguel.data);
+                const hojeObj = new Date(hoje);
+                const status = dataObj < hojeObj ? 'passado' : 'futuro';
+                const statusTexto = status === 'passado' ? 'Realizado' : 'Agendado';
+                const statusClasse = status === 'passado' ? 'status-passado' : 'status-futuro';
+                
+                html += `
+                <div class="lista-item aluguel">
+                    <div class="item-info">
+                        <h4>${aluguel.nome}</h4>
+                        <p>Data: ${formatarData(aluguel.data)} às ${aluguel.horario}</p>
+                        <span class="status-badge ${statusClasse}">${statusTexto}</span>
+                        <small>Cadastrado em: ${aluguel.dataCadastro}</small>
+                    </div>
+                    <div class="item-acoes">
+                        <button class="btn-excluir" onclick="excluirAluguel(${aluguel.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        function carregarAlugueis() {
+            // Carrega automaticamente os aluguéis futuros
+            mostrarAlugueis();
+        }
+        
+        function excluirAluguel(id) {
+            if (!confirm('Excluir este agendamento?')) return;
+            
+            let alugueis = JSON.parse(localStorage.getItem('alugueis') || '[]');
+            alugueis = alugueis.filter(a => a.id !== id);
+            localStorage.setItem('alugueis', JSON.stringify(alugueis));
+            
+            carregarAlugueis();
+        }
+        
+        // ===== CARTÕES =====
+        function salvarCartao() {
+            const data = document.getElementById('cartaoData').value;
+            const quantidade = document.getElementById('cartaoQuantidade').value;
+            
+            if (!data || !quantidade || quantidade < 1) {
+                alert('Preencha todos os campos corretamente!');
+                return;
+            }
+            
+            // Obter cartões existentes
+            let cartoes = JSON.parse(localStorage.getItem('cartoes') || '[]');
+            
+            // Adicionar novo cartão
+            const novoCartao = {
+                id: Date.now(),
+                data: data,
+                quantidade: parseInt(quantidade),
+                dataCadastro: new Date().toLocaleString('pt-BR')
+            };
+            
+            cartoes.push(novoCartao);
+            localStorage.setItem('cartoes', JSON.stringify(cartoes));
+            
+            // Limpar campo quantidade
+            document.getElementById('cartaoQuantidade').value = '';
+            
+            alert('Cartões salvos com sucesso!');
+        }
+        
+        function mostrarCartoes() {
+            const container = document.getElementById('lista-cartoes');
+            const cartoes = JSON.parse(localStorage.getItem('cartoes') || '[]');
+            
+            if (cartoes.length === 0) {
+                container.innerHTML = '<div class="mensagem-vazia">Nenhum cartão registrado</div>';
+                return;
+            }
+            
+            // Ordenar por data (mais recente primeiro)
+            const cartoesOrdenados = [...cartoes].sort((a, b) => b.data.localeCompare(a.data));
+            
+            // Calcular total
+            const total = cartoes.reduce((soma, cartao) => soma + cartao.quantidade, 0);
+            
+            let html = `<div style="margin-bottom: 15px; padding: 10px; background: rgba(16, 185, 129, 0.1); border-radius: 8px; text-align: center;">
+                <strong>Total de cartões: ${total}</strong>
+            </div>`;
+            
+            cartoesOrdenados.forEach(cartao => {
+                html += `
+                <div class="lista-item cartao">
+                    <div class="item-info">
+                        <h4>${cartao.quantidade} cartão(s)</h4>
+                        <p>Data: ${formatarData(cartao.data)}</p>
+                        <small>Registrado em: ${cartao.dataCadastro}</small>
+                    </div>
+                    <div class="item-acoes">
+                        <button class="btn-excluir" onclick="excluirCartao(${cartao.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        function carregarCartoes() {
+            mostrarCartoes();
+        }
+        
+        function excluirCartao(id) {
+            if (!confirm('Excluir este registro de cartões?')) return;
+            
+            let cartoes = JSON.parse(localStorage.getItem('cartoes') || '[]');
+            cartoes = cartoes.filter(c => c.id !== id);
+            localStorage.setItem('cartoes', JSON.stringify(cartoes));
+            
+            carregarCartoes();
+        }
+        
+        function limparMesAnterior() {
+            if (!confirm('Tem certeza que deseja limpar os registros do mês anterior? Esta ação não pode ser desfeita.')) {
+                return;
+            }
+            
+            const hoje = new Date();
+            const mesAtual = hoje.getMonth();
+            const anoAtual = hoje.getFullYear();
+            
+            let cartoes = JSON.parse(localStorage.getItem('cartoes') || '[]');
+            
+            // Filtrar apenas registros do mês atual e futuro
+            const cartoesFiltrados = cartoes.filter(cartao => {
+                const dataCartao = new Date(cartao.data);
+                const mesCartao = dataCartao.getMonth();
+                const anoCartao = dataCartao.getFullYear();
+                
+                // Manter se for do mês atual ou futuro
+                return (anoCartao > anoAtual) || 
+                       (anoCartao === anoAtual && mesCartao >= mesAtual);
+            });
+            
+            localStorage.setItem('cartoes', JSON.stringify(cartoesFiltrados));
+            
+            alert(`Registros do mês anterior removidos. ${cartoes.length - cartoesFiltrados.length} registro(s) excluído(s).`);
+            
+            carregarCartoes();
+        }
+        
+        // ===== FUNÇÕES AUXILIARES =====
+        function formatarData(dataString) {
+            const data = new Date(dataString);
+            return data.toLocaleDateString('pt-BR');
+        }
+    </script>
 </body>
 </html>
