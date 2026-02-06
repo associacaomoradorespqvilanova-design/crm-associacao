@@ -3,172 +3,130 @@
 <head>
 <meta charset="UTF-8">
 <title>CRM Associação</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
 <style>
-*{box-sizing:border-box}
-body{margin:0;font-family:'Poppins',sans-serif;background:#f4f7f6;padding-top:90px}
-header{position:fixed;top:0;left:0;right:0;height:80px;background:#1e6b4f;color:#fff;display:flex;align-items:center;padding:0 24px;font-size:22px;font-weight:600;z-index:1000}
-
-.layout{display:grid;grid-template-columns:260px 1fr 260px;gap:20px;padding:20px}
-
-@media(max-width:1100px){
-  .layout{grid-template-columns:1fr}
+body {
+  font-family: Arial, sans-serif;
+  background:#f4f6f5;
+  padding:20px;
 }
 
-.card{background:#fff;border-radius:18px;padding:20px;box-shadow:0 12px 30px rgba(0,0,0,.12)}
-.card h2{margin:0 0 14px;color:#1e6b4f;font-size:18px;display:flex;align-items:center;gap:8px}
+.grid {
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:20px;
+}
 
-input,textarea{width:100%;padding:12px;border-radius:12px;border:1px solid #ccc;font-family:'Poppins';font-size:14px}
-textarea{resize:none}
-button{margin-top:12px;padding:12px 16px;border:none;border-radius:12px;background:#1e6b4f;color:#fff;font-size:14px;font-weight:500;cursor:pointer}
-button:hover{background:#15543d}
-button.danger{background:#c0392b}
+.card {
+  background:#fff;
+  padding:15px;
+  border-radius:10px;
+  box-shadow:0 5px 15px rgba(0,0,0,.1);
+}
 
-.list{margin-top:14px;display:flex;flex-direction:column;gap:10px}
-.item{background:#f6f8f7;border-radius:12px;padding:10px;font-size:14px;display:flex;justify-content:space-between;align-items:center}
+button {
+  background:#1f7a4d;
+  color:#fff;
+  border:none;
+  padding:8px 14px;
+  border-radius:6px;
+  cursor:pointer;
+}
 
-.logout{position:fixed;bottom:20px;right:20px;background:#c0392b}
+.fixed {
+  position:fixed;
+  top:10px;
+  right:10px;
+  width:260px;
+}
+.item {
+  background:#eef5f1;
+  padding:6px;
+  margin-top:5px;
+  border-radius:5px;
+  display:flex;
+  justify-content:space-between;
+}
 </style>
 </head>
+
 <body>
-<header>CRM Associação</header>
 
-<div class="layout">
+<h2>CRM Associação</h2>
 
-<!-- CARTÕES FIXADOS -->
+<div class="grid">
+
+<!-- LEMBRETES -->
 <div class="card">
-<h2>💳 Cartões (Resumo)</h2>
-<div id="resumoCartoes" class="list"></div>
+  <h3>📌 Lembretes</h3>
+  <input id="lembreteInput" placeholder="Digite o lembrete">
+  <br><br>
+  <button type="button" onclick="addLembrete()">Adicionar lembrete</button>
 </div>
 
-<!-- CONTEÚDO CENTRAL -->
-<div style="display:flex;flex-direction:column;gap:20px">
-
+<!-- ALUGUEL -->
 <div class="card">
-<h2>📌 Lembretes</h2>
-<textarea id="textoLembrete" rows="3" placeholder="Digite o lembrete"></textarea>
-<button id="btnLembrete">Adicionar lembrete</button>
-<div id="listaLembretes" class="list"></div>
+  <h3>🏟️ Aluguel de Quadra</h3>
+  <input id="nomeQuadra" placeholder="Nome"><br><br>
+  <input type="date" id="dataQuadra"><br><br>
+  <input type="time" id="horaQuadra"><br><br>
+  <button type="button" onclick="registrarQuadra()">Registrar aluguel</button>
 </div>
 
+<!-- CARTÕES -->
 <div class="card">
-<h2>🏟️ Aluguel de Quadra</h2>
-<input id="nomeQuadra" placeholder="Responsável">
-<input type="date" id="dataQuadra">
-<input type="time" id="horaQuadra">
-<button id="btnQuadra">Registrar aluguel</button>
-<div id="listaQuadra" class="list"></div>
-</div>
-
-<div class="card">
-<h2>💳 Registrar Cartões</h2>
-<input type="date" id="dataCartao">
-<input type="number" id="qtdCartao" placeholder="Quantidade">
-<button id="btnCartao">Salvar registro</button>
+  <h3>💳 Registrar Cartões</h3>
+  <input type="date" id="dataCartao"><br><br>
+  <input type="number" id="qtdCartao" placeholder="Quantidade"><br><br>
+  <button type="button" onclick="registrarCartao()">Salvar registro</button>
 </div>
 
 </div>
 
-<!-- LEMBRETES FIXADOS -->
-<div class="card">
-<h2>📌 Fixados</h2>
-<div id="fixados" class="list"></div>
+<!-- FIXOS -->
+<div class="card fixed">
+  <h4>📌 Fixados</h4>
+  <div id="listaLembretes"></div>
+  <hr>
+  <div id="resumoCartoes"></div>
 </div>
-
-</div>
-
-<button class="logout" onclick="logout()">Sair</button>
 
 <script>
-if(localStorage.getItem('logado')!=='true') location.href='index.html';
+function addLembrete() {
+  const texto = lembreteInput.value;
+  if (!texto) return;
 
-/* ===== LEMBRETES ===== */
-let lembretes = JSON.parse(localStorage.getItem('lembretes')||'[]');
-
-const btnLembrete = document.getElementById('btnLembrete');
-btnLembrete.onclick = () => {
-  const txt = textoLembrete.value.trim();
-  if(!txt) return;
-  lembretes.push(txt);
-  textoLembrete.value='';
-  salvarLembretes();
-};
-
-function salvarLembretes(){
-  localStorage.setItem('lembretes',JSON.stringify(lembretes));
-  renderLembretes();
+  const div = document.createElement("div");
+  div.className = "item";
+  div.innerHTML = `
+    ${texto}
+    <button onclick="this.parentElement.remove()">❌</button>
+  `;
+  listaLembretes.appendChild(div);
+  lembreteInput.value = "";
 }
 
-function renderLembretes(){
-  listaLembretes.innerHTML='';
-  fixados.innerHTML='';
-  lembretes.forEach((l,i)=>{
-    const item=document.createElement('div');
-    item.className='item';
-    item.innerHTML=`<span>${l}</span><button class="danger">✕</button>`;
-    item.querySelector('button').onclick=()=>{lembretes.splice(i,1);salvarLembretes()};
-    listaLembretes.appendChild(item);
-    fixados.appendChild(item.cloneNode(true));
-  });
-}
-renderLembretes();
+function registrarCartao() {
+  const data = dataCartao.value;
+  const qtd = qtdCartao.value;
+  if (!data || !qtd) return;
 
-/* ===== QUADRA ===== */
-let quadras = JSON.parse(localStorage.getItem('quadras')||'[]');
-
-document.getElementById('btnQuadra').onclick = () => {
-  if(!nomeQuadra.value||!dataQuadra.value||!horaQuadra.value) return;
-  quadras.push({n:nomeQuadra.value,d:dataQuadra.value,h:horaQuadra.value});
-  nomeQuadra.value='';dataQuadra.value='';horaQuadra.value='';
-  salvarQuadras();
-};
-
-function salvarQuadras(){
-  const hoje=new Date().toISOString().split('T')[0];
-  quadras = quadras.filter(q=>q.d>=hoje);
-  localStorage.setItem('quadras',JSON.stringify(quadras));
-  renderQuadras();
+  resumoCartoes.innerHTML = `
+    <strong>Cartões</strong><br>
+    ${data} — ${qtd}
+  `;
 }
 
-function renderQuadras(){
-  listaQuadra.innerHTML='';
-  quadras.forEach(q=>{
-    const item=document.createElement('div');
-    item.className='item';
-    item.textContent=`${q.n} • ${q.d} ${q.h}`;
-    listaQuadra.appendChild(item);
-  });
+function registrarQuadra() {
+  const nome = nomeQuadra.value;
+  const data = dataQuadra.value;
+  const hora = horaQuadra.value;
+
+  if (!nome || !data || !hora) return;
+
+  alert(`Quadra registrada:\n${nome}\n${data} ${hora}`);
 }
-renderQuadras();
-
-/* ===== CARTÕES ===== */
-let cartoes = JSON.parse(localStorage.getItem('cartoes')||'[]');
-
-document.getElementById('btnCartao').onclick = () => {
-  if(!dataCartao.value||!qtdCartao.value) return;
-  cartoes.push({d:dataCartao.value,q:qtdCartao.value});
-  dataCartao.value='';qtdCartao.value='';
-  salvarCartoes();
-};
-
-function salvarCartoes(){
-  localStorage.setItem('cartoes',JSON.stringify(cartoes));
-  renderCartoes();
-}
-
-function renderCartoes(){
-  resumoCartoes.innerHTML='';
-  cartoes.forEach(c=>{
-    const item=document.createElement('div');
-    item.className='item';
-    item.textContent=`${c.d} • ${c.q}`;
-    resumoCartoes.appendChild(item);
-  });
-}
-renderCartoes();
-
-function logout(){localStorage.clear();location.href='index.html'}
 </script>
+
 </body>
 </html>
