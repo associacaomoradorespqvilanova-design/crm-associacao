@@ -1,1 +1,59 @@
 
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>CRM Associação | Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    body{
+      margin:0; height:100vh; display:flex; align-items:center; justify-content:center;
+      font-family:'Poppins',sans-serif;
+      background:linear-gradient(135deg,#0f3d2e,#1e6b4f);
+    }
+    .login{
+      background:#fff; width:360px; padding:40px; border-radius:16px;
+      box-shadow:0 20px 40px rgba(0,0,0,.25); text-align:center;
+    }
+    h1{margin-bottom:10px;color:#1e6b4f}
+    p{color:#666;font-size:14px}
+    input{
+      width:100%; padding:12px; margin-top:15px;
+      border-radius:10px; border:1px solid #ccc; font-size:14px;
+    }
+    button{
+      width:100%; margin-top:25px; padding:14px;
+      border:none; border-radius:12px;
+      background:#1e6b4f; color:#fff; font-size:15px;
+      cursor:pointer; transition:.3s;
+    }
+    button:hover{background:#15543d}
+    .erro{color:#c0392b;margin-top:10px;display:none}
+  </style>
+</head>
+<body>
+  <div class="login">
+    <h1>CRM Associação</h1>
+    <p>Acesso restrito</p>
+
+    <input id="usuario" placeholder="Usuário" />
+    <input id="senha" type="password" placeholder="Senha" />
+    <button onclick="login()">Entrar</button>
+    <div class="erro" id="erro">Usuário ou senha inválidos</div>
+  </div>
+
+  <script>
+    function login(){
+      const u = document.getElementById('usuario').value;
+      const s = document.getElementById('senha').value;
+      if(u === 'Associação' && s === 'associacao2026'){
+        localStorage.setItem('logado','true');
+        window.location.href='dashboard.html';
+      } else {
+        document.getElementById('erro').style.display='block';
+      }
+    }
+  </script>
+</body>
+</html>
