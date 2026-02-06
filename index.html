@@ -1,59 +1,286 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <title>CRM Associação | Login</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-  <style>
-    body{
-      margin:0; height:100vh; display:flex; align-items:center; justify-content:center;
-      font-family:'Poppins',sans-serif;
-      background:linear-gradient(135deg,#0f3d2e,#1e6b4f);
-    }
-    .login{
-      background:#fff; width:360px; padding:40px; border-radius:16px;
-      box-shadow:0 20px 40px rgba(0,0,0,.25); text-align:center;
-    }
-    h1{margin-bottom:10px;color:#1e6b4f}
-    p{color:#666;font-size:14px}
-    input{
-      width:100%; padding:12px; margin-top:15px;
-      border-radius:10px; border:1px solid #ccc; font-size:14px;
-    }
-    button{
-      width:100%; margin-top:25px; padding:14px;
-      border:none; border-radius:12px;
-      background:#1e6b4f; color:#fff; font-size:15px;
-      cursor:pointer; transition:.3s;
-    }
-    button:hover{background:#15543d}
-    .erro{color:#c0392b;margin-top:10px;display:none}
-  </style>
+<meta charset="UTF-8">
+<title>CRM Associação</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+:root {
+  --verde: #1e6b4f;
+  --verde-claro: #e6f3ee;
+  --branco: #ffffff;
+  --cinza: #f4f6f5;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--cinza);
+}
+
+/* LOGIN */
+#login {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.login-box {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  width: 300px;
+  text-align: center;
+}
+
+.login-box input {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+}
+
+.login-box button {
+  width: 100%;
+  padding: 10px;
+  background: var(--verde);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* DASHBOARD */
+#dashboard {
+  display: none;
+}
+
+/* FIXO TOPO */
+#cartoes-fixo {
+  position: fixed;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--branco);
+  padding: 12px 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  z-index: 1000;
+}
+
+/* FIXO LEMBRETES */
+#lembretes-fixos {
+  position: fixed;
+  right: 20px;
+  top: 90px;
+  width: 260px;
+  z-index: 1001;
+}
+
+.lembrete {
+  background: var(--verde-claro);
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lembrete button {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* CONTEÚDO */
+main {
+  margin-top: 120px;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.card h2 {
+  margin-top: 0;
+  color: var(--verde);
+}
+
+.card input, .card textarea {
+  width: 100%;
+  padding: 8px;
+  margin: 6px 0;
+}
+
+.card button {
+  background: var(--verde);
+  color: white;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.aluguel-item {
+  background: var(--verde-claro);
+  padding: 8px;
+  border-radius: 6px;
+  margin-top: 6px;
+}
+</style>
 </head>
+
 <body>
-  <div class="login">
-    <h1>CRM Associação</h1>
-    <p>Acesso restrito</p>
 
-    <input id="usuario" placeholder="Usuário" />
-    <input id="senha" type="password" placeholder="Senha" />
+<!-- LOGIN -->
+<div id="login">
+  <div class="login-box">
+    <h2>CRM Associação</h2>
+    <input id="user" placeholder="Usuário">
+    <input id="pass" type="password" placeholder="Senha">
     <button onclick="login()">Entrar</button>
-    <div class="erro" id="erro">Usuário ou senha inválidos</div>
   </div>
+</div>
 
-  <script>
-    function login(){
-      const u = document.getElementById('usuario').value;
-      const s = document.getElementById('senha').value;
-      if(u === 'Associação' && s === 'associacao2026'){
-        localStorage.setItem('logado','true');
-        window.location.href='dashboard.html';
-      } else {
-        document.getElementById('erro').style.display='block';
-      }
-    }
-  </script>
+<!-- DASHBOARD -->
+<div id="dashboard">
+
+  <div id="cartoes-fixo"></div>
+  <div id="lembretes-fixos"></div>
+
+  <main>
+
+    <!-- LEMBRETES -->
+    <div class="card">
+      <h2>📌 Lembretes</h2>
+      <textarea id="lembreteTexto" placeholder="Digite o lembrete"></textarea>
+      <button onclick="addLembrete()">Adicionar lembrete</button>
+    </div>
+
+    <!-- ALUGUEL -->
+    <div class="card">
+      <h2>🏟 Aluguel de Quadra</h2>
+      <input id="alqNome" placeholder="Nome">
+      <input id="alqData" type="date">
+      <input id="alqHora" type="time">
+      <button onclick="addAluguel()">Registrar aluguel</button>
+      <div id="listaAluguel"></div>
+    </div>
+
+    <!-- CARTÕES -->
+    <div class="card">
+      <h2>💳 Registrar Cartões</h2>
+      <input id="cartaoData" type="date">
+      <input id="cartaoQtd" type="number" placeholder="Quantidade">
+      <button onclick="addCartao()">Salvar registro</button>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* LOGIN */
+function login() {
+  const u = document.getElementById('user').value
+  const p = document.getElementById('pass').value
+
+  if (u === "Associação" && p === "associacao2026") {
+    document.getElementById('login').style.display = "none"
+    document.getElementById('dashboard').style.display = "block"
+  } else {
+    alert("Usuário ou senha incorretos")
+  }
+}
+
+/* ESTADOS */
+let lembretes = []
+let alugueis = []
+let cartoes = []
+
+/* LEMBRETES */
+function addLembrete() {
+  const texto = document.getElementById('lembreteTexto').value
+  if (!texto) return
+  lembretes.push(texto)
+  document.getElementById('lembreteTexto').value = ""
+  renderLembretes()
+}
+
+function removerLembrete(i) {
+  lembretes.splice(i,1)
+  renderLembretes()
+}
+
+function renderLembretes() {
+  const box = document.getElementById('lembretes-fixos')
+  box.innerHTML = ""
+  lembretes.forEach((l,i) => {
+    box.innerHTML += `
+      <div class="lembrete">
+        ${l}
+        <button onclick="removerLembrete(${i})">❌</button>
+      </div>`
+  })
+}
+
+/* CARTÕES */
+function addCartao() {
+  const data = document.getElementById('cartaoData').value
+  const qtd = document.getElementById('cartaoQtd').value
+  if (!data || !qtd) return
+  cartoes.push({data, qtd})
+  renderCartoes()
+}
+
+function renderCartoes() {
+  const box = document.getElementById('cartoes-fixo')
+  const ultimo = cartoes[cartoes.length - 1]
+  box.innerHTML = `<strong>${ultimo.data}</strong> | Quantidade: ${ultimo.qtd}`
+}
+
+/* ALUGUEL */
+function addAluguel() {
+  const nome = document.getElementById('alqNome').value
+  const data = document.getElementById('alqData').value
+  const hora = document.getElementById('alqHora').value
+  if (!nome || !data || !hora) return
+
+  alugueis.push({nome, data, hora})
+  renderAlugueis()
+}
+
+function renderAlugueis() {
+  const lista = document.getElementById('listaAluguel')
+  lista.innerHTML = ""
+  const agora = new Date()
+
+  alugueis = alugueis.filter(a => {
+    const dh = new Date(`${a.data}T${a.hora}`)
+    return dh > agora
+  })
+
+  alugueis.forEach(a => {
+    lista.innerHTML += `
+      <div class="aluguel-item">
+        ${a.nome}<br>${a.data} ${a.hora}
+      </div>`
+  })
+}
+
+setInterval(renderAlugueis, 60000)
+</script>
+
 </body>
 </html>
