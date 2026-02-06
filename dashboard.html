@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,107 +6,120 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
-body{
-  margin:0; font-family:'Poppins',sans-serif;
-  background:#f4f7f6;
-}
-header{
-  background:#1e6b4f; color:#fff;
-  padding:20px; font-size:20px; font-weight:600;
-}
-.container{
-  padding:20px; display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-  gap:20px;
-}
-.card{
-  background:#fff; border-radius:16px; padding:20px;
-  box-shadow:0 10px 25px rgba(0,0,0,.1);
-}
+body{margin:0;font-family:'Poppins',sans-serif;background:#f4f7f6}
+header{background:#1e6b4f;color:#fff;padding:20px;font-size:20px;font-weight:600}
+.container{padding:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+.card{background:#fff;border-radius:16px;padding:20px;box-shadow:0 10px 25px rgba(0,0,0,.1)}
 .card h2{margin-top:0;color:#1e6b4f}
-textarea,input{
-  width:100%; border-radius:10px; border:1px solid #ccc;
-  padding:10px; font-size:14px;
-}
-button{
-  margin-top:10px; padding:10px 14px;
-  border:none; border-radius:10px;
-  background:#1e6b4f; color:#fff; cursor:pointer;
-}
-.count{
-  font-size:40px; font-weight:600; color:#1e6b4f; text-align:center;
-}
-.logout{
-  position:fixed; bottom:20px; right:20px;
-  background:#c0392b;
-}
+input,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid #ccc}
+button{margin-top:10px;padding:10px;border:none;border-radius:10px;background:#1e6b4f;color:#fff;cursor:pointer}
+.fixed{position:fixed;top:90px;right:20px;width:260px;z-index:999}
+.note{background:#fff;padding:10px;border-radius:10px;margin-bottom:10px;box-shadow:0 5px 15px rgba(0,0,0,.15)}
+.note button{background:#c0392b;margin-top:5px}
+.logout{position:fixed;bottom:20px;right:20px;background:#c0392b}
+.count-card{position:fixed;top:90px;left:20px;width:260px}
 </style>
 </head>
 <body>
 <header>CRM Associação</header>
 
+<div class="count-card card">
+<h2>💳 Cartões (Resumo)</h2>
+<div id="resumoCartoes"></div>
+</div>
+
+<div class="fixed">
+<h3>Lembretes</h3>
+<div id="listaLembretes"></div>
+</div>
+
 <div class="container">
 
-  <div class="card">
-    <h2>📌 Lembretes</h2>
-    <textarea id="lembretes" rows="6" placeholder="Anotações importantes..."></textarea>
-    <button onclick="salvarLembretes()">Salvar</button>
-  </div>
+<div class="card">
+<h2>📌 Novo Lembrete</h2>
+<textarea id="textoLembrete" rows="4"></textarea>
+<button onclick="addLembrete()">Adicionar</button>
+</div>
 
-  <div class="card">
-    <h2>🏟️ Aluguel de Quadra</h2>
-    <input id="nomeQuadra" placeholder="Nome do responsável" />
-    <input id="dataQuadra" type="date" />
-    <button onclick="registrarQuadra()">Registrar</button>
-    <ul id="listaQuadra"></ul>
-  </div>
+<div class="card">
+<h2>🏟️ Aluguel de Quadra</h2>
+<input id="nomeQuadra" placeholder="Responsável">
+<input type="date" id="dataQuadra">
+<input type="time" id="horaQuadra">
+<button onclick="addQuadra()">Registrar</button>
+<ul id="listaQuadra"></ul>
+</div>
 
-  <div class="card">
-    <h2>💳 Contagem de Cartões</h2>
-    <div class="count" id="contador">0</div>
-    <button onclick="alterar(1)">+1</button>
-    <button onclick="alterar(-1)">-1</button>
-  </div>
+<div class="card">
+<h2>💳 Registrar Cartões</h2>
+<input type="date" id="dataCartao">
+<input type="number" id="qtdCartao" placeholder="Quantidade">
+<button onclick="addCartao()">Salvar</button>
+</div>
 
 </div>
 
 <button class="logout" onclick="logout()">Sair</button>
 
 <script>
-if(localStorage.getItem('logado')!=='true'){
-  window.location.href='index.html';
-}
+if(localStorage.getItem('logado')!=='true') location.href='index.html';
 
-// Lembretes
-function salvarLembretes(){
-  localStorage.setItem('lembretes',lembretes.value);
+// LEMBRETES
+let lembretes = JSON.parse(localStorage.getItem('lembretes')||'[]');
+function renderLembretes(){
+ listaLembretes.innerHTML='';
+ lembretes.forEach((l,i)=>{
+  const d=document.createElement('div');
+  d.className='note';
+  d.innerHTML=l+`<button onclick=delLembrete(${i})>Excluir</button>`;
+  listaLembretes.appendChild(d);
+ });
+ localStorage.setItem('lembretes',JSON.stringify(lembretes));
 }
-lembretes.value = localStorage.getItem('lembretes') || '';
+function addLembrete(){
+ if(!textoLembrete.value) return;
+ lembretes.push(textoLembrete.value);
+ textoLembrete.value='';
+ renderLembretes();
+}
+function delLembrete(i){lembretes.splice(i,1);renderLembretes();}
+renderLembretes();
 
-// Quadra
-function registrarQuadra(){
-  const nome = nomeQuadra.value;
-  const data = dataQuadra.value;
-  if(!nome||!data) return;
+// QUADRA
+let quadras = JSON.parse(localStorage.getItem('quadras')||'[]');
+function addQuadra(){
+ const hoje=new Date();
+ quadras.push({n:nomeQuadra.value,d:dataQuadra.value,h:horaQuadra.value});
+ salvarQuadra();
+}
+function salvarQuadra(){
+ quadras=quadras.filter(q=>new Date(q.d)>=new Date());
+ listaQuadra.innerHTML='';
+ quadras.forEach(q=>{
   const li=document.createElement('li');
-  li.textContent = nome + ' - ' + data;
+  li.textContent=`${q.n} - ${q.d} ${q.h}`;
   listaQuadra.appendChild(li);
-  nomeQuadra.value=''; dataQuadra.value='';
+ });
+ localStorage.setItem('quadras',JSON.stringify(quadras));
 }
+salvarQuadra();
 
-// Cartões
-let total = Number(localStorage.getItem('cartoes')||0);
-contador.innerText = total;
-function alterar(v){
-  total += v; if(total<0) total=0;
-  contador.innerText=total;
-  localStorage.setItem('cartoes',total);
+// CARTÕES
+let cartoes = JSON.parse(localStorage.getItem('cartoes')||'[]');
+function addCartao(){
+ cartoes.push({d:dataCartao.value,q:qtdCartao.value});
+ localStorage.setItem('cartoes',JSON.stringify(cartoes));
+ renderCartoes();
 }
+function renderCartoes(){
+ resumoCartoes.innerHTML='';
+ cartoes.forEach(c=>{
+  resumoCartoes.innerHTML+=`<div>${c.d} : ${c.q}</div>`;
+ });
+}
+renderCartoes();
 
-function logout(){
-  localStorage.removeItem('logado');
-  window.location.href='index.html';
-}
+function logout(){localStorage.clear();location.href='index.html'}
 </script>
 </body>
 </html>
