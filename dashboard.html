@@ -5,94 +5,87 @@
 <title>Dashboard – CRM Associação</title>
 
 <style>
-  body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #0f0f0f;
-    color: #fff;
-  }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0f0f0f;
+  color: #fff;
+}
 
-  header {
-    padding: 20px;
-    text-align: center;
-    font-size: 22px;
-    font-weight: bold;
-    background: linear-gradient(135deg, #2b2b2b, #151515);
-  }
+header {
+  padding: 20px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: bold;
+  background: linear-gradient(135deg, #2b2b2b, #151515);
+}
 
-  main {
-    padding: 30px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-  }
+main {
+  padding: 30px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
 
-  .card {
-    background: #151515;
-    padding: 20px;
-    border-radius: 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    box-shadow: 0 10px 30px rgba(0,0,0,.4);
-  }
+.card {
+  background: #151515;
+  padding: 20px;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-  h2 {
-    margin: 0 0 10px 0;
-  }
+input, button {
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+}
 
-  input, button {
-    padding: 10px;
-    border-radius: 10px;
-    border: none;
-    font-size: 14px;
-  }
+input {
+  background: #1e1e1e;
+  color: #fff;
+}
 
-  input {
-    background: #1e1e1e;
-    color: #fff;
-  }
+button {
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+}
 
-  button {
-    background: #2563eb;
-    color: #fff;
-    cursor: pointer;
-  }
+button.toggle {
+  background: #333;
+}
 
-  button.toggle {
-    background: #333;
-  }
+.fixados {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
 
-  .fixados {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 10px;
-  }
+.hidden {
+  display: none;
+}
 
-  .hidden {
-    display: none;
-  }
+.item {
+  background: #1f1f1f;
+  padding: 10px;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
-  .item {
-    background: #1f1f1f;
-    padding: 10px;
-    border-radius: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
+.item button {
+  background: #b91c1c;
+  padding: 5px 8px;
+}
 
-  .item button {
-    background: #b91c1c;
-    padding: 5px 8px;
-  }
-
-  @media(max-width: 900px) {
-    main {
-      grid-template-columns: 1fr;
-    }
-  }
+@media(max-width: 900px) {
+  main { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 
@@ -102,54 +95,61 @@
 
 <main>
 
-  <!-- LEMBRETES -->
-  <section class="card">
-    <h2>Lembretes</h2>
-    <input id="lembreteTexto" placeholder="Digite o lembrete">
-    <button onclick="addLembrete()">Adicionar lembrete</button>
+<!-- LEMBRETES -->
+<section class="card">
+  <h2>Lembretes</h2>
+  <input id="lembreteTexto" placeholder="Digite o lembrete">
+  <button onclick="addLembrete()">Adicionar lembrete</button>
+  <div class="fixados" id="listaLembretes"></div>
+</section>
 
-    <!-- FIXADOS ABAIXO DO BOTÃO -->
-    <div class="fixados" id="listaLembretes"></div>
-  </section>
+<!-- CARTÕES -->
+<section class="card">
+  <h2>Cartões</h2>
+  <input type="date" id="dataCartao">
+  <input type="number" id="qtdCartao" placeholder="Quantidade">
+  <button onclick="registrarCartao()">Registrar</button>
 
-  <!-- CARTÕES -->
-  <section class="card">
-    <h2>Cartões</h2>
-    <input type="date" id="dataCartao">
-    <input type="number" id="qtdCartao" placeholder="Quantidade">
-    <button onclick="registrarCartao()">Registrar</button>
+  <button class="toggle" onclick="toggleCartoes()">📂 Abrir registros</button>
+  <div class="fixados hidden" id="cartoesFixados"></div>
+</section>
 
-    <button class="toggle" onclick="toggleCartoes()">📂 Abrir registros</button>
-    <div class="fixados hidden" id="cartoesFixados"></div>
-  </section>
+<!-- QUADRA -->
+<section class="card">
+  <h2>Aluguel de Quadra</h2>
+  <input type="date" id="dataQuadra">
+  <input type="time" id="horaQuadra">
+  <button onclick="registrarQuadra()">Registrar</button>
 
-  <!-- ALUGUEL DE QUADRA -->
-  <section class="card">
-    <h2>Aluguel de Quadra</h2>
-    <input type="date" id="dataQuadra">
-    <input type="time" id="horaQuadra">
-    <button onclick="registrarQuadra()">Registrar</button>
-
-    <button class="toggle" onclick="toggleQuadra()">📂 Abrir horários</button>
-    <div class="fixados hidden" id="quadraFixados"></div>
-  </section>
+  <button class="toggle" onclick="toggleQuadra()">📂 Abrir horários</button>
+  <div class="fixados hidden" id="quadraFixados"></div>
+</section>
 
 </main>
 
 <script>
+/* ================= STORAGE ================= */
+function salvar(key, value) {
+  localStorage.setItem(key, JSON.stringify(value))
+}
+function carregar(key) {
+  return JSON.parse(localStorage.getItem(key)) || []
+}
+
 /* ================= LEMBRETES ================= */
-let lembretes = []
+let lembretes = carregar('lembretes')
 
 function addLembrete() {
-  const texto = lembreteTexto.value
-  if (!texto) return
-  lembretes.push(texto)
+  if (!lembreteTexto.value) return
+  lembretes.push(lembreteTexto.value)
+  salvar('lembretes', lembretes)
   lembreteTexto.value = ''
   renderLembretes()
 }
 
 function removerLembrete(i) {
   lembretes.splice(i, 1)
+  salvar('lembretes', lembretes)
   renderLembretes()
 }
 
@@ -165,12 +165,13 @@ function renderLembretes() {
 }
 
 /* ================= CARTÕES ================= */
-let cartoes = []
+let cartoes = carregar('cartoes')
 let cartoesAbertos = false
 
 function registrarCartao() {
   if (!dataCartao.value || !qtdCartao.value) return
   cartoes.push({ data: dataCartao.value, qtd: qtdCartao.value })
+  salvar('cartoes', cartoes)
   renderCartoes()
 }
 
@@ -180,7 +181,6 @@ function toggleCartoes() {
   event.target.innerText = cartoesAbertos
     ? '📁 Fechar registros'
     : '📂 Abrir registros'
-
   if (cartoesAbertos) renderCartoes()
 }
 
@@ -195,14 +195,23 @@ function renderCartoes() {
 }
 
 /* ================= QUADRA ================= */
-let alugueis = []
+let alugueis = carregar('quadra')
 let quadraAberta = false
 
 function registrarQuadra() {
   if (!dataQuadra.value || !horaQuadra.value) return
   alugueis.push({ data: dataQuadra.value, hora: horaQuadra.value })
   limparExpirados()
+  salvar('quadra', alugueis)
   renderQuadra()
+}
+
+function limparExpirados() {
+  const agora = new Date()
+  alugueis = alugueis.filter(a =>
+    new Date(`${a.data}T${a.hora}`) > agora
+  )
+  salvar('quadra', alugueis)
 }
 
 function toggleQuadra() {
@@ -211,15 +220,7 @@ function toggleQuadra() {
   event.target.innerText = quadraAberta
     ? '📁 Fechar horários'
     : '📂 Abrir horários'
-
   if (quadraAberta) renderQuadra()
-}
-
-function limparExpirados() {
-  const agora = new Date()
-  alugueis = alugueis.filter(a =>
-    new Date(`${a.data}T${a.hora}`) > agora
-  )
 }
 
 function renderQuadra() {
@@ -233,6 +234,10 @@ function renderQuadra() {
   })
 }
 
+/* ================= INICIALIZA ================= */
+renderLembretes()
+renderCartoes()
+renderQuadra()
 setInterval(renderQuadra, 60000)
 </script>
 
