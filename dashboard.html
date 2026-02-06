@@ -7,47 +7,49 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box}
-body{margin:0;font-family:'Poppins',sans-serif;background:#f4f7f6;padding-top:80px}
-header{position:fixed;top:0;left:0;right:0;background:#1e6b4f;color:#fff;padding:20px;font-size:20px;font-weight:600;z-index:1000}
-.container{padding:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px}
-.card{background:#fff;border-radius:16px;padding:20px;box-shadow:0 10px 25px rgba(0,0,0,.1)}
-.card h2{margin-top:0;color:#1e6b4f}
-input,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid #ccc;font-family:'Poppins'}
-button{margin-top:10px;padding:10px;border:none;border-radius:10px;background:#1e6b4f;color:#fff;cursor:pointer}
+body{margin:0;font-family:'Poppins',sans-serif;background:#f4f7f6;padding-top:90px}
+header{position:fixed;top:0;left:0;right:0;height:80px;background:#1e6b4f;color:#fff;display:flex;align-items:center;padding:0 24px;font-size:22px;font-weight:600;z-index:1000}
+
+.layout{display:grid;grid-template-columns:260px 1fr 260px;gap:20px;padding:20px}
+
+@media(max-width:1100px){
+  .layout{grid-template-columns:1fr}
+}
+
+.card{background:#fff;border-radius:18px;padding:20px;box-shadow:0 12px 30px rgba(0,0,0,.12)}
+.card h2{margin:0 0 14px;color:#1e6b4f;font-size:18px;display:flex;align-items:center;gap:8px}
+
+input,textarea{width:100%;padding:12px;border-radius:12px;border:1px solid #ccc;font-family:'Poppins';font-size:14px}
+textarea{resize:none}
+button{margin-top:12px;padding:12px 16px;border:none;border-radius:12px;background:#1e6b4f;color:#fff;font-size:14px;font-weight:500;cursor:pointer}
+button:hover{background:#15543d}
 button.danger{background:#c0392b}
 
-/* FIXOS */
-.fixed-notes{position:fixed;top:110px;right:20px;width:260px;z-index:900}
-.fixed-cards{position:fixed;top:110px;left:20px;width:260px;z-index:900}
-.note{background:#fff;padding:10px;border-radius:10px;margin-bottom:10px;box-shadow:0 5px 15px rgba(0,0,0,.15)}
-.note button{margin-top:5px;background:#c0392b}
+.list{margin-top:14px;display:flex;flex-direction:column;gap:10px}
+.item{background:#f6f8f7;border-radius:12px;padding:10px;font-size:14px;display:flex;justify-content:space-between;align-items:center}
 
 .logout{position:fixed;bottom:20px;right:20px;background:#c0392b}
-
-@media(max-width:900px){
-  .fixed-notes,.fixed-cards{position:static;width:100%}
-}
 </style>
 </head>
 <body>
 <header>CRM Associação</header>
 
-<div class="fixed-cards card">
+<div class="layout">
+
+<!-- CARTÕES FIXADOS -->
+<div class="card">
 <h2>💳 Cartões (Resumo)</h2>
-<div id="resumoCartoes"></div>
+<div id="resumoCartoes" class="list"></div>
 </div>
 
-<div class="fixed-notes card">
-<h2>📌 Lembretes</h2>
-<div id="listaLembretes"></div>
-</div>
-
-<div class="container">
+<!-- CONTEÚDO CENTRAL -->
+<div style="display:flex;flex-direction:column;gap:20px">
 
 <div class="card">
-<h2>➕ Novo Lembrete</h2>
-<textarea id="textoLembrete" rows="4" placeholder="Digite o lembrete"></textarea>
-<button onclick="addLembrete()">Adicionar lembrete</button>
+<h2>📌 Lembretes</h2>
+<textarea id="textoLembrete" rows="3" placeholder="Digite o lembrete"></textarea>
+<button id="btnLembrete">Adicionar lembrete</button>
+<div id="listaLembretes" class="list"></div>
 </div>
 
 <div class="card">
@@ -55,15 +57,23 @@ button.danger{background:#c0392b}
 <input id="nomeQuadra" placeholder="Responsável">
 <input type="date" id="dataQuadra">
 <input type="time" id="horaQuadra">
-<button onclick="addQuadra()">Registrar aluguel</button>
-<ul id="listaQuadra"></ul>
+<button id="btnQuadra">Registrar aluguel</button>
+<div id="listaQuadra" class="list"></div>
 </div>
 
 <div class="card">
 <h2>💳 Registrar Cartões</h2>
 <input type="date" id="dataCartao">
 <input type="number" id="qtdCartao" placeholder="Quantidade">
-<button onclick="addCartao()">Salvar registro</button>
+<button id="btnCartao">Salvar registro</button>
+</div>
+
+</div>
+
+<!-- LEMBRETES FIXADOS -->
+<div class="card">
+<h2>📌 Fixados</h2>
+<div id="fixados" class="list"></div>
 </div>
 
 </div>
@@ -74,72 +84,87 @@ button.danger{background:#c0392b}
 if(localStorage.getItem('logado')!=='true') location.href='index.html';
 
 /* ===== LEMBRETES ===== */
-let lembretes = JSON.parse(localStorage.getItem('lembretes') || '[]');
+let lembretes = JSON.parse(localStorage.getItem('lembretes')||'[]');
 
-function renderLembretes(){
-  const lista = document.getElementById('listaLembretes');
-  lista.innerHTML='';
-  lembretes.forEach((texto,index)=>{
-    const div=document.createElement('div');
-    div.className='note';
-    div.innerHTML=`${texto}<button class="danger" onclick="delLembrete(${index})">Excluir</button>`;
-    lista.appendChild(div);
-  });
+const btnLembrete = document.getElementById('btnLembrete');
+btnLembrete.onclick = () => {
+  const txt = textoLembrete.value.trim();
+  if(!txt) return;
+  lembretes.push(txt);
+  textoLembrete.value='';
+  salvarLembretes();
+};
+
+function salvarLembretes(){
   localStorage.setItem('lembretes',JSON.stringify(lembretes));
-}
-
-function addLembrete(){
-  const txt=document.getElementById('textoLembrete');
-  if(!txt.value.trim()) return;
-  lembretes.push(txt.value);
-  txt.value='';
   renderLembretes();
 }
 
-function delLembrete(i){lembretes.splice(i,1);renderLembretes();}
+function renderLembretes(){
+  listaLembretes.innerHTML='';
+  fixados.innerHTML='';
+  lembretes.forEach((l,i)=>{
+    const item=document.createElement('div');
+    item.className='item';
+    item.innerHTML=`<span>${l}</span><button class="danger">✕</button>`;
+    item.querySelector('button').onclick=()=>{lembretes.splice(i,1);salvarLembretes()};
+    listaLembretes.appendChild(item);
+    fixados.appendChild(item.cloneNode(true));
+  });
+}
 renderLembretes();
 
 /* ===== QUADRA ===== */
-let quadras = JSON.parse(localStorage.getItem('quadras') || '[]');
+let quadras = JSON.parse(localStorage.getItem('quadras')||'[]');
 
-function addQuadra(){
+document.getElementById('btnQuadra').onclick = () => {
   if(!nomeQuadra.value||!dataQuadra.value||!horaQuadra.value) return;
   quadras.push({n:nomeQuadra.value,d:dataQuadra.value,h:horaQuadra.value});
   nomeQuadra.value='';dataQuadra.value='';horaQuadra.value='';
+  salvarQuadras();
+};
+
+function salvarQuadras(){
+  const hoje=new Date().toISOString().split('T')[0];
+  quadras = quadras.filter(q=>q.d>=hoje);
+  localStorage.setItem('quadras',JSON.stringify(quadras));
   renderQuadras();
 }
 
 function renderQuadras(){
-  const hoje = new Date().toISOString().split('T')[0];
-  quadras = quadras.filter(q=>q.d>=hoje);
   listaQuadra.innerHTML='';
   quadras.forEach(q=>{
-    const li=document.createElement('li');
-    li.textContent=`${q.n} - ${q.d} ${q.h}`;
-    listaQuadra.appendChild(li);
+    const item=document.createElement('div');
+    item.className='item';
+    item.textContent=`${q.n} • ${q.d} ${q.h}`;
+    listaQuadra.appendChild(item);
   });
-  localStorage.setItem('quadras',JSON.stringify(quadras));
 }
 renderQuadras();
 
 /* ===== CARTÕES ===== */
-let cartoes = JSON.parse(localStorage.getItem('cartoes') || '[]');
+let cartoes = JSON.parse(localStorage.getItem('cartoes')||'[]');
 
-function addCartao(){
+document.getElementById('btnCartao').onclick = () => {
   if(!dataCartao.value||!qtdCartao.value) return;
   cartoes.push({d:dataCartao.value,q:qtdCartao.value});
   dataCartao.value='';qtdCartao.value='';
+  salvarCartoes();
+};
+
+function salvarCartoes(){
+  localStorage.setItem('cartoes',JSON.stringify(cartoes));
   renderCartoes();
 }
 
 function renderCartoes(){
   resumoCartoes.innerHTML='';
   cartoes.forEach(c=>{
-    const div=document.createElement('div');
-    div.textContent=`${c.d} : ${c.q}`;
-    resumoCartoes.appendChild(div);
+    const item=document.createElement('div');
+    item.className='item';
+    item.textContent=`${c.d} • ${c.q}`;
+    resumoCartoes.appendChild(item);
   });
-  localStorage.setItem('cartoes',JSON.stringify(cartoes));
 }
 renderCartoes();
 
