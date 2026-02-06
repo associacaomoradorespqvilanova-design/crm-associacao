@@ -3,283 +3,231 @@
 <head>
 <meta charset="UTF-8">
 <title>CRM Associação</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-:root {
-  --verde: #1e6b4f;
-  --verde-claro: #e6f3ee;
-  --branco: #ffffff;
-  --cinza: #f4f6f5;
-}
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #0f0f0f;
+    color: #fff;
+  }
 
-* {
-  box-sizing: border-box;
-  font-family: Arial, sans-serif;
-}
+  header {
+    padding: 20px;
+    text-align: center;
+    font-size: 22px;
+    font-weight: bold;
+    background: linear-gradient(135deg, #2b2b2b, #151515);
+  }
 
-body {
-  margin: 0;
-  background: var(--cinza);
-}
+  main {
+    padding: 30px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
 
-/* LOGIN */
-#login {
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
+  .card {
+    background: #151515;
+    padding: 20px;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.4);
+  }
 
-.login-box {
-  background: white;
-  padding: 30px;
-  border-radius: 12px;
-  width: 300px;
-  text-align: center;
-}
+  h2 {
+    margin: 0 0 10px 0;
+  }
 
-.login-box input {
-  width: 100%;
-  padding: 10px;
-  margin: 10px 0;
-}
+  input, button {
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    font-size: 14px;
+  }
 
-.login-box button {
-  width: 100%;
-  padding: 10px;
-  background: var(--verde);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
+  input {
+    background: #1e1e1e;
+    color: #fff;
+  }
 
-/* DASHBOARD */
-#dashboard {
-  display: none;
-}
+  button {
+    background: #2563eb;
+    color: #fff;
+    cursor: pointer;
+  }
 
-/* FIXO TOPO */
-#cartoes-fixo {
-  position: fixed;
-  top: 15px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--branco);
-  padding: 12px 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-  z-index: 1000;
-}
+  button.toggle {
+    background: #333;
+  }
 
-/* FIXO LEMBRETES */
-#lembretes-fixos {
-  position: fixed;
-  right: 20px;
-  top: 90px;
-  width: 260px;
-  z-index: 1001;
-}
+  .fixados {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
 
-.lembrete {
-  background: var(--verde-claro);
-  padding: 10px;
-  border-radius: 8px;
-  margin-bottom: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+  .hidden {
+    display: none;
+  }
 
-.lembrete button {
-  background: none;
-  border: none;
-  cursor: pointer;
-}
+  .item {
+    background: #1f1f1f;
+    padding: 10px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
 
-/* CONTEÚDO */
-main {
-  margin-top: 120px;
-  padding: 20px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
-}
+  .item button {
+    background: #b91c1c;
+    padding: 5px 8px;
+  }
 
-.card {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-}
-
-.card h2 {
-  margin-top: 0;
-  color: var(--verde);
-}
-
-.card input, .card textarea {
-  width: 100%;
-  padding: 8px;
-  margin: 6px 0;
-}
-
-.card button {
-  background: var(--verde);
-  color: white;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.aluguel-item {
-  background: var(--verde-claro);
-  padding: 8px;
-  border-radius: 6px;
-  margin-top: 6px;
-}
+  @media(max-width: 900px) {
+    main {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 </head>
 
 <body>
 
-<!-- LOGIN -->
-<div id="login">
-  <div class="login-box">
-    <h2>CRM Associação</h2>
-    <input id="user" placeholder="Usuário">
-    <input id="pass" type="password" placeholder="Senha">
-    <button onclick="login()">Entrar</button>
-  </div>
-</div>
+<header>CRM Associação</header>
 
-<!-- DASHBOARD -->
-<div id="dashboard">
+<main>
 
-  <div id="cartoes-fixo"></div>
-  <div id="lembretes-fixos"></div>
+  <!-- LEMBRETES -->
+  <section class="card">
+    <h2>Lembretes</h2>
 
-  <main>
+    <input id="lembreteTexto" placeholder="Digite o lembrete">
+    <button onclick="addLembrete()">Adicionar lembrete</button>
 
-    <!-- LEMBRETES -->
-    <div class="card">
-      <h2>📌 Lembretes</h2>
-      <textarea id="lembreteTexto" placeholder="Digite o lembrete"></textarea>
-      <button onclick="addLembrete()">Adicionar lembrete</button>
-    </div>
+    <div class="fixados" id="listaLembretes"></div>
+  </section>
 
-    <!-- ALUGUEL -->
-    <div class="card">
-      <h2>🏟 Aluguel de Quadra</h2>
-      <input id="alqNome" placeholder="Nome">
-      <input id="alqData" type="date">
-      <input id="alqHora" type="time">
-      <button onclick="addAluguel()">Registrar aluguel</button>
-      <div id="listaAluguel"></div>
-    </div>
+  <!-- CARTÕES -->
+  <section class="card">
+    <h2>Cartões</h2>
 
-    <!-- CARTÕES -->
-    <div class="card">
-      <h2>💳 Registrar Cartões</h2>
-      <input id="cartaoData" type="date">
-      <input id="cartaoQtd" type="number" placeholder="Quantidade">
-      <button onclick="addCartao()">Salvar registro</button>
-    </div>
+    <input type="date" id="dataCartao">
+    <input type="number" id="qtdCartao" placeholder="Quantidade">
+    <button onclick="registrarCartao()">Registrar</button>
 
-  </main>
-</div>
+    <button class="toggle" onclick="toggleCartoes()">📂 Abrir registros</button>
+    <div class="fixados hidden" id="cartoesFixados"></div>
+  </section>
+
+  <!-- ALUGUEL DE QUADRA -->
+  <section class="card">
+    <h2>Aluguel de Quadra</h2>
+
+    <input type="date" id="dataQuadra">
+    <input type="time" id="horaQuadra">
+    <button onclick="registrarQuadra()">Registrar</button>
+
+    <button class="toggle" onclick="toggleQuadra()">📂 Abrir horários</button>
+    <div class="fixados hidden" id="quadraFixados"></div>
+  </section>
+
+</main>
 
 <script>
-/* LOGIN */
-function login() {
-  const u = document.getElementById('user').value
-  const p = document.getElementById('pass').value
+  /* ================= LEMBRETES ================= */
+  let lembretes = []
 
-  if (u === "Associação" && p === "associacao2026") {
-    document.getElementById('login').style.display = "none"
-    document.getElementById('dashboard').style.display = "block"
-  } else {
-    alert("Usuário ou senha incorretos")
+  function addLembrete() {
+    const texto = lembreteTexto.value
+    if (!texto) return
+    lembretes.push(texto)
+    lembreteTexto.value = ''
+    renderLembretes()
   }
-}
 
-/* ESTADOS */
-let lembretes = []
-let alugueis = []
-let cartoes = []
+  function removerLembrete(i) {
+    lembretes.splice(i, 1)
+    renderLembretes()
+  }
 
-/* LEMBRETES */
-function addLembrete() {
-  const texto = document.getElementById('lembreteTexto').value
-  if (!texto) return
-  lembretes.push(texto)
-  document.getElementById('lembreteTexto').value = ""
-  renderLembretes()
-}
+  function renderLembretes() {
+    listaLembretes.innerHTML = ''
+    lembretes.forEach((l, i) => {
+      listaLembretes.innerHTML += `
+        <div class="item">
+          ${l}
+          <button onclick="removerLembrete(${i})">❌</button>
+        </div>`
+    })
+  }
 
-function removerLembrete(i) {
-  lembretes.splice(i,1)
-  renderLembretes()
-}
+  /* ================= CARTÕES ================= */
+  let cartoes = []
+  let cartoesAbertos = false
 
-function renderLembretes() {
-  const box = document.getElementById('lembretes-fixos')
-  box.innerHTML = ""
-  lembretes.forEach((l,i) => {
-    box.innerHTML += `
-      <div class="lembrete">
-        ${l}
-        <button onclick="removerLembrete(${i})">❌</button>
-      </div>`
-  })
-}
+  function registrarCartao() {
+    if (!dataCartao.value || !qtdCartao.value) return
+    cartoes.push({ data: dataCartao.value, qtd: qtdCartao.value })
+    renderCartoes()
+  }
 
-/* CARTÕES */
-function addCartao() {
-  const data = document.getElementById('cartaoData').value
-  const qtd = document.getElementById('cartaoQtd').value
-  if (!data || !qtd) return
-  cartoes.push({data, qtd})
-  renderCartoes()
-}
+  function toggleCartoes() {
+    cartoesAbertos = !cartoesAbertos
+    cartoesFixados.classList.toggle('hidden', !cartoesAbertos)
+    event.target.innerText = cartoesAbertos ? '📁 Fechar registros' : '📂 Abrir registros'
+    if (cartoesAbertos) renderCartoes()
+  }
 
-function renderCartoes() {
-  const box = document.getElementById('cartoes-fixo')
-  const ultimo = cartoes[cartoes.length - 1]
-  box.innerHTML = `<strong>${ultimo.data}</strong> | Quantidade: ${ultimo.qtd}`
-}
+  function renderCartoes() {
+    cartoesFixados.innerHTML = ''
+    cartoes.forEach(c => {
+      cartoesFixados.innerHTML += `
+        <div class="item">
+          📅 ${c.data} — ${c.qtd} cartões
+        </div>`
+    })
+  }
 
-/* ALUGUEL */
-function addAluguel() {
-  const nome = document.getElementById('alqNome').value
-  const data = document.getElementById('alqData').value
-  const hora = document.getElementById('alqHora').value
-  if (!nome || !data || !hora) return
+  /* ================= QUADRA ================= */
+  let alugueis = []
+  let quadraAberta = false
 
-  alugueis.push({nome, data, hora})
-  renderAlugueis()
-}
+  function registrarQuadra() {
+    if (!dataQuadra.value || !horaQuadra.value) return
+    alugueis.push({ data: dataQuadra.value, hora: horaQuadra.value })
+    limparExpirados()
+    renderQuadra()
+  }
 
-function renderAlugueis() {
-  const lista = document.getElementById('listaAluguel')
-  lista.innerHTML = ""
-  const agora = new Date()
+  function toggleQuadra() {
+    quadraAberta = !quadraAberta
+    quadraFixados.classList.toggle('hidden', !quadraAberta)
+    event.target.innerText = quadraAberta ? '📁 Fechar horários' : '📂 Abrir horários'
+    if (quadraAberta) renderQuadra()
+  }
 
-  alugueis = alugueis.filter(a => {
-    const dh = new Date(`${a.data}T${a.hora}`)
-    return dh > agora
-  })
+  function limparExpirados() {
+    const agora = new Date()
+    alugueis = alugueis.filter(a => new Date(`${a.data}T${a.hora}`) > agora)
+  }
 
-  alugueis.forEach(a => {
-    lista.innerHTML += `
-      <div class="aluguel-item">
-        ${a.nome}<br>${a.data} ${a.hora}
-      </div>`
-  })
-}
+  function renderQuadra() {
+    limparExpirados()
+    quadraFixados.innerHTML = ''
+    alugueis.forEach(a => {
+      quadraFixados.innerHTML += `
+        <div class="item">
+          🏟️ ${a.data} — ${a.hora}
+        </div>`
+    })
+  }
 
-setInterval(renderAlugueis, 60000)
+  setInterval(renderQuadra, 60000)
 </script>
 
 </body>
