@@ -2,130 +2,238 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>CRM Associação</title>
+<title>Dashboard – CRM Associação</title>
 
 <style>
-body {
-  font-family: Arial, sans-serif;
-  background:#f4f6f5;
-  padding:20px;
-}
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #0f0f0f;
+    color: #fff;
+  }
 
-.grid {
-  display:grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap:20px;
-}
+  header {
+    padding: 20px;
+    text-align: center;
+    font-size: 22px;
+    font-weight: bold;
+    background: linear-gradient(135deg, #2b2b2b, #151515);
+  }
 
-.card {
-  background:#fff;
-  padding:15px;
-  border-radius:10px;
-  box-shadow:0 5px 15px rgba(0,0,0,.1);
-}
+  main {
+    padding: 30px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
 
-button {
-  background:#1f7a4d;
-  color:#fff;
-  border:none;
-  padding:8px 14px;
-  border-radius:6px;
-  cursor:pointer;
-}
+  .card {
+    background: #151515;
+    padding: 20px;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.4);
+  }
 
-.fixed {
-  position:fixed;
-  top:10px;
-  right:10px;
-  width:260px;
-}
-.item {
-  background:#eef5f1;
-  padding:6px;
-  margin-top:5px;
-  border-radius:5px;
-  display:flex;
-  justify-content:space-between;
-}
+  h2 {
+    margin: 0 0 10px 0;
+  }
+
+  input, button {
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    font-size: 14px;
+  }
+
+  input {
+    background: #1e1e1e;
+    color: #fff;
+  }
+
+  button {
+    background: #2563eb;
+    color: #fff;
+    cursor: pointer;
+  }
+
+  button.toggle {
+    background: #333;
+  }
+
+  .fixados {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .hidden {
+    display: none;
+  }
+
+  .item {
+    background: #1f1f1f;
+    padding: 10px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .item button {
+    background: #b91c1c;
+    padding: 5px 8px;
+  }
+
+  @media(max-width: 900px) {
+    main {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 </head>
 
 <body>
 
-<h2>CRM Associação</h2>
+<header>CRM Associação</header>
 
-<div class="grid">
+<main>
 
-<!-- LEMBRETES -->
-<div class="card">
-  <h3>📌 Lembretes</h3>
-  <input id="lembreteInput" placeholder="Digite o lembrete">
-  <br><br>
-  <button type="button" onclick="addLembrete()">Adicionar lembrete</button>
-</div>
+  <!-- LEMBRETES -->
+  <section class="card">
+    <h2>Lembretes</h2>
+    <input id="lembreteTexto" placeholder="Digite o lembrete">
+    <button onclick="addLembrete()">Adicionar lembrete</button>
 
-<!-- ALUGUEL -->
-<div class="card">
-  <h3>🏟️ Aluguel de Quadra</h3>
-  <input id="nomeQuadra" placeholder="Nome"><br><br>
-  <input type="date" id="dataQuadra"><br><br>
-  <input type="time" id="horaQuadra"><br><br>
-  <button type="button" onclick="registrarQuadra()">Registrar aluguel</button>
-</div>
+    <!-- FIXADOS ABAIXO DO BOTÃO -->
+    <div class="fixados" id="listaLembretes"></div>
+  </section>
 
-<!-- CARTÕES -->
-<div class="card">
-  <h3>💳 Registrar Cartões</h3>
-  <input type="date" id="dataCartao"><br><br>
-  <input type="number" id="qtdCartao" placeholder="Quantidade"><br><br>
-  <button type="button" onclick="registrarCartao()">Salvar registro</button>
-</div>
+  <!-- CARTÕES -->
+  <section class="card">
+    <h2>Cartões</h2>
+    <input type="date" id="dataCartao">
+    <input type="number" id="qtdCartao" placeholder="Quantidade">
+    <button onclick="registrarCartao()">Registrar</button>
 
-</div>
+    <button class="toggle" onclick="toggleCartoes()">📂 Abrir registros</button>
+    <div class="fixados hidden" id="cartoesFixados"></div>
+  </section>
 
-<!-- FIXOS -->
-<div class="card fixed">
-  <h4>📌 Fixados</h4>
-  <div id="listaLembretes"></div>
-  <hr>
-  <div id="resumoCartoes"></div>
-</div>
+  <!-- ALUGUEL DE QUADRA -->
+  <section class="card">
+    <h2>Aluguel de Quadra</h2>
+    <input type="date" id="dataQuadra">
+    <input type="time" id="horaQuadra">
+    <button onclick="registrarQuadra()">Registrar</button>
+
+    <button class="toggle" onclick="toggleQuadra()">📂 Abrir horários</button>
+    <div class="fixados hidden" id="quadraFixados"></div>
+  </section>
+
+</main>
 
 <script>
-function addLembrete() {
-  const texto = lembreteInput.value;
-  if (!texto) return;
+/* ================= LEMBRETES ================= */
+let lembretes = []
 
-  const div = document.createElement("div");
-  div.className = "item";
-  div.innerHTML = `
-    ${texto}
-    <button onclick="this.parentElement.remove()">❌</button>
-  `;
-  listaLembretes.appendChild(div);
-  lembreteInput.value = "";
+function addLembrete() {
+  const texto = lembreteTexto.value
+  if (!texto) return
+  lembretes.push(texto)
+  lembreteTexto.value = ''
+  renderLembretes()
 }
+
+function removerLembrete(i) {
+  lembretes.splice(i, 1)
+  renderLembretes()
+}
+
+function renderLembretes() {
+  listaLembretes.innerHTML = ''
+  lembretes.forEach((l, i) => {
+    listaLembretes.innerHTML += `
+      <div class="item">
+        ${l}
+        <button onclick="removerLembrete(${i})">❌</button>
+      </div>`
+  })
+}
+
+/* ================= CARTÕES ================= */
+let cartoes = []
+let cartoesAbertos = false
 
 function registrarCartao() {
-  const data = dataCartao.value;
-  const qtd = qtdCartao.value;
-  if (!data || !qtd) return;
-
-  resumoCartoes.innerHTML = `
-    <strong>Cartões</strong><br>
-    ${data} — ${qtd}
-  `;
+  if (!dataCartao.value || !qtdCartao.value) return
+  cartoes.push({ data: dataCartao.value, qtd: qtdCartao.value })
+  renderCartoes()
 }
+
+function toggleCartoes() {
+  cartoesAbertos = !cartoesAbertos
+  cartoesFixados.classList.toggle('hidden', !cartoesAbertos)
+  event.target.innerText = cartoesAbertos
+    ? '📁 Fechar registros'
+    : '📂 Abrir registros'
+
+  if (cartoesAbertos) renderCartoes()
+}
+
+function renderCartoes() {
+  cartoesFixados.innerHTML = ''
+  cartoes.forEach(c => {
+    cartoesFixados.innerHTML += `
+      <div class="item">
+        📅 ${c.data} — ${c.qtd} cartões
+      </div>`
+  })
+}
+
+/* ================= QUADRA ================= */
+let alugueis = []
+let quadraAberta = false
 
 function registrarQuadra() {
-  const nome = nomeQuadra.value;
-  const data = dataQuadra.value;
-  const hora = horaQuadra.value;
-
-  if (!nome || !data || !hora) return;
-
-  alert(`Quadra registrada:\n${nome}\n${data} ${hora}`);
+  if (!dataQuadra.value || !horaQuadra.value) return
+  alugueis.push({ data: dataQuadra.value, hora: horaQuadra.value })
+  limparExpirados()
+  renderQuadra()
 }
+
+function toggleQuadra() {
+  quadraAberta = !quadraAberta
+  quadraFixados.classList.toggle('hidden', !quadraAberta)
+  event.target.innerText = quadraAberta
+    ? '📁 Fechar horários'
+    : '📂 Abrir horários'
+
+  if (quadraAberta) renderQuadra()
+}
+
+function limparExpirados() {
+  const agora = new Date()
+  alugueis = alugueis.filter(a =>
+    new Date(`${a.data}T${a.hora}`) > agora
+  )
+}
+
+function renderQuadra() {
+  limparExpirados()
+  quadraFixados.innerHTML = ''
+  alugueis.forEach(a => {
+    quadraFixados.innerHTML += `
+      <div class="item">
+        🏟️ ${a.data} — ${a.hora}
+      </div>`
+  })
+}
+
+setInterval(renderQuadra, 60000)
 </script>
 
 </body>
