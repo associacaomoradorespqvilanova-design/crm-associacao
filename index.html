@@ -2,233 +2,52 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>CRM Associação</title>
-
+<title>Login – Associação</title>
 <style>
-  body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #0f0f0f;
-    color: #fff;
-  }
-
-  header {
-    padding: 20px;
-    text-align: center;
-    font-size: 22px;
-    font-weight: bold;
-    background: linear-gradient(135deg, #2b2b2b, #151515);
-  }
-
-  main {
-    padding: 30px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-  }
-
-  .card {
-    background: #151515;
-    padding: 20px;
-    border-radius: 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    box-shadow: 0 10px 30px rgba(0,0,0,.4);
-  }
-
-  h2 {
-    margin: 0 0 10px 0;
-  }
-
-  input, button {
-    padding: 10px;
-    border-radius: 10px;
-    border: none;
-    font-size: 14px;
-  }
-
-  input {
-    background: #1e1e1e;
-    color: #fff;
-  }
-
-  button {
-    background: #2563eb;
-    color: #fff;
-    cursor: pointer;
-  }
-
-  button.toggle {
-    background: #333;
-  }
-
-  .fixados {
-    margin-top: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .hidden {
-    display: none;
-  }
-
-  .item {
-    background: #1f1f1f;
-    padding: 10px;
-    border-radius: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .item button {
-    background: #b91c1c;
-    padding: 5px 8px;
-  }
-
-  @media(max-width: 900px) {
-    main {
-      grid-template-columns: 1fr;
-    }
-  }
+body {
+  margin: 0;
+  height: 100vh;
+  background: #0f0f0f;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: Arial, sans-serif;
+}
+.login {
+  background: #151515;
+  padding: 40px;
+  border-radius: 20px;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+input, button {
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+}
+input { background: #1e1e1e; color: #fff; }
+button { background: #2563eb; color: #fff; cursor: pointer; }
 </style>
 </head>
 
 <body>
-
-<header>CRM Associação</header>
-
-<main>
-
-  <!-- LEMBRETES -->
-  <section class="card">
-    <h2>Lembretes</h2>
-
-    <input id="lembreteTexto" placeholder="Digite o lembrete">
-    <button onclick="addLembrete()">Adicionar lembrete</button>
-
-    <div class="fixados" id="listaLembretes"></div>
-  </section>
-
-  <!-- CARTÕES -->
-  <section class="card">
-    <h2>Cartões</h2>
-
-    <input type="date" id="dataCartao">
-    <input type="number" id="qtdCartao" placeholder="Quantidade">
-    <button onclick="registrarCartao()">Registrar</button>
-
-    <button class="toggle" onclick="toggleCartoes()">📂 Abrir registros</button>
-    <div class="fixados hidden" id="cartoesFixados"></div>
-  </section>
-
-  <!-- ALUGUEL DE QUADRA -->
-  <section class="card">
-    <h2>Aluguel de Quadra</h2>
-
-    <input type="date" id="dataQuadra">
-    <input type="time" id="horaQuadra">
-    <button onclick="registrarQuadra()">Registrar</button>
-
-    <button class="toggle" onclick="toggleQuadra()">📂 Abrir horários</button>
-    <div class="fixados hidden" id="quadraFixados"></div>
-  </section>
-
-</main>
+<div class="login">
+  <h2>CRM Associação</h2>
+  <input id="user" placeholder="Usuário">
+  <input id="pass" type="password" placeholder="Senha">
+  <button onclick="entrar()">Entrar</button>
+</div>
 
 <script>
-  /* ================= LEMBRETES ================= */
-  let lembretes = []
-
-  function addLembrete() {
-    const texto = lembreteTexto.value
-    if (!texto) return
-    lembretes.push(texto)
-    lembreteTexto.value = ''
-    renderLembretes()
+function entrar() {
+  if (user.value === 'Associação' && pass.value === 'associacao2026') {
+    window.location.href = 'dashboard.html'
+  } else {
+    alert('Usuário ou senha inválidos')
   }
-
-  function removerLembrete(i) {
-    lembretes.splice(i, 1)
-    renderLembretes()
-  }
-
-  function renderLembretes() {
-    listaLembretes.innerHTML = ''
-    lembretes.forEach((l, i) => {
-      listaLembretes.innerHTML += `
-        <div class="item">
-          ${l}
-          <button onclick="removerLembrete(${i})">❌</button>
-        </div>`
-    })
-  }
-
-  /* ================= CARTÕES ================= */
-  let cartoes = []
-  let cartoesAbertos = false
-
-  function registrarCartao() {
-    if (!dataCartao.value || !qtdCartao.value) return
-    cartoes.push({ data: dataCartao.value, qtd: qtdCartao.value })
-    renderCartoes()
-  }
-
-  function toggleCartoes() {
-    cartoesAbertos = !cartoesAbertos
-    cartoesFixados.classList.toggle('hidden', !cartoesAbertos)
-    event.target.innerText = cartoesAbertos ? '📁 Fechar registros' : '📂 Abrir registros'
-    if (cartoesAbertos) renderCartoes()
-  }
-
-  function renderCartoes() {
-    cartoesFixados.innerHTML = ''
-    cartoes.forEach(c => {
-      cartoesFixados.innerHTML += `
-        <div class="item">
-          📅 ${c.data} — ${c.qtd} cartões
-        </div>`
-    })
-  }
-
-  /* ================= QUADRA ================= */
-  let alugueis = []
-  let quadraAberta = false
-
-  function registrarQuadra() {
-    if (!dataQuadra.value || !horaQuadra.value) return
-    alugueis.push({ data: dataQuadra.value, hora: horaQuadra.value })
-    limparExpirados()
-    renderQuadra()
-  }
-
-  function toggleQuadra() {
-    quadraAberta = !quadraAberta
-    quadraFixados.classList.toggle('hidden', !quadraAberta)
-    event.target.innerText = quadraAberta ? '📁 Fechar horários' : '📂 Abrir horários'
-    if (quadraAberta) renderQuadra()
-  }
-
-  function limparExpirados() {
-    const agora = new Date()
-    alugueis = alugueis.filter(a => new Date(`${a.data}T${a.hora}`) > agora)
-  }
-
-  function renderQuadra() {
-    limparExpirados()
-    quadraFixados.innerHTML = ''
-    alugueis.forEach(a => {
-      quadraFixados.innerHTML += `
-        <div class="item">
-          🏟️ ${a.data} — ${a.hora}
-        </div>`
-    })
-  }
-
-  setInterval(renderQuadra, 60000)
+}
 </script>
-
 </body>
 </html>
