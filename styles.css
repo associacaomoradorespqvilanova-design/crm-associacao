@@ -162,6 +162,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     outline: none;
     color: black;
     text-transform: uppercase;
+    box-sizing: border-box;
 }
 .input-field-print[type="checkbox"] {
     width: 16px;
