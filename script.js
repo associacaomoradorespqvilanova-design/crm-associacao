@@ -14,10 +14,26 @@ let dadosCartoes = [
 let idCounterAgenda = 3;
 let idCounterCartoes = 5;
 
-// --- RELÓGIO ---
+// Variáveis de controle para itens dinâmicos
+let telefoneCount = 1;
+let cursoCount = 0;
+let expCount = 0;
+
+// --- RELÓGIO COM ANIMAÇÃO DE PAPEL VIRANDO ---
 function updateClock() {
     const now = new Date();
-    document.getElementById('current-time').innerText = now.toLocaleTimeString('pt-BR', { hour12: false });
+    const timeString = now.toLocaleTimeString('pt-BR', { hour12: false });
+    const clockEl = document.getElementById('current-time');
+    
+    // Só anima se o horário mudou
+    if (clockEl.innerText !== timeString) {
+        clockEl.innerText = timeString;
+        // Reseta a animação para tocar de novo
+        clockEl.style.animation = 'none';
+        setTimeout(() => {
+            clockEl.style.animation = 'paperFlip 0.4s ease-in-out';
+        }, 10);
+    }
 }
 setInterval(updateClock, 1000);
 updateClock();
@@ -121,21 +137,203 @@ function salvarCartoes() {
     document.getElementById('card-qtd').value = ''; document.getElementById('card-data').value = '';
 }
 
-// --- GERAR PDF DO CURRÍCULO ---
+// ==========================================
+// LÓGICAS DO MÓDULO CURRÍCULO
+// ==========================================
+
+// 1. Buscar CEP
+async function buscarCEP() {
+    let cep = document.getElementById('cv-cep').value.replace(/\D/g, '');
+    if (cep.length === 8) {
+        try {
+            const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+            const data = await response.json();
+            if (!data.erro) {
+                document.getElementById('cv-logradouro').value = data.logradouro;
+                document.getElementById('cv-bairro').value = data.bairro;
+                document.getElementById('cv-cidade').value = `${data.localidade} - ${data.uf}`;
+            } else {
+                alert("CEP não encontrado.");
+            }
+        } catch (error) {
+            console.error("Erro ao buscar CEP", error);
+        }
+    }
+}
+
+// 2. Adicionar Telefone (Máx 3)
+function adicionarTelefone() {
+    if (telefoneCount < 3) {
+        telefoneCount++;
+        document.getElementById(`cv-tel-container-${telefoneCount}`).style.display = 'block';
+        if (telefoneCount === 3) {
+            document.getElementById('btn-add-tel').style.display = 'none';
+        }
+    }
+}
+
+// 3. Adicionar Curso
+function adicionarCurso() {
+    const container = document.getElementById('cursos-container');
+    const id = `curso-${Date.now()}`;
+    const html = `
+        <div class="dynamic-item" id="${id}">
+            <button class="remove-btn" onclick="removerItem('${id}')">×</button>
+            <div class="grid-cv">
+                <div><label style="font-size:12px;">Curso</label><input type="text" class="input-curso" placeholder="Ex: Administração"></div>
+                <div><label style="font-size:12px;">Instituição</label><input type="text" class="input-inst" placeholder="Ex: UNESP"></div>
+            </div>
+            <div class="grid-cv full">
+                <label style="font-size:12px;">Período</label>
+                <input type="text" class="input-periodo" placeholder="Ex: 2018 - 2022">
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+    cursoCount++;
+}
+
+// 4. Adicionar Experiência (Máx 6)
+function adicionarExperiencia() {
+    if (expCount >= 6) {
+        alert("Limite de 6 experiências atingido.");
+        return;
+    }
+    const container = document.getElementById('exp-container');
+    const id = `exp-${Date.now()}`;
+    const html = `
+        <div class="dynamic-item" id="${id}">
+            <button class="remove-btn" onclick="removerItem('${id}')">×</button>
+            <div class="grid-cv">
+                <div><label style="font-size:12px;">Empresa</label><input type="text" class="input-empresa" placeholder="Ex: Tech Solutions"></div>
+                <div><label style="font-size:12px;">Função</label><input type="text" class="input-funcao" placeholder="Ex: Assistente Administrativo"></div>
+            </div>
+            <div class="grid-cv full">
+                <label style="font-size:12px;">Período</label>
+                <input type="text" class="input-periodo-exp" placeholder="Ex: Jan/2020 - Dez/2022">
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+    expCount++;
+}
+
+// 5. Remover Item Dinâmico
+function removerItem(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        if (id.startsWith('curso-')) cursoCount--;
+        if (id.startsWith('exp-')) expCount--;
+        el.remove();
+    }
+}
+
+// ==========================================
+// GERAR CURRÍCULO EM PDF (Design Gracioso)
+// ==========================================
 async function gerarCurriculo() {
     const nome = document.getElementById('cv-nome').value;
-    if(!nome) { alert("Por favor, preencha pelo menos o Nome Completo."); return; }
-    
-    document.getElementById('pdf-nome').innerText = nome;
-    document.getElementById('pdf-tel').innerText = document.getElementById('cv-tel').value || '(Não informado)';
-    document.getElementById('pdf-email').innerText = document.getElementById('cv-email').value || '(Não informado)';
-    document.getElementById('pdf-endereco').innerText = document.getElementById('cv-endereco').value || '(Não informado)';
-    document.getElementById('pdf-objetivo').innerText = document.getElementById('cv-objetivo').value || 'Não informado.';
-    document.getElementById('pdf-curso').innerText = document.getElementById('cv-curso').value || 'Não informado';
-    document.getElementById('pdf-instituicao').innerText = document.getElementById('cv-instituicao').value || 'Não informado';
-    document.getElementById('pdf-experiencia').innerText = document.getElementById('cv-experiencia').value || 'Não informado.';
-    document.getElementById('pdf-habilidades').innerText = document.getElementById('cv-habilidades').value || 'Não informado.';
+    if (!nome) { alert("Por favor, preencha pelo menos o Nome Completo."); return; }
 
+    // Coletar dados básicos
+    const nascimento = document.getElementById('cv-nascimento').value;
+    const tel1 = document.getElementById('cv-tel-1').value;
+    const tel2 = document.getElementById('cv-tel-2').value;
+    const tel3 = document.getElementById('cv-tel-3').value;
+    const email = document.getElementById('cv-email').value;
+    const logradouro = document.getElementById('cv-logradouro').value;
+    const numero = document.getElementById('cv-numero').value;
+    const bairro = document.getElementById('cv-bairro').value;
+    const cidade = document.getElementById('cv-cidade').value;
+    const objetivo = document.getElementById('cv-objetivo').value;
+    const habilidades = document.getElementById('cv-habilidades').value;
+
+    // Montar endereço
+    let endereco = `${logradouro}, ${numero}`;
+    if (bairro) endereco += ` - ${bairro}`;
+    if (cidade) endereco += ` - ${cidade}`;
+
+    // Montar lista de telefones (ignorar vazios)
+    let tels = [tel1, tel2, tel3].filter(t => t.trim() !== '');
+
+    // Coletar Cursos
+    const cursosNodes = document.querySelectorAll('#cursos-container .dynamic-item');
+    const cursos = [];
+    cursosNodes.forEach(node => {
+        const curso = node.querySelector('.input-curso').value || 'Curso não informado';
+        const inst = node.querySelector('.input-inst').value || 'Instituição não informada';
+        const periodo = node.querySelector('.input-periodo').value || 'Período não informado';
+        cursos.push({ curso, inst, periodo });
+    });
+
+    // Coletar Experiências
+    const expNodes = document.querySelectorAll('#exp-container .dynamic-item');
+    const experiencias = [];
+    expNodes.forEach(node => {
+        const empresa = node.querySelector('.input-empresa').value || 'Empresa não informada';
+        const funcao = node.querySelector('.input-funcao').value || 'Função não informada';
+        const periodo = node.querySelector('.input-periodo-exp').value || 'Período não informado';
+        experiencias.push({ empresa, funcao, periodo });
+    });
+
+    // Alimentar o layout oculto do PDF
+    document.getElementById('pdf-nome').innerText = nome;
+    document.getElementById('pdf-tel').innerText = tels.length > 0 ? tels.join(' / ') : '(Não informado)';
+    document.getElementById('pdf-email').innerText = email || '(Não informado)';
+    document.getElementById('pdf-endereco').innerText = endereco || '(Não informado)';
+    document.getElementById('pdf-objetivo').innerText = objetivo || 'Não informado.';
+
+    // Habilidades (Transformar texto em Lista)
+    const pdfSkills = document.getElementById('pdf-habilidades');
+    pdfSkills.innerHTML = '';
+    if (habilidades.trim() !== '') {
+        const skillList = habilidades.split(',').map(s => s.trim()).filter(s => s !== '');
+        skillList.forEach(skill => {
+            const li = document.createElement('li');
+            li.innerText = skill;
+            pdfSkills.appendChild(li);
+        });
+    } else {
+        pdfSkills.innerHTML = '<li>Não informado.</li>';
+    }
+
+    // Cursos no PDF
+    const pdfCursos = document.getElementById('pdf-cursos');
+    pdfCursos.innerHTML = '';
+    if (cursos.length === 0) {
+        pdfCursos.innerHTML = '<p style="font-size:12px; color:#888;">Nenhum curso informado.</p>';
+    } else {
+        cursos.forEach(c => {
+            const div = document.createElement('div');
+            div.className = 'pdf-entry';
+            div.innerHTML = `
+                <div class="pdf-entry-title">${c.curso}</div>
+                <div class="pdf-entry-sub">${c.inst}</div>
+                <div class="pdf-entry-period">${c.periodo}</div>
+            `;
+            pdfCursos.appendChild(div);
+        });
+    }
+
+    // Experiências no PDF
+    const pdfExp = document.getElementById('pdf-experiencias');
+    pdfExp.innerHTML = '';
+    if (experiencias.length === 0) {
+        pdfExp.innerHTML = '<p style="font-size:12px; color:#888;">Nenhuma experiência informada.</p>';
+    } else {
+        experiencias.forEach(e => {
+            const div = document.createElement('div');
+            div.className = 'pdf-entry';
+            div.innerHTML = `
+                <div class="pdf-entry-title">${e.empresa}</div>
+                <div class="pdf-entry-sub">${e.funcao}</div>
+                <div class="pdf-entry-period">${e.periodo}</div>
+            `;
+            pdfExp.appendChild(div);
+        });
+    }
+
+    // Gerar o PDF (usando html2canvas e jsPDF)
     const pdfContent = document.getElementById('cv-pdf-layout');
     pdfContent.style.display = 'block';
 
@@ -147,10 +345,14 @@ async function gerarCurriculo() {
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+
+        // Abrir em nova guia
         const pdfBlob = pdf.output('blob');
         window.open(URL.createObjectURL(pdfBlob), '_blank');
+
         pdfContent.style.display = 'none';
         fecharModal('modal-curriculo');
+
     } catch (error) {
         console.error("Erro ao gerar PDF:", error);
         alert("Ocorreu um erro ao gerar o currículo.");
@@ -158,6 +360,9 @@ async function gerarCurriculo() {
     }
 }
 
+// ==========================================
+// ABRIR E FECHAR MODAIS
+// ==========================================
 function abrirModal(id) { document.getElementById(id).classList.add('active'); }
 function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
 document.querySelectorAll('.modal-overlay').forEach(el => {
