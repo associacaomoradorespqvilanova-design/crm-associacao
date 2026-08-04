@@ -6,7 +6,6 @@
     <title>Associação PQ Vila Nova - CRM</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     
-    <!-- BIBLIOTECAS PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
@@ -18,7 +17,7 @@
     <div class="floating-shape shape2"></div>
     <div class="floating-shape shape3"></div>
 
-    <!-- TELA DE LOGIN -->
+    <!-- LOGIN -->
     <div id="login-screen">
         <div class="login-logo"></div>
         <h2>Bem-vindo</h2>
@@ -50,17 +49,19 @@
         </div>
 
         <div class="grid-container">
+            <!-- AGENDA -->
             <div class="panel">
                 <div class="panel-header">
                     <h3>AGENDA QUADRA</h3>
                     <button class="btn-sm" onclick="abrirModal('modal-agenda')">+ Adicionar Data</button>
                 </div>
                 <table>
-                    <thead><tr><th>DATA</th><th>HORÁRIO</th><th>NOME</th><th>END</th><th>TEL</th></tr></thead>
+                    <thead><tr><th>DATA</th><th>HORÁRIO</th><th>NOME</th><th>END</th><th>TEL</th><th>AÇÕES</th></tr></thead>
                     <tbody id="agenda-list"></tbody>
                 </table>
             </div>
 
+            <!-- BOTÕES CENTRAIS -->
             <div class="col-center">
                 <div class="logo-circle">Logotipo da Associação</div>
                 <div class="menu-buttons">
@@ -75,13 +76,14 @@
                 </div>
             </div>
 
+            <!-- CARTÕES -->
             <div class="panel">
                 <div class="panel-header">
                     <h3>CARTÕES</h3>
                     <button class="btn-sm" onclick="abrirModal('modal-cartoes')">+ Adicionar</button>
                 </div>
                 <table class="table-cards">
-                    <thead><tr><th>DATA</th><th>CEZAR</th><th>WALTER</th><th>TOTAL DIA</th></tr></thead>
+                    <thead><tr><th>DATA</th><th>CEZAR</th><th>WALTER</th><th>TOTAL DIA</th><th>AÇÕES</th></tr></thead>
                     <tbody id="cards-list"></tbody>
                 </table>
                 <div class="total-geral">
@@ -98,7 +100,6 @@
             <span class="close-btn" onclick="fecharModal('modal-curriculo')">×</span>
             <h3>📄 Preencher Currículo</h3>
             
-            <!-- SELEÇÃO DE MODELO E FOTO -->
             <div class="grid-cv" style="margin-bottom: 15px;">
                 <div>
                     <label>Modelo do Currículo</label>
@@ -106,6 +107,7 @@
                         <option value="padrao">Padrão</option>
                         <option value="moderno">Moderno</option>
                         <option value="chic">Chic</option>
+                        <option value="basico">Básico</option>
                     </select>
                 </div>
                 <div>
@@ -148,7 +150,6 @@
                 <input type="email" id="cv-email" placeholder="email@exemplo.com">
             </div>
 
-            <!-- ENDEREÇO -->
             <div class="grid-cv" style="grid-template-columns: 1fr 2fr;">
                 <div>
                     <label>CEP</label>
@@ -200,7 +201,6 @@
 
     <!-- LAYOUT ESCONDIDO DO PDF -->
     <div id="cv-pdf-layout" class="template-padrao">
-        <!-- O CSS e o JS vão manipular as classes e o conteúdo dentro das divs abaixo -->
         <div class="pdf-container">
             <div class="pdf-left">
                 <div class="pdf-photo-placeholder">
@@ -236,11 +236,11 @@
         </div>
     </div>
 
-    <!-- MODAIS AGENDA E CARTÕES -->
+    <!-- MODAL AGENDA -->
     <div id="modal-agenda" class="modal-overlay">
         <div class="modal-box">
             <span class="close-btn" onclick="fecharModal('modal-agenda')">×</span>
-            <h3>Novo Agendamento</h3>
+            <h3 id="agenda-modal-title">Novo Agendamento</h3>
             <label>Nome do Responsável</label>
             <input type="text" id="ag-nome" placeholder="Ex: João Silva">
             <label>Data</label>
@@ -258,10 +258,11 @@
         </div>
     </div>
 
+    <!-- MODAL CARTÕES -->
     <div id="modal-cartoes" class="modal-overlay">
         <div class="modal-box">
             <span class="close-btn" onclick="fecharModal('modal-cartoes')">×</span>
-            <h3>Adicionar Lote de Cartões</h3>
+            <h3 id="cartao-modal-title">Adicionar Lote de Cartões</h3>
             <label>Responsável</label>
             <select id="card-responsavel">
                 <option value="cezar">Cezar</option>
@@ -278,6 +279,7 @@
         </div>
     </div>
 
+    <!-- MODAL POPUP -->
     <div id="modal-popup-login" class="modal-overlay">
         <div class="modal-box">
             <span class="close-btn" onclick="fecharModal('modal-popup-login')">×</span>
