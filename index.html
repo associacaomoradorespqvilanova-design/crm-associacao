@@ -17,7 +17,6 @@
     <div class="floating-shape shape2"></div>
     <div class="floating-shape shape3"></div>
 
-    <!-- LOGIN -->
     <div id="login-screen">
         <div class="login-logo"></div>
         <h2>Bem-vindo</h2>
@@ -37,7 +36,6 @@
         </div>
     </div>
 
-    <!-- DASHBOARD -->
     <div id="dashboard-screen">
         <div class="header">
             <div style="display: flex; align-items: center; gap: 20px; justify-content: center; flex-wrap: wrap;">
@@ -49,7 +47,6 @@
         </div>
 
         <div class="grid-container">
-            <!-- AGENDA -->
             <div class="panel">
                 <div class="panel-header">
                     <h3>AGENDA QUADRA</h3>
@@ -61,7 +58,6 @@
                 </table>
             </div>
 
-            <!-- BOTÕES CENTRAIS -->
             <div class="col-center">
                 <div class="logo-circle">Logotipo da Associação</div>
                 <div class="menu-buttons">
@@ -76,7 +72,6 @@
                 </div>
             </div>
 
-            <!-- CARTÕES -->
             <div class="panel">
                 <div class="panel-header">
                     <h3>CARTÕES</h3>
@@ -94,7 +89,6 @@
         </div>
     </div>
 
-    <!-- MODAL CURRÍCULO -->
     <div id="modal-curriculo" class="modal-overlay">
         <div class="modal-box">
             <span class="close-btn" onclick="fecharModal('modal-curriculo')">×</span>
@@ -173,7 +167,7 @@
 
             <div class="grid-cv full" style="border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom:10px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <label style="margin:0;">Formação & Cursos</label>
+                    <label style="margin:0;">Formação & Cursos (Máx 3)</label>
                     <button class="btn-sm" onclick="adicionarCurso()" style="font-size: 10px; padding: 4px 12px;">+ Adicionar Curso</button>
                 </div>
                 <div id="cursos-container"></div>
@@ -181,7 +175,7 @@
 
             <div class="grid-cv full">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <label style="margin:0;">Experiência Profissional</label>
+                    <label style="margin:0;">Experiência Profissional (Máx 6)</label>
                     <button class="btn-sm" onclick="adicionarExperiencia()" style="font-size: 10px; padding: 4px 12px;">+ Adicionar Experiência</button>
                 </div>
                 <div id="exp-container"></div>
@@ -199,7 +193,6 @@
         </div>
     </div>
 
-    <!-- LAYOUT ESCONDIDO DO PDF -->
     <div id="cv-pdf-layout" class="template-padrao">
         <div class="pdf-container">
             <div class="pdf-left">
@@ -236,7 +229,6 @@
         </div>
     </div>
 
-    <!-- MODAL AGENDA -->
     <div id="modal-agenda" class="modal-overlay">
         <div class="modal-box">
             <span class="close-btn" onclick="fecharModal('modal-agenda')">×</span>
@@ -258,7 +250,6 @@
         </div>
     </div>
 
-    <!-- MODAL CARTÕES -->
     <div id="modal-cartoes" class="modal-overlay">
         <div class="modal-box">
             <span class="close-btn" onclick="fecharModal('modal-cartoes')">×</span>
@@ -279,7 +270,6 @@
         </div>
     </div>
 
-    <!-- MODAL POPUP -->
     <div id="modal-popup-login" class="modal-overlay">
         <div class="modal-box">
             <span class="close-btn" onclick="fecharModal('modal-popup-login')">×</span>
