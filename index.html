@@ -4,18 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Associação PQ Vila Nova - CRM</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     
-    <!-- IMPORTAR AS BIBLIOTECAS DO PDF -->
+    <!-- BIBLIOTECAS PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
-    <!-- IMPORTAR O CSS SEPARADO -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-    <!-- ANIMAÇÕES DE FUNDO -->
     <div class="floating-shape shape1"></div>
     <div class="floating-shape shape2"></div>
     <div class="floating-shape shape3"></div>
@@ -26,11 +24,11 @@
         <h2>Bem-vindo</h2>
         <p>Associação PQ Vila Nova</p>
         <div class="input-group">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
             <input type="text" id="username" placeholder="Digite seu usuário">
         </div>
         <div class="input-group">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
             <input type="password" id="password" placeholder="Digite sua senha" onkeydown="if(event.key==='Enter') login()">
         </div>
         <button class="btn-primary" onclick="login()">Acessar o Sistema</button>
@@ -45,7 +43,6 @@
         <div class="header">
             <div style="display: flex; align-items: center; gap: 20px; justify-content: center; flex-wrap: wrap;">
                 <h1>ASSOCIAÇÃO <span>PQ VILA NOVA</span></h1>
-                <!-- RELÓGIO GRANDE COM EFEITO DE PAPEL -->
                 <div id="clock-wrapper">
                     <div id="current-time">00:00:00</div>
                 </div>
@@ -101,6 +98,23 @@
             <span class="close-btn" onclick="fecharModal('modal-curriculo')">×</span>
             <h3>📄 Preencher Currículo</h3>
             
+            <!-- SELEÇÃO DE MODELO E FOTO -->
+            <div class="grid-cv" style="margin-bottom: 15px;">
+                <div>
+                    <label>Modelo do Currículo</label>
+                    <select id="cv-template">
+                        <option value="padrao">Padrão</option>
+                        <option value="moderno">Moderno</option>
+                        <option value="chic">Chic</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Foto 3x4</label>
+                    <input type="file" id="cv-photo-input" accept="image/*" onchange="handlePhotoUpload(event)">
+                    <img id="cv-photo-preview" src="" style="display:none; width: 75px; height: 100px; border-radius: 4px; margin-top: 5px; object-fit: cover; border: 1px solid #ccc;">
+                </div>
+            </div>
+
             <div class="grid-cv full">
                 <label>Nome Completo</label>
                 <input type="text" id="cv-nome" placeholder="Seu nome completo">
@@ -134,7 +148,7 @@
                 <input type="email" id="cv-email" placeholder="email@exemplo.com">
             </div>
 
-            <!-- ENDEREÇO COM CEP AUTOMÁTICO -->
+            <!-- ENDEREÇO -->
             <div class="grid-cv" style="grid-template-columns: 1fr 2fr;">
                 <div>
                     <label>CEP</label>
@@ -156,7 +170,6 @@
                 <textarea id="cv-objetivo" rows="2">Profissional proativo, dinâmico e engajado, em busca de uma oportunidade para aplicar minhas habilidades e contribuir para o crescimento da empresa.</textarea>
             </div>
 
-            <!-- FORMAÇÃO / CURSOS (Dinâmico) -->
             <div class="grid-cv full" style="border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom:10px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <label style="margin:0;">Formação & Cursos</label>
@@ -165,7 +178,6 @@
                 <div id="cursos-container"></div>
             </div>
 
-            <!-- EXPERIÊNCIAS PROFISSIONAIS (Dinâmico) -->
             <div class="grid-cv full">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <label style="margin:0;">Experiência Profissional</label>
@@ -176,7 +188,7 @@
 
             <div class="grid-cv full">
                 <label>Habilidades / Competências</label>
-                <textarea id="cv-habilidades" rows="3">Trabalho em equipe, Comunicação eficaz, Proatividade, Organização, Pacote Office intermediário, Atendimento ao cliente, Resolução de problemas.</textarea>
+                <textarea id="cv-habilidades" rows="3">Trabalho em equipe, Comunicação eficaz, Proatividade, Organização</textarea>
             </div>
 
             <div class="modal-actions" style="justify-content: center; margin-top: 20px;">
@@ -186,11 +198,14 @@
         </div>
     </div>
 
-    <!-- LAYOUT ESCONDIDO PARA GERAR O PDF DO CURRÍCULO (Design Gracioso) -->
-    <div id="cv-pdf-layout">
+    <!-- LAYOUT ESCONDIDO DO PDF -->
+    <div id="cv-pdf-layout" class="template-padrao">
+        <!-- O CSS e o JS vão manipular as classes e o conteúdo dentro das divs abaixo -->
         <div class="pdf-container">
             <div class="pdf-left">
-                <div class="pdf-photo-placeholder"></div>
+                <div class="pdf-photo-placeholder">
+                    <img id="pdf-photo" src="" style="display:none; width:100%; height:100%; object-fit:cover; border-radius:50%;">
+                </div>
                 <h1 id="pdf-nome">Nome Completo</h1>
                 <div class="pdf-contact">
                     <div><strong>📞 Contato</strong></div>
@@ -221,7 +236,7 @@
         </div>
     </div>
 
-    <!-- MODAIS DEMAIS (Agenda, Cartões, Popup) -->
+    <!-- MODAIS AGENDA E CARTÕES -->
     <div id="modal-agenda" class="modal-overlay">
         <div class="modal-box">
             <span class="close-btn" onclick="fecharModal('modal-agenda')">×</span>
@@ -274,7 +289,6 @@
         </div>
     </div>
 
-    <!-- IMPORTAR O JS SEPARADO -->
     <script src="script.js"></script>
 </body>
 </html>
