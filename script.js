@@ -453,7 +453,7 @@ async function gerarCurriculo() {
 // ==========================================
 // LÓGICA DO COMPROVANTE DE RESIDÊNCIA (CÓDIGO EXATO DO POPUP)
 // ==========================================
-const URL_API_GS = "COLE_AQUI_A_SUA_URL_DO_APPS_SCRIPT"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbyUHEaQtjHXFdujIJBjNB3OuqeXpvHaS-_pJsXAjVgncJPwDTxfvAbJqE5pey3t45zxHQ/exec"; 
 
 // Máscaras exatas
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
