@@ -139,51 +139,61 @@
         </div>
     </div>
 
-    <!-- MODAL COMPROVANTE (COM MEDIDAS EXATAS DO GS ORIGINAL) -->
-    <div id="modal-comprovante-print" class="modal-overlay">
-        <div class="modal-box" style="max-width: 850px; width: 850px; padding: 0; background: transparent; box-shadow: none; border: none; overflow: visible;">
-            <span class="close-btn" onclick="fecharModal('modal-comprovante-print')" style="position: absolute; top: -15px; right: -15px; background: #4a7c2e; color: #fff; border-radius: 50%; width: 30px; height: 30px; padding: 0; display: flex; align-items: center; justify-content: center; z-index: 20;">×</span>
+    <!-- MODAL COMPROVANTE COM AS DIMENSÕES EXATAS DO GS ORIGINAL (794px x 1123px) -->
+    <div id="modal-comprovante-print" class="modal-overlay" style="display: none; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.5); z-index: 1000;">
+        <!-- Container fixo de 794px x 1123px -->
+        <div style="position: relative; width: 794px; height: 1123px; background-image: url('https://i.imgur.com/lFhk0Hq.png'); background-size: 100% 100%; background-color: white; background-position: center; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.4); flex-shrink: 0; overflow: hidden;">
             
-            <!-- Container com tamanho exato da imagem original -->
-            <div style="position: relative; width: 794px; height: 1123px; background-color: white; margin: 0 auto; overflow: hidden; border-radius: 8px; background-image: url('https://i.imgur.com/lFhk0Hq.png'); background-size: 100% 100%; background-position: center;">
-                
-                <!-- CAMPOS COM AS MEDIDAS EXATAS DO SEU POPUP ORIGINAL -->
-                <input id="print-numero" class="input-field-print" style="position:absolute; top:386px; left:230px; width:80px; z-index:1;" readonly>
-                <input id="print-data" class="input-field-print" style="position:absolute; top:386px; left:390px; width:130px; z-index:1;">
-                <input id="print-ano" class="input-field-print" style="position:absolute; top:386px; left:580px; width:80px; z-index:1;">
+            <!-- Botão Fechar -->
+            <span class="close-btn" onclick="fecharModal('modal-comprovante-print')" style="position: absolute; top: -15px; right: -15px; background: #4a7c2e; color: #fff; border-radius: 50%; width: 30px; height: 30px; padding: 0; display: flex; align-items: center; justify-content: center; z-index: 10; border: 2px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.2); cursor: pointer;">×</span>
+            
+            <!-- =============== CAMPOS COM COORDENADAS EXATAS =============== -->
+            
+            <!-- DECLARAÇÃO Nº, DATA, ANO -->
+            <input id="print-numero" class="input-field-print" style="position:absolute; top:386px; left:230px; width:80px; z-index:1;" readonly>
+            <input id="print-data" class="input-field-print" style="position:absolute; top:386px; left:390px; width:130px; z-index:1;">
+            <input id="print-ano" class="input-field-print" style="position:absolute; top:386px; left:580px; width:80px; z-index:1;">
 
-                <input id="print-nome" class="input-field-print" style="position:absolute; top:437px; left:167px; width:500px; font-size:18px; z-index:1;">
-                <input id="print-endereco" class="input-field-print" style="position:absolute; top:508px; left:216px; width:350px; z-index:1;">
-                <input id="print-numero_endereco" class="input-field-print" style="position:absolute; top:508px; left:629px; width:90px; z-index:1;">
-                <input id="print-complemento" class="input-field-print" style="position:absolute; top:568px; left:240px; width:210px; z-index:1;">
+            <!-- NOME -->
+            <input id="print-nome" class="input-field-print" style="position:absolute; top:437px; left:167px; width:500px; font-size:18px; z-index:1;">
+            
+            <!-- ENDEREÇO e Nº -->
+            <input id="print-endereco" class="input-field-print" style="position:absolute; top:508px; left:216px; width:350px; z-index:1;">
+            <input id="print-numero_endereco" class="input-field-print" style="position:absolute; top:508px; left:629px; width:90px; z-index:1;">
+            
+            <!-- COMPLEMENTO e CEP -->
+            <input id="print-complemento" class="input-field-print" style="position:absolute; top:568px; left:240px; width:210px; z-index:1;">
+            <input id="print-cep" class="input-field-print" maxlength="9" style="position:absolute; top:568px; left:530px; width:150px; z-index:1;" oninput="formatarCEPPrint(this)">
+            <button type="button" class="btn-sm no-print" style="position:absolute; top:565px; left:690px; padding:2px 8px; font-size:11px; z-index:2; border-radius: 4px; background: #7baa48; color: white; border: 1px solid #4a7c2e; cursor: pointer;" onclick="buscarCEPPrint()">Buscar</button>
 
-                <input id="print-cep" class="input-field-print" maxlength="9" style="position:absolute; top:568px; left:530px; width:150px; z-index:1;" oninput="formatarCEPPrint(this)">
-                <button type="button" class="btn-sm no-print" style="position:absolute; top:565px; left:690px; padding:2px 8px; font-size:11px; z-index:2; border-radius: 6px; background: #7baa48; color: white; border: none; cursor: pointer;" onclick="buscarCEPPrint()">Buscar</button>
+            <!-- BAIRRO e UF -->
+            <input id="print-bairro" class="input-field-print" style="position:absolute; top:633px; left:165px; width:350px; z-index:1;">
+            <input id="print-uf" class="input-field-print" style="position:absolute; top:633px; left:630px; width:80px; z-index:1;">
+            
+            <!-- NACIONALIDADE e ESTADO CIVIL -->
+            <input id="print-nacionalidade" class="input-field-print" style="position:absolute; top:695px; left:247px; width:150px; z-index:1;">
+            <input id="print-estado_civil" class="input-field-print" style="position:absolute; top:695px; left:555px; width:150px; z-index:1;">
 
-                <input id="print-bairro" class="input-field-print" style="position:absolute; top:633px; left:165px; width:350px; z-index:1;">
-                <input id="print-uf" class="input-field-print" style="position:absolute; top:633px; left:630px; width:80px; z-index:1;">
-                <input id="print-nacionalidade" class="input-field-print" style="position:absolute; top:695px; left:247px; width:150px; z-index:1;">
-                <input id="print-estado_civil" class="input-field-print" style="position:absolute; top:695px; left:555px; width:150px; z-index:1;">
+            <!-- CPF e RG e EMISSOR -->
+            <input id="print-cpf" class="input-field-print" maxlength="14" style="position:absolute; top:758px; left:135px; width:188px; z-index:1;" oninput="formatarCPFPrint(this)">
+            <button class="btn-sm no-print" style="position:absolute; top:755px; left:330px; padding:2px 8px; font-size:11px; z-index:2; border-radius: 4px; background: #7baa48; color: white; border: 1px solid #4a7c2e; cursor: pointer;" onclick="buscarCPFPrint()">Buscar</button>
+            <input id="print-rg" class="input-field-print" maxlength="12" style="position:absolute; top:758px; left:395px; width:100px; z-index:1;" oninput="formatarRGPrint(this)">
+            <select id="print-emissor" class="input-field-print" style="position:absolute; top:758px; left:625px; width:120px; z-index:1;">
+                <option value="">SELECIONE</option>
+                <option value="DETRAN/RJ" selected>DETRAN/RJ</option>
+            </select>
 
-                <input id="print-cpf" class="input-field-print" maxlength="14" style="position:absolute; top:758px; left:135px; width:188px; z-index:1;" oninput="formatarCPFPrint(this)">
-                <button class="btn-sm no-print" style="position:absolute; top:755px; left:330px; padding:2px 8px; font-size:11px; z-index:2; border-radius: 6px; background: #7baa48; color: white; border: none; cursor: pointer;" onclick="buscarCPFPrint()">Buscar</button>
+            <!-- CHECKBOXES (Casa Própria, Alugada, Emprestada) -->
+            <input type="checkbox" id="print-propria" class="input-field-print" style="position:absolute; top:844px; left:249px; z-index:1; width:16px; height:16px;">
+            <input type="checkbox" id="print-alugada" class="input-field-print" style="position:absolute; top:844px; left:425px; z-index:1; width:16px; height:16px;">
+            <input type="checkbox" id="print-emprestada" class="input-field-print" style="position:absolute; top:844px; left:652px; z-index:1; width:16px; height:16px;">
 
-                <input id="print-rg" class="input-field-print" maxlength="12" style="position:absolute; top:758px; left:395px; width:100px; z-index:1;" oninput="formatarRGPrint(this)">
-
-                <select id="print-emissor" class="input-field-print" style="position:absolute; top:758px; left:625px; width:120px; z-index:1;">
-                    <option value="">SELECIONE</option>
-                    <option value="DETRAN/RJ" selected>DETRAN/RJ</option>
-                </select>
-
-                <input type="checkbox" id="print-propria" class="input-field-print" style="position:absolute; top:844px; left:249px; z-index:1; width:16px; height:16px;">
-                <input type="checkbox" id="print-alugada" class="input-field-print" style="position:absolute; top:844px; left:425px; z-index:1; width:16px; height:16px;">
-                <input type="checkbox" id="print-emprestada" class="input-field-print" style="position:absolute; top:844px; left:652px; z-index:1; width:16px; height:16px;">
-
-                <div class="buttons-container no-print" style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%); display:flex; gap:10px; z-index:10;">
-                    <button class="btn-cancel" onclick="fecharModal('modal-comprovante-print')" style="padding: 10px 20px; border-radius:6px; border:none; background:#ccc; cursor:pointer;">Cancelar</button>
-                    <button class="btn-primary" onclick="salvarComprovantePrint()" style="padding: 10px 20px; border-radius:6px; border:none; color:white; cursor:pointer; background:#4CAF50;">💾 Salvar</button>
-                </div>
+            <!-- BOTÕES DE AÇÃO (SOMENTE NO CRM, NÃO APARECEM NA IMPRESSÃO) -->
+            <div class="buttons-container no-print" style="position:absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 10;">
+                <button class="btn-cancel" onclick="fecharModal('modal-comprovante-print')" style="padding: 10px 20px; border-radius: 6px; border: none; background: #ccc; color: #333; cursor: pointer;">Cancelar</button>
+                <button class="btn-primary" onclick="salvarComprovantePrint()" style="padding: 10px 20px; border-radius: 6px; border: none; color: white; cursor: pointer; background: #4CAF50;">💾 Salvar</button>
             </div>
+
         </div>
     </div>
 
