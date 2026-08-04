@@ -451,161 +451,123 @@ async function gerarCurriculo() {
 }
 
 // ==========================================
-// LÓGICA DO MÓDULO COMPROVANTE DE RESIDÊNCIA
+// LÓGICA DO COMPROVANTE DE RESIDÊNCIA (LAYOUT EXATO)
 // ==========================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbz2qeLkmUqOGVyyE3QtkzJiei5-cPBUW6HFZWHg1eD_uSSd9v76kktW9YFL1oR1lt1KCg/exec"; // Ex: https://script.google.com/macros/s/.../exec
+// IMPORTANTE: COLE A URL DO SEU WEB APP GOOGLE AQUI
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbyUHEaQtjHXFdujIJBjNB3OuqeXpvHaS-_pJsXAjVgncJPwDTxfvAbJqE5pey3t45zxHQ/exec"; 
 
-// Máscaras de CPF, RG e CEP
-function formatCPF(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); }
-function formatRG(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{1,2})(\d{3})(\d{3})(\d{1})$/,'$1.$2.$3-$4'); }
-function formatCEP(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
+// Máscaras de formatação
+function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
+function formatarCPFPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); }
+function formatarRGPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{1,2})(\d{3})(\d{3})(\d{1})$/,'$1.$2.$3-$4'); }
 
 // Abrir o modal e buscar o próximo número automaticamente
-async function abrirComprovante() {
-    document.getElementById('lista-sugestoes').style.display = 'none';
-    abrirModal('modal-comprovante');
+async function abrirComprovantePrint() {
+    abrirModal('modal-comprovante-print');
     
-    document.getElementById('cr-nome').value = '';
-    document.getElementById('cr-endereco').value = '';
-    document.getElementById('cr-numero_endereco').value = '';
-    document.getElementById('cr-complemento').value = '';
-    document.getElementById('cr-cep').value = '';
-    document.getElementById('cr-bairro').value = '';
-    document.getElementById('cr-uf').value = '';
-    document.getElementById('cr-nacionalidade').value = '';
-    document.getElementById('cr-estado_civil').value = '';
-    document.getElementById('cr-cpf').value = '';
-    document.getElementById('cr-rg').value = '';
-    document.getElementById('cr-emissor').value = 'DETRAN/RJ';
-    document.getElementById('cr-propria').checked = false;
-    document.getElementById('cr-alugada').checked = false;
-    document.getElementById('cr-emprestada').checked = false;
+    // Resetar campos padrão
+    document.getElementById('print-nome').value = '';
+    document.getElementById('print-endereco').value = '';
+    document.getElementById('print-numero_endereco').value = '';
+    document.getElementById('print-complemento').value = '';
+    document.getElementById('print-cep').value = '';
+    document.getElementById('print-bairro').value = '';
+    document.getElementById('print-uf').value = '';
+    document.getElementById('print-nacionalidade').value = '';
+    document.getElementById('print-estado_civil').value = '';
+    document.getElementById('print-cpf').value = '';
+    document.getElementById('print-rg').value = '';
+    document.getElementById('print-emissor').value = 'DETRAN/RJ';
+    document.getElementById('print-propria').checked = false;
+    document.getElementById('print-alugada').checked = false;
+    document.getElementById('print-emprestada').checked = false;
     
+    // Pegar a data atual
+    const m = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+    const h = new Date();
+    document.getElementById("print-data").value = `${String(h.getDate()).padStart(2,'0')} DE ${m[h.getMonth()]}`;
+    document.getElementById("print-ano").value = h.getFullYear();
+    
+    // Pega o próximo número da planilha
     try {
         const resp = await fetch(`${URL_API_GS}?action=getNumero`);
         const dados = await resp.json();
-        document.getElementById('cr-numero').value = dados.numero || '0000001';
+        document.getElementById('print-numero').value = dados.numero || '0000001';
     } catch (e) {
-        console.warn("Erro ao buscar número", e);
-        document.getElementById('cr-numero').value = '0000001';
+        document.getElementById('print-numero').value = '0000001';
     }
 }
 
-// 1. SUGESTOR DE RUA VIA PLANILHA
-let debounceTimeout;
-async function buscarSugestoesEndereco() {
-    const input = document.getElementById('cr-busca-rua');
-    const container = document.getElementById('lista-sugestoes');
-    const query = input.value.trim();
-    if (query.length < 3) { container.style.display = 'none'; return; }
-    clearTimeout(debounceTimeout);
-    debounceTimeout = setTimeout(async () => {
-        try {
-            const resp = await fetch(`${URL_API_GS}?action=buscarEnderecos&q=${encodeURIComponent(query)}`);
-            const resultados = await resp.json();
-            container.innerHTML = '';
-            if (resultados.length === 0) { container.style.display = 'none'; return; }
-            resultados.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'sugestao-item';
-                div.style.cssText = 'padding: 8px 12px; border-bottom:1px solid #eee; cursor:pointer; font-size:13px; text-transform:uppercase;';
-                div.innerHTML = `<strong>${item.endereco}</strong> <br><span style="font-size:11px; color:#666;">${item.bairro} - ${item.uf} (${item.cep || 'N/I'})</span>`;
-                div.onclick = () => {
-                    document.getElementById('cr-endereco').value = item.endereco;
-                    document.getElementById('cr-bairro').value = item.bairro;
-                    document.getElementById('cr-uf').value = item.uf;
-                    document.getElementById('cr-cep').value = item.cep || '';
-                    container.style.display = 'none';
-                    input.value = '';
-                };
-                container.appendChild(div);
-            });
-            container.style.display = 'block';
-        } catch (e) {
-            console.error(e);
-            container.style.display = 'none';
-        }
-    }, 400);
-}
-
-// 2. BUSCAR CEP VIA VIACEP (Pelo GS)
-async function buscarCEPComprovante() {
-    const cep = document.getElementById('cr-cep').value.replace(/\D/g,'');
+// Buscar CEP pelo botão (Via API do GS)
+async function buscarCEPPrint() {
+    const cep = document.getElementById('print-cep').value.replace(/\D/g,'');
     if (cep.length !== 8) { alert("CEP inválido"); return; }
     try {
         const resp = await fetch(`${URL_API_GS}?action=buscarCEP&cep=${cep}`);
         const dados = await resp.json();
         if (dados.erro) { alert("CEP não encontrado"); return; }
-        document.getElementById('cr-endereco').value = dados.logradouro.toUpperCase();
-        document.getElementById('cr-bairro').value = `${dados.bairro} / ${dados.localidade}`.toUpperCase();
-        document.getElementById('cr-uf').value = dados.uf.toUpperCase();
-    } catch (e) {
-        alert("Erro ao buscar CEP: " + e.message);
-    }
+        document.getElementById('print-endereco').value = dados.logradouro.toUpperCase();
+        document.getElementById('print-bairro').value = dados.bairro.toUpperCase();
+        document.getElementById('print-uf').value = dados.uf.toUpperCase();
+    } catch (e) { alert("Erro na busca do CEP"); }
 }
 
-// 3. BUSCAR CPF NA PLANILHA
-async function buscarCPFComprovante() {
-    const cpf = document.getElementById('cr-cpf').value.replace(/\D/g,'');
+// Buscar CPF na Planilha
+async function buscarCPFPrint() {
+    const cpf = document.getElementById('print-cpf').value.replace(/\D/g,'');
     if (cpf.length !== 11) { alert("CPF inválido"); return; }
     try {
         const resp = await fetch(`${URL_API_GS}?action=buscarCPF&cpf=${cpf}`);
         const r = await resp.json();
         if (!r.encontrado) { alert("CPF NÃO LOCALIZADO"); return; }
         const d = r.dados;
-        document.getElementById('cr-nome').value = d.nome || '';
-        document.getElementById('cr-endereco').value = d.endereco || '';
-        document.getElementById('cr-numero_endereco').value = d.numero_endereco || '';
-        document.getElementById('cr-complemento').value = d.complemento || '';
-        document.getElementById('cr-cep').value = d.cep || '';
-        document.getElementById('cr-bairro').value = d.bairro || '';
-        document.getElementById('cr-uf').value = d.uf || '';
-        document.getElementById('cr-nacionalidade').value = d.nacionalidade || '';
-        document.getElementById('cr-estado_civil').value = d.estado_civil || '';
-        document.getElementById('cr-rg').value = d.rg || '';
-        document.getElementById('cr-emissor').value = d.emissor || '';
-        document.getElementById('cr-propria').checked = d.propria || false;
-        document.getElementById('cr-alugada').checked = d.alugada || false;
-        document.getElementById('cr-emprestada').checked = d.emprestada || false;
-    } catch (e) {
-        alert("Erro ao buscar CPF: " + e.message);
-    }
+        document.getElementById('print-nome').value = d.nome || '';
+        document.getElementById('print-endereco').value = d.endereco || '';
+        document.getElementById('print-numero_endereco').value = d.numero_endereco || '';
+        document.getElementById('print-complemento').value = d.complemento || '';
+        document.getElementById('print-cep').value = d.cep || '';
+        document.getElementById('print-bairro').value = d.bairro || '';
+        document.getElementById('print-uf').value = d.uf || '';
+        document.getElementById('print-nacionalidade').value = d.nacionalidade || '';
+        document.getElementById('print-estado_civil').value = d.estado_civil || '';
+        document.getElementById('print-rg').value = d.rg || '';
+        document.getElementById('print-emissor').value = d.emissor || '';
+        document.getElementById('print-propria').checked = d.propria || false;
+        document.getElementById('print-alugada').checked = d.alugada || false;
+        document.getElementById('print-emprestada').checked = d.emprestada || false;
+    } catch (e) { alert("Erro ao buscar CPF"); }
 }
 
-// 4. SALVAR E IMPRIMIR COM O GS
-async function salvarComprovante() {
+// Salvar e finalizar
+async function salvarComprovantePrint() {
     const dados = [
-        document.getElementById('cr-numero').value,
-        new Date().toLocaleDateString('pt-BR'),
-        new Date().getFullYear(),
-        document.getElementById('cr-nome').value.toUpperCase(),
-        document.getElementById('cr-endereco').value.toUpperCase(),
-        document.getElementById('cr-numero_endereco').value.toUpperCase(),
-        document.getElementById('cr-complemento').value.toUpperCase(),
-        document.getElementById('cr-cep').value,
-        document.getElementById('cr-bairro').value.toUpperCase(),
-        document.getElementById('cr-uf').value.toUpperCase(),
-        document.getElementById('cr-nacionalidade').value.toUpperCase(),
-        document.getElementById('cr-estado_civil').value.toUpperCase(),
-        document.getElementById('cr-cpf').value,
-        document.getElementById('cr-rg').value,
-        document.getElementById('cr-emissor').value.toUpperCase(),
-        document.getElementById('cr-propria').checked ? "Casa Própria" : "",
-        document.getElementById('cr-alugada').checked ? "Alugada" : "",
-        document.getElementById('cr-emprestada').checked ? "Emprestada" : ""
+        document.getElementById('print-numero').value,
+        document.getElementById('print-data').value,
+        document.getElementById('print-ano').value,
+        document.getElementById('print-nome').value.toUpperCase(),
+        document.getElementById('print-endereco').value.toUpperCase(),
+        document.getElementById('print-numero_endereco').value.toUpperCase(),
+        document.getElementById('print-complemento').value.toUpperCase(),
+        document.getElementById('print-cep').value,
+        document.getElementById('print-bairro').value.toUpperCase(),
+        document.getElementById('print-uf').value.toUpperCase(),
+        document.getElementById('print-nacionalidade').value.toUpperCase(),
+        document.getElementById('print-estado_civil').value.toUpperCase(),
+        document.getElementById('print-cpf').value,
+        document.getElementById('print-rg').value,
+        document.getElementById('print-emissor').value.toUpperCase(),
+        document.getElementById('print-propria').checked ? "Casa Própria" : "",
+        document.getElementById('print-alugada').checked ? "Alugada" : "",
+        document.getElementById('print-emprestada').checked ? "Emprestada" : ""
     ];
 
-    const btnSalvar = document.querySelector('#modal-comprovante .btn-primary');
-    btnSalvar.innerText = 'Salvando...';
-    btnSalvar.disabled = true;
+    const btnSalvar = document.querySelector('#modal-comprovante-print .btn-primary');
+    btnSalvar.innerText = 'Salvando...'; btnSalvar.disabled = true;
 
     try {
-        await fetch(URL_API_GS, {
-            method: 'POST',
-            body: JSON.stringify(dados)
-        });
+        await fetch(URL_API_GS, { method: 'POST', body: JSON.stringify(dados) });
         alert("Dados salvos com sucesso!");
-        fecharModal('modal-comprovante');
+        fecharModal('modal-comprovante-print');
     } catch (e) {
         alert("Erro ao salvar: " + e.message);
     } finally {
@@ -613,15 +575,6 @@ async function salvarComprovante() {
         btnSalvar.disabled = false;
     }
 }
-
-// Fechar sugestões ao clicar fora
-document.addEventListener('click', function(e) {
-    const container = document.getElementById('lista-sugestoes');
-    const input = document.getElementById('cr-busca-rua');
-    if (container && input && !container.contains(e.target) && e.target !== input) {
-        container.style.display = 'none';
-    }
-});
 
 // ==========================================
 // ABRIR E FECHAR MODAIS (SEM CLIQUE EXTERNO)
