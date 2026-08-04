@@ -1,46 +1,110 @@
-/* ===== RELÓGIO DO HEADER ===== */
-#current-time {
-    font-size: 16px;
-    font-weight: 700;
-    color: #4a7c2e;
-    background: rgba(255, 255, 255, 0.5);
-    padding: 8px 16px;
-    border-radius: 30px;
-    backdrop-filter: blur(4px);
-    border: 1px solid rgba(255, 255, 255, 0.8);
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-}
+/* ===== RESET E FONTES ===== */
+* { box-sizing: border-box; font-family: 'Montserrat', sans-serif; }
+body { margin: 0; padding: 0; min-height: 100vh; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); display: flex; justify-content: center; align-items: center; position: relative; overflow-x: hidden; }
 
-/* ===== MODAL DO CURRÍCULO (Mais alto devido à quantidade de campos) ===== */
-#modal-curriculo .modal-box {
-    max-width: 650px;
-    max-height: 90vh;
-    overflow-y: auto;
-}
+/* ===== ANIMAÇÃO DE FUNDO ===== */
+.floating-shape { position: fixed; z-index: -1; border-radius: 50%; opacity: 0.15; pointer-events: none; animation: floatUp 20s infinite alternate ease-in-out; }
+.shape1 { width: 300px; height: 300px; background: #7baa48; top: 10%; left: -10%; }
+.shape2 { width: 400px; height: 400px; background: #F5B041; bottom: -10%; right: -10%; animation-delay: -5s; opacity: 0.1; }
+.shape3 { width: 150px; height: 150px; background: #4a7c2e; top: 60%; left: 80%; animation-duration: 25s; }
+@keyframes floatUp { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 33% { transform: translate(30px, -50px) scale(1.1) rotate(120deg); } 66% { transform: translate(-20px, 20px) scale(0.9) rotate(240deg); } 100% { transform: translate(10px, -30px) scale(1.05) rotate(360deg); } }
+
+/* ===== TELA DE LOGIN ===== */
+#login-screen { background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(12px); padding: 45px 40px; border-radius: 24px; max-width: 420px; width: 100%; box-shadow: 0 15px 40px rgba(0,0,0,0.05); border: 1px solid rgba(255, 255, 255, 0.5); text-align: center; position: relative; z-index: 10; }
+.login-logo { width: 100px; height: 100px; border-radius: 50%; border: 3px solid rgba(123, 170, 72, 0.8); background: #fdfdfd; margin: 0 auto 20px auto; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #4a7c2e; font-weight: 600; text-align: center; padding: 10px; background-image: url('https://via.placeholder.com/100x100?text=Logo'); background-size: cover; }
+#login-screen h2 { color: #2c3e50; font-weight: 700; margin: 0 0 5px 0; font-size: 22px; }
+#login-screen p { color: #7f8c8d; font-size: 14px; margin: 0 0 30px 0; }
+.input-group { margin-bottom: 20px; position: relative; text-align: left; }
+.input-group .icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #a0a0a0; width: 20px; height: 20px; }
+.input-group input { width: 100%; padding: 14px 14px 14px 48px; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 12px; font-size: 14px; font-weight: 500; outline: none; background: rgba(255, 255, 255, 0.7); transition: all 0.3s; color: #333; }
+.input-group input:focus { background: #ffffff; border-color: #7baa48; box-shadow: 0 0 0 4px rgba(123, 170, 72, 0.15); }
+.btn-primary { width: 100%; background: #7baa48; color: #fff; padding: 15px; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.3s; text-transform: uppercase; letter-spacing: 1px; position: relative; overflow: hidden; box-shadow: 0 4px 15px rgba(123, 170, 72, 0.3); }
+.btn-primary:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 8px 25px rgba(123, 170, 72, 0.4); }
+#login-error { color: #e74c3c; font-size: 13px; font-weight: 600; margin-top: 15px; display: none; background: #fde8e8; padding: 10px; border-radius: 8px; }
+.login-footer { margin-top: 25px; font-size: 12px; color: #95a5a6; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 20px; }
+.login-footer a { color: #7baa48; text-decoration: none; font-weight: 600; }
+
+/* ===== DASHBOARD ===== */
+#dashboard-screen { display: none; max-width: 1400px; margin: 0 auto; padding: 30px; }
+.header { display: flex; justify-content: center; align-items: center; margin-bottom: 40px; gap: 15px; }
+.header h1 { font-size: 34px; font-weight: 800; color: #2c3e50; letter-spacing: 1px; margin: 0; position: relative; }
+.header h1 span { color: #4a7c2e; }
+.header::after { content: ''; flex: 1; height: 2px; background: linear-gradient(to right, transparent, #7baa48, transparent); }
+
+/* ===== RELÓGIO ===== */
+#current-time { font-size: 16px; font-weight: 700; color: #4a7c2e; background: rgba(255, 255, 255, 0.5); padding: 8px 16px; border-radius: 30px; backdrop-filter: blur(4px); border: 1px solid rgba(255, 255, 255, 0.8); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+
+/* ===== GRID ===== */
+.grid-container { display: grid; grid-template-columns: 1.1fr 1.8fr 1.1fr; gap: 25px; align-items: start; }
+.panel { background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(8px); border-radius: 16px; padding: 20px; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06); border: 1px solid rgba(255, 255, 255, 0.8); transition: transform 0.3s, box-shadow 0.3s; }
+.panel:hover { transform: translateY(-5px); box-shadow: 0 15px 40px 0 rgba(31, 38, 135, 0.15); }
+.panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.panel-header h3 { margin: 0; font-size: 14px; color: #fff; background: #7baa48; padding: 8px 16px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 5px rgba(123, 170, 72, 0.3); }
+.btn-sm { background: rgba(255, 255, 255, 0.5); border: 1px solid #7baa48; color: #4a7c2e; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.3s; }
+.btn-sm:hover { background: #4a7c2e; color: #fff; transform: scale(1.05); }
+
+/* ===== TABELAS ===== */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+table thead { background: rgba(26, 26, 26, 0.9); color: #fff; }
+table th, table td { padding: 10px 8px; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.05); }
+table th { font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
+.highlight-row { background-color: #eafde8; border-left: 4px solid #7baa48; font-weight: 700; }
+
+/* ===== BOTÕES CENTRAIS ===== */
+.col-center { display: flex; flex-direction: column; align-items: center; padding-top: 10px; }
+.logo-circle { width: 180px; height: 180px; border-radius: 50%; border: 4px solid #4a7c2e; background: #fff; margin-bottom: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #4a7c2e; font-weight: 600; text-align: center; background-image: url('https://via.placeholder.com/180x180?text=Logo+Associação'); background-size: cover; padding: 10px; box-shadow: 0 0 0 8px rgba(123, 170, 72, 0.1); }
+.menu-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; max-width: 450px; width: 100%; }
+.btn-action { background: #7baa48; color: #fff; border: none; border-radius: 12px; padding: 15px 0; font-size: 12px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; position: relative; overflow: hidden; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+.btn-action:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 8px 15px rgba(123, 170, 72, 0.4); }
+.btn-action::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent); transition: 0.6s; }
+.btn-action:hover::before { left: 100%; }
+.btn-action:nth-child(1) { grid-column: 1; } .btn-action:nth-child(2) { grid-column: 3; }
+.btn-action:nth-child(3) { grid-column: 1; } .btn-action:nth-child(4) { grid-column: 2; }
+.btn-action:nth-child(5) { grid-column: 3; } .btn-action:nth-child(6) { grid-column: 1; }
+.btn-action:nth-child(7) { grid-column: 2; } .btn-action:nth-child(8) { grid-column: 3; }
+.table-cards th { background: rgba(74, 124, 46, 0.9); color: #fff; }
+.total-geral { margin-top: 15px; border-top: 2px solid #7baa48; padding-top: 10px; display: flex; justify-content: space-between; font-weight: 700; font-size: 14px; }
+
+/* ===== MODAIS ===== */
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); backdrop-filter: blur(6px); z-index: 1000; justify-content: center; align-items: center; }
+.modal-overlay.active { display: flex; }
+.modal-box { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); padding: 30px; border-radius: 20px; width: 100%; max-width: 450px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); position: relative; border: 1px solid rgba(255, 255, 255, 0.8); animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+@keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.modal-box h3 { margin: 0 0 15px 0; color: #4a7c2e; font-weight: 700; text-align: center; }
+.modal-box label { display: block; margin: 10px 0 5px; font-weight: 600; font-size: 14px; color: #444; }
+.modal-box input, .modal-box select { width: 100%; padding: 10px; background: rgba(255, 255, 255, 0.5); border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 8px; margin-bottom: 10px; outline: none; }
+.modal-box input:focus, .modal-box select:focus { background: #fff; border-color: #7baa48; box-shadow: 0 0 0 3px rgba(123, 170, 72, 0.1); }
+.modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+.modal-actions .btn-primary { width: auto; padding: 10px 20px; font-size: 14px; border-radius: 10px; }
+.btn-cancel { background: rgba(200, 200, 200, 0.5); color: #333; padding: 10px 20px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+.btn-cancel:hover { background: rgba(200, 200, 200, 0.9); }
+.close-btn { position: absolute; right: 15px; top: 15px; cursor: pointer; font-size: 20px; color: #888; transition: 0.3s; }
+.close-btn:hover { color: #333; transform: rotate(90deg); }
+
+/* ===== MODAL CURRÍCULO ===== */
+#modal-curriculo .modal-box { max-width: 650px; max-height: 90vh; overflow-y: auto; }
 #modal-curriculo .modal-box::-webkit-scrollbar { width: 6px; }
 #modal-curriculo .modal-box::-webkit-scrollbar-thumb { background: #7baa48; border-radius: 8px; }
-
-/* Grid para campos do Currículo */
 .grid-cv { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .grid-cv.full { grid-template-columns: 1fr; }
 .grid-cv textarea { resize: vertical; min-height: 60px; font-family: 'Montserrat', sans-serif; }
 
-/* ===== LAYOUT ESCONDIDO PARA GERAR O PDF ===== */
-#cv-pdf-layout {
-    position: absolute;
-    left: -9999px;
-    top: 0;
-    width: 210mm; /* Tamanho A4 */
-    min-height: 297mm;
-    background: #ffffff;
-    padding: 15mm 20mm;
-    box-sizing: border-box;
-    font-family: 'Montserrat', 'Segoe UI', sans-serif;
-    color: #2c3e50;
-    line-height: 1.5;
-}
+/* ===== LAYOUT PDF ESCONDIDO ===== */
+#cv-pdf-layout { position: absolute; left: -9999px; top: 0; width: 210mm; min-height: 297mm; background: #ffffff; padding: 15mm 20mm; box-sizing: border-box; font-family: 'Montserrat', 'Segoe UI', sans-serif; color: #2c3e50; line-height: 1.5; }
 #cv-pdf-layout h1 { color: #4a7c2e; font-size: 26px; margin: 0 0 5px 0; border-bottom: 3px solid #7baa48; padding-bottom: 10px; }
 #cv-pdf-layout h2 { font-size: 16px; color: #555; font-weight: 600; margin: 15px 0 5px 0; border-bottom: 1px solid #eee; padding-bottom: 4px; }
 #cv-pdf-layout p, #cv-pdf-layout li { font-size: 13px; margin: 4px 0; color: #444; }
 #cv-pdf-layout ul { margin: 5px 0 0 15px; padding: 0; }
 #cv-pdf-layout .contact-info { display: flex; gap: 15px; flex-wrap: wrap; font-size: 13px; color: #666; margin-bottom: 15px; }
+
+/* ===== RESPONSIVO ===== */
+@media (max-width: 900px) {
+    .grid-container { grid-template-columns: 1fr; }
+    .col-center { order: -1; }
+    .menu-buttons { grid-template-columns: 1fr 1fr !important; }
+    .btn-action { grid-column: auto !important; }
+    .header { flex-direction: column; text-align: center; }
+    .header::after { display: none; }
+    #login-screen { margin: 20px; padding: 30px 20px; }
+}
