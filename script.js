@@ -451,16 +451,15 @@ async function gerarCurriculo() {
 }
 
 // ==========================================
-// LÓGICA DO COMPROVANTE (COM BUSCA AUTOMÁTICA)
+// LÓGICA DO COMPROVANTE (COM IMPRESSÃO E SALVAMENTO)
 // ==========================================
-// COLE A URL DO SEU APPS SCRIPT AQUI
+// IMPORTANTE: COLE A URL DO SEU APPS SCRIPT AQUI
 const URL_API_GS = "https://script.google.com/macros/s/AKfycbwNtkVXz-dtHubBl8u_HATOxtLX0rSVVExhbA5BaWZeGiRa182oMzclN1Te-U2UmPZk/exec"; 
 
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
 function formatarCPFPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); }
 function formatarRGPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{1,2})(\d{3})(\d{3})(\d{1})$/,'$1.$2.$3-$4'); }
 
-// Funções automáticas para CPF e CEP (executadas ao clicar fora do campo)
 function autoBuscarCEP(el) {
     const cep = el.value.replace(/\D/g, '');
     if (cep.length === 8) { buscarCEPPrint(); }
@@ -541,7 +540,70 @@ async function buscarCPFPrint() {
     } catch (e) { alert("Erro ao buscar CPF"); }
 }
 
-async function salvarComprovantePrint() {
+// Função para pegar os valores atuais do formulário
+function obterValoresComprovante() {
+    return {
+        numero: document.getElementById('print-numero').value,
+        data: document.getElementById('print-data').value,
+        ano: document.getElementById('print-ano').value,
+        nome: document.getElementById('print-nome').value.toUpperCase(),
+        endereco: document.getElementById('print-endereco').value.toUpperCase(),
+        numero_endereco: document.getElementById('print-numero_endereco').value.toUpperCase(),
+        complemento: document.getElementById('print-complemento').value.toUpperCase(),
+        cep: document.getElementById('print-cep').value,
+        bairro: document.getElementById('print-bairro').value.toUpperCase(),
+        uf: document.getElementById('print-uf').value.toUpperCase(),
+        nacionalidade: document.getElementById('print-nacionalidade').value.toUpperCase(),
+        estado_civil: document.getElementById('print-estado_civil').value.toUpperCase(),
+        cpf: document.getElementById('print-cpf').value,
+        rg: document.getElementById('print-rg').value,
+        emissor: document.getElementById('print-emissor').value.toUpperCase(),
+        propria: document.getElementById('print-propria').checked,
+        alugada: document.getElementById('print-alugada').checked,
+        emprestada: document.getElementById('print-emprestada').checked
+    };
+}
+
+// Gera o HTML exato para imprimir em nova aba (igual ao do GS)
+function gerarHTMLImpressaoCRM(v) {
+    return `
+    <!DOCTYPE html><html><head>
+    <style>
+      body{margin:0;padding:0;font-family:Arial,sans-serif;}
+      .popup{position:relative;width:794px;height:1123px;background-color:white;overflow:hidden;margin:0 auto;}
+      .popup-content{position:relative;width:100%;height:100%;}
+      .popup-content img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;z-index:0;}
+      .input-field{position:absolute;font-size:13px;padding:2px 4px;z-index:1;font-weight:bold;background:transparent;border:none;outline:none;color:black;text-transform:uppercase;}
+      .input-field[type="checkbox"]{width:16px;height:16px;accent-color:black;}
+      @media print{body{margin:0!important;padding:0!important;}}
+    </style>
+    </head><body>
+    <div class="popup"><div class="popup-content">
+      <img src="https://i.imgur.com/lFhk0Hq.png">
+      <input class="input-field" style="top:386px;left:230px;width:80px" value="${v.numero}" readonly>
+      <input class="input-field" style="top:386px;left:390px;width:130px" value="${v.data}" readonly>
+      <input class="input-field" style="top:386px;left:580px;width:80px" value="${v.ano}" readonly>
+      <input class="input-field" style="top:437px;left:167px;width:500px;font-size:18px" value="${v.nome}" readonly>
+      <input class="input-field" style="top:508px;left:216px;width:350px" value="${v.endereco}" readonly>
+      <input class="input-field" style="top:508px;left:629px;width:90px" value="${v.numero_endereco}" readonly>
+      <input class="input-field" style="top:568px;left:240px;width:210px" value="${v.complemento}" readonly>
+      <input class="input-field" style="top:568px;left:530px;width:150px" value="${v.cep}" readonly>
+      <input class="input-field" style="top:633px;left:165px;width:350px" value="${v.bairro}" readonly>
+      <input class="input-field" style="top:633px;left:630px;width:80px" value="${v.uf}" readonly>
+      <input class="input-field" style="top:695px;left:247px;width:150px" value="${v.nacionalidade}" readonly>
+      <input class="input-field" style="top:695px;left:555px;width:150px" value="${v.estado_civil}" readonly>
+      <input class="input-field" style="top:758px;left:135px;width:188px" value="${v.cpf}" readonly>
+      <input class="input-field" style="top:758px;left:395px;width:100px" value="${v.rg}" readonly>
+      <input class="input-field" style="top:758px;left:625px;width:120px" value="${v.emissor}" readonly>
+      <input type="checkbox" class="input-field" style="top:844px;left:249px" ${v.propria?'checked':''} readonly>
+      <input type="checkbox" class="input-field" style="top:844px;left:425px" ${v.alugada?'checked':''} readonly>
+      <input type="checkbox" class="input-field" style="top:844px;left:652px" ${v.emprestada?'checked':''} readonly>
+    </div></div>
+    </body></html>`;
+}
+
+// Função comum para salvar os dados no GS (usada pelos dois botões)
+async function salvarDadosComprovante() {
     const dados = [
         document.getElementById('print-numero').value,
         document.getElementById('print-data').value,
@@ -562,20 +624,52 @@ async function salvarComprovantePrint() {
         document.getElementById('print-alugada').checked ? "Alugada" : "",
         document.getElementById('print-emprestada').checked ? "Emprestada" : ""
     ];
+    await fetch(URL_API_GS, { method: 'POST', body: JSON.stringify(dados) });
+}
 
-    const btnSalvar = document.querySelector('#modal-comprovante-print .btn-primary');
-    btnSalvar.innerText = 'Salvando...'; btnSalvar.disabled = true;
-
+// Botão Salvar (apenas salva)
+async function salvarApenas() {
+    const btn = document.querySelector('#modal-comprovante-print .btn-save');
+    btn.innerText = 'Salvando...'; btn.disabled = true;
     try {
-        await fetch(URL_API_GS, { method: 'POST', body: JSON.stringify(dados) });
+        await salvarDadosComprovante();
         alert("Dados salvos com sucesso!");
         fecharComprovantePrint();
-    } catch (e) {
-        alert("Erro ao salvar: " + e.message);
-    } finally {
-        btnSalvar.innerText = '💾 Salvar';
-        btnSalvar.disabled = false;
-    }
+    } catch (e) { alert("Erro ao salvar: " + e.message); } 
+    finally { btn.innerText = '💾 Salvar'; btn.disabled = false; }
+}
+
+// Botão Imprimir (salva E já abre a tela de impressão)
+async function salvarEImprimir() {
+    const btn = document.querySelector('#modal-comprovante-print .btn-print');
+    btn.innerText = 'Salvando...'; btn.disabled = true;
+    try {
+        await salvarDadosComprovante();
+        
+        const v = obterValoresComprovante();
+        let htmlPrint = gerarHTMLImpressaoCRM(v);
+        
+        // Adiciona o script para dar o comando de impressão assim que abrir
+        htmlPrint = htmlPrint.replace('</body>', `
+            <script>
+                window.addEventListener('load', function() {
+                    setTimeout(function() { window.print(); }, 800);
+                });
+            <\/script>
+        </body>`);
+
+        const win = window.open('', '_blank');
+        if (win) {
+            win.document.write(htmlPrint);
+            win.document.close();
+            win.focus();
+        } else {
+            alert("Pop-up bloqueado! Por favor, permita pop-ups no seu navegador para imprimir o documento.");
+        }
+        fecharComprovantePrint();
+
+    } catch (e) { alert("Erro ao salvar: " + e.message); } 
+    finally { btn.innerText = '🖨️ Imprimir'; btn.disabled = false; }
 }
 
 function abrirModal(id) { document.getElementById(id).classList.add('active'); }
