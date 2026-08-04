@@ -453,7 +453,7 @@ async function gerarCurriculo() {
 // ==========================================
 // LÓGICA DO COMPROVANTE DE RESIDÊNCIA (CÓDIGO EXATO DO POPUP)
 // ==========================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbyUHEaQtjHXFdujIJBjNB3OuqeXpvHaS-_pJsXAjVgncJPwDTxfvAbJqE5pey3t45zxHQ/exec"; 
+const URL_API_GS = "COLE_AQUI_A_SUA_URL_DO_APPS_SCRIPT"; 
 
 // Máscaras exatas
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
@@ -462,7 +462,7 @@ function formatarRGPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{1,
 
 // Abrir o modal (com a data automática e o próximo número da planilha)
 async function abrirComprovantePrint() {
-    abrirModal('modal-comprovante-print');
+    document.getElementById('modal-comprovante-print').style.display = 'flex';
     
     document.getElementById('print-nome').value = '';
     document.getElementById('print-endereco').value = '';
@@ -563,7 +563,7 @@ async function salvarComprovantePrint() {
     try {
         await fetch(URL_API_GS, { method: 'POST', body: JSON.stringify(dados) });
         alert("Dados salvos com sucesso!");
-        fecharModal('modal-comprovante-print');
+        fecharComprovantePrint();
     } catch (e) {
         alert("Erro ao salvar: " + e.message);
     } finally {
@@ -573,7 +573,8 @@ async function salvarComprovantePrint() {
 }
 
 // ==========================================
-// ABRIR E FECHAR MODAIS
+// ABRIR E FECHAR MODAIS (SEM CLIQUE EXTERNO)
 // ==========================================
 function abrirModal(id) { document.getElementById(id).classList.add('active'); }
 function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
+function fecharComprovantePrint() { document.getElementById('modal-comprovante-print').style.display = 'none'; }
