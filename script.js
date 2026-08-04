@@ -13,26 +13,20 @@ let dadosCartoes = [
 
 let idCounterAgenda = 3;
 let idCounterCartoes = 5;
-
-// Variáveis de controle para itens dinâmicos
 let telefoneCount = 1;
 let cursoCount = 0;
 let expCount = 0;
+let fotoBase64 = null; // Guarda a imagem 3x4 cortada
 
-// --- RELÓGIO COM ANIMAÇÃO DE PAPEL VIRANDO ---
+// --- RELÓGIO ---
 function updateClock() {
     const now = new Date();
     const timeString = now.toLocaleTimeString('pt-BR', { hour12: false });
     const clockEl = document.getElementById('current-time');
-    
-    // Só anima se o horário mudou
     if (clockEl.innerText !== timeString) {
         clockEl.innerText = timeString;
-        // Reseta a animação para tocar de novo
         clockEl.style.animation = 'none';
-        setTimeout(() => {
-            clockEl.style.animation = 'paperFlip 0.4s ease-in-out';
-        }, 10);
+        setTimeout(() => { clockEl.style.animation = 'paperFlip 0.4s ease-in-out'; }, 10);
     }
 }
 setInterval(updateClock, 1000);
@@ -138,10 +132,54 @@ function salvarCartoes() {
 }
 
 // ==========================================
-// LÓGICAS DO MÓDULO CURRÍCULO
+// LÓGICAS DO CURRÍCULO
 // ==========================================
 
-// 1. Buscar CEP
+// 1. Foto 3x4 e Crop sem achatar
+function handlePhotoUpload(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const targetWidth = 300; // 3 partes
+                const targetHeight = 400; // 4 partes
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+                const ctx = canvas.getContext('2d');
+
+                // Calcula o recorte central
+                const aspectRatio = targetWidth / targetHeight;
+                let srcWidth = img.width;
+                let srcHeight = img.height;
+                let srcX = 0, srcY = 0;
+
+                const imgRatio = srcWidth / srcHeight;
+                if (imgRatio > aspectRatio) {
+                    srcWidth = srcHeight * aspectRatio;
+                    srcX = (img.width - srcWidth) / 2;
+                } else {
+                    srcHeight = srcWidth / aspectRatio;
+                    srcY = (img.height - srcHeight) / 2;
+                }
+
+                ctx.drawImage(img, srcX, srcY, srcWidth, srcHeight, 0, 0, targetWidth, targetHeight);
+                fotoBase64 = canvas.toDataURL('image/jpeg');
+
+                // Exibe a prévia 3x4
+                const preview = document.getElementById('cv-photo-preview');
+                preview.src = fotoBase64;
+                preview.style.display = 'block';
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+// 2. Buscar CEP
 async function buscarCEP() {
     let cep = document.getElementById('cv-cep').value.replace(/\D/g, '');
     if (cep.length === 8) {
@@ -161,7 +199,7 @@ async function buscarCEP() {
     }
 }
 
-// 2. Adicionar Telefone (Máx 3)
+// 3. Adicionar Telefone
 function adicionarTelefone() {
     if (telefoneCount < 3) {
         telefoneCount++;
@@ -172,7 +210,7 @@ function adicionarTelefone() {
     }
 }
 
-// 3. Adicionar Curso
+// 4. Adicionar Curso
 function adicionarCurso() {
     const container = document.getElementById('cursos-container');
     const id = `curso-${Date.now()}`;
@@ -193,7 +231,7 @@ function adicionarCurso() {
     cursoCount++;
 }
 
-// 4. Adicionar Experiência (Máx 6)
+// 5. Adicionar Experiência
 function adicionarExperiencia() {
     if (expCount >= 6) {
         alert("Limite de 6 experiências atingido.");
@@ -218,7 +256,7 @@ function adicionarExperiencia() {
     expCount++;
 }
 
-// 5. Remover Item Dinâmico
+// 6. Remover Item Dinâmico
 function removerItem(id) {
     const el = document.getElementById(id);
     if (el) {
@@ -229,13 +267,13 @@ function removerItem(id) {
 }
 
 // ==========================================
-// GERAR CURRÍCULO EM PDF (Design Gracioso)
+// GERAR CURRÍCULO COM O MODELO ESCOLHIDO
 // ==========================================
 async function gerarCurriculo() {
     const nome = document.getElementById('cv-nome').value;
     if (!nome) { alert("Por favor, preencha pelo menos o Nome Completo."); return; }
 
-    // Coletar dados básicos
+    const templateSelecionado = document.getElementById('cv-template').value;
     const nascimento = document.getElementById('cv-nascimento').value;
     const tel1 = document.getElementById('cv-tel-1').value;
     const tel2 = document.getElementById('cv-tel-2').value;
@@ -248,12 +286,10 @@ async function gerarCurriculo() {
     const objetivo = document.getElementById('cv-objetivo').value;
     const habilidades = document.getElementById('cv-habilidades').value;
 
-    // Montar endereço
     let endereco = `${logradouro}, ${numero}`;
     if (bairro) endereco += ` - ${bairro}`;
     if (cidade) endereco += ` - ${cidade}`;
 
-    // Montar lista de telefones (ignorar vazios)
     let tels = [tel1, tel2, tel3].filter(t => t.trim() !== '');
 
     // Coletar Cursos
@@ -276,14 +312,23 @@ async function gerarCurriculo() {
         experiencias.push({ empresa, funcao, periodo });
     });
 
-    // Alimentar o layout oculto do PDF
+    // Injetar dados no layout do PDF
     document.getElementById('pdf-nome').innerText = nome;
     document.getElementById('pdf-tel').innerText = tels.length > 0 ? tels.join(' / ') : '(Não informado)';
     document.getElementById('pdf-email').innerText = email || '(Não informado)';
     document.getElementById('pdf-endereco').innerText = endereco || '(Não informado)';
     document.getElementById('pdf-objetivo').innerText = objetivo || 'Não informado.';
 
-    // Habilidades (Transformar texto em Lista)
+    // Injetar Foto
+    const pdfPhoto = document.getElementById('pdf-photo');
+    if (fotoBase64) {
+        pdfPhoto.src = fotoBase64;
+        pdfPhoto.style.display = 'block';
+    } else {
+        pdfPhoto.style.display = 'none';
+    }
+
+    // Injetar Habilidades
     const pdfSkills = document.getElementById('pdf-habilidades');
     pdfSkills.innerHTML = '';
     if (habilidades.trim() !== '') {
@@ -297,7 +342,7 @@ async function gerarCurriculo() {
         pdfSkills.innerHTML = '<li>Não informado.</li>';
     }
 
-    // Cursos no PDF
+    // Injetar Cursos
     const pdfCursos = document.getElementById('pdf-cursos');
     pdfCursos.innerHTML = '';
     if (cursos.length === 0) {
@@ -315,7 +360,7 @@ async function gerarCurriculo() {
         });
     }
 
-    // Experiências no PDF
+    // Injetar Experiências
     const pdfExp = document.getElementById('pdf-experiencias');
     pdfExp.innerHTML = '';
     if (experiencias.length === 0) {
@@ -333,12 +378,13 @@ async function gerarCurriculo() {
         });
     }
 
-    // Gerar o PDF (usando html2canvas e jsPDF)
-    const pdfContent = document.getElementById('cv-pdf-layout');
-    pdfContent.style.display = 'block';
+    // Aplicar a classe do modelo escolhido e gerar PDF
+    const pdfLayout = document.getElementById('cv-pdf-layout');
+    pdfLayout.className = `template-${templateSelecionado}`; // Troca o estilo do PDF na hora
+    pdfLayout.style.display = 'block';
 
     try {
-        const canvas = await html2canvas(pdfContent, { scale: 2, useCORS: true, logging: false });
+        const canvas = await html2canvas(pdfLayout, { scale: 2, useCORS: true, logging: false });
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('p', 'mm', 'a4');
@@ -346,25 +392,21 @@ async function gerarCurriculo() {
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
 
-        // Abrir em nova guia
         const pdfBlob = pdf.output('blob');
         window.open(URL.createObjectURL(pdfBlob), '_blank');
 
-        pdfContent.style.display = 'none';
+        pdfLayout.style.display = 'none';
         fecharModal('modal-curriculo');
 
     } catch (error) {
         console.error("Erro ao gerar PDF:", error);
         alert("Ocorreu um erro ao gerar o currículo.");
-        pdfContent.style.display = 'none';
+        pdfLayout.style.display = 'none';
     }
 }
 
 // ==========================================
-// ABRIR E FECHAR MODAIS
+// ABRIR E FECHAR MODAIS (Sem clique externo)
 // ==========================================
 function abrirModal(id) { document.getElementById(id).classList.add('active'); }
 function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
-document.querySelectorAll('.modal-overlay').forEach(el => {
-    el.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
-});
