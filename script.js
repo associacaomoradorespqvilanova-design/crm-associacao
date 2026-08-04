@@ -453,7 +453,7 @@ async function gerarCurriculo() {
 // ==========================================
 // LÓGICA DO MÓDULO COMPROVANTE DE RESIDÊNCIA
 // ==========================================
-const URL_API_GS = "COLE_AQUI_A_SUA_URL_DO_APPS_SCRIPT"; // Ex: https://script.google.com/macros/s/.../exec
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbz2qeLkmUqOGVyyE3QtkzJiei5-cPBUW6HFZWHg1eD_uSSd9v76kktW9YFL1oR1lt1KCg/exec"; // Ex: https://script.google.com/macros/s/.../exec
 
 // Máscaras de CPF, RG e CEP
 function formatCPF(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); }
