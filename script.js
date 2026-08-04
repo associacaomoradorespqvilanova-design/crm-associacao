@@ -191,6 +191,9 @@ function salvarCartoes() {
     document.getElementById('card-qtd').value = ''; document.getElementById('card-data').value = '';
 }
 
+// ==========================================
+// LÓGICAS DO CURRÍCULO
+// ==========================================
 function handlePhotoUpload(event) {
     const file = event.target.files[0];
     if (file) {
@@ -257,7 +260,6 @@ function adicionarTelefone() {
     }
 }
 
-// ********** LIMITE DE 3 CURSOS **********
 function adicionarCurso() {
     if (cursoCount >= 3) {
         alert("Você já atingiu o limite máximo de 3 cursos para caber em 1 única folha A4.");
@@ -282,7 +284,6 @@ function adicionarCurso() {
     cursoCount++;
 }
 
-// ********** LIMITE DE 6 EXPERIÊNCIAS **********
 function adicionarExperiencia() {
     if (expCount >= 6) {
         alert("Você já atingiu o limite máximo de 6 experiências para caber em 1 única folha A4.");
@@ -316,7 +317,6 @@ function removerItem(id) {
     }
 }
 
-// ********** GERADOR DE PDF INTELIGENTE (CAIXA ÚNICA A4) **********
 async function gerarCurriculo() {
     const nome = document.getElementById('cv-nome').value;
     if (!nome) { alert("Por favor, preencha pelo menos o Nome Completo."); return; }
@@ -427,21 +427,14 @@ async function gerarCurriculo() {
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('p', 'mm', 'a4');
-        
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
-
-        // Capturar as dimensões reais da imagem gerada
         const imgProps = pdf.getImageProperties(imgData);
         const imgW = imgProps.width;
         const imgH = imgProps.height;
-
-        // Calcular o fator de escala PERFEITO para caber DENTRO do A4 sem distorcer
         const scaleX = pdfWidth / imgW;
         const scaleY = pdfHeight / imgH;
         let finalScale = Math.min(scaleX, scaleY);
-
-        // Aplicar a imagem no PDF com o fator de escala inteligente
         pdf.addImage(imgData, 'JPEG', 0, 0, imgW * finalScale, imgH * finalScale);
 
         const pdfBlob = pdf.output('blob');
@@ -457,5 +450,181 @@ async function gerarCurriculo() {
     }
 }
 
+// ==========================================
+// LÓGICA DO MÓDULO COMPROVANTE DE RESIDÊNCIA
+// ==========================================
+const URL_API_GS = "COLE_AQUI_A_SUA_URL_DO_APPS_SCRIPT"; // Ex: https://script.google.com/macros/s/.../exec
+
+// Máscaras de CPF, RG e CEP
+function formatCPF(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); }
+function formatRG(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{1,2})(\d{3})(\d{3})(\d{1})$/,'$1.$2.$3-$4'); }
+function formatCEP(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
+
+// Abrir o modal e buscar o próximo número automaticamente
+async function abrirComprovante() {
+    document.getElementById('lista-sugestoes').style.display = 'none';
+    abrirModal('modal-comprovante');
+    
+    document.getElementById('cr-nome').value = '';
+    document.getElementById('cr-endereco').value = '';
+    document.getElementById('cr-numero_endereco').value = '';
+    document.getElementById('cr-complemento').value = '';
+    document.getElementById('cr-cep').value = '';
+    document.getElementById('cr-bairro').value = '';
+    document.getElementById('cr-uf').value = '';
+    document.getElementById('cr-nacionalidade').value = '';
+    document.getElementById('cr-estado_civil').value = '';
+    document.getElementById('cr-cpf').value = '';
+    document.getElementById('cr-rg').value = '';
+    document.getElementById('cr-emissor').value = 'DETRAN/RJ';
+    document.getElementById('cr-propria').checked = false;
+    document.getElementById('cr-alugada').checked = false;
+    document.getElementById('cr-emprestada').checked = false;
+    
+    try {
+        const resp = await fetch(`${URL_API_GS}?action=getNumero`);
+        const dados = await resp.json();
+        document.getElementById('cr-numero').value = dados.numero || '0000001';
+    } catch (e) {
+        console.warn("Erro ao buscar número", e);
+        document.getElementById('cr-numero').value = '0000001';
+    }
+}
+
+// 1. SUGESTOR DE RUA VIA PLANILHA
+let debounceTimeout;
+async function buscarSugestoesEndereco() {
+    const input = document.getElementById('cr-busca-rua');
+    const container = document.getElementById('lista-sugestoes');
+    const query = input.value.trim();
+    if (query.length < 3) { container.style.display = 'none'; return; }
+    clearTimeout(debounceTimeout);
+    debounceTimeout = setTimeout(async () => {
+        try {
+            const resp = await fetch(`${URL_API_GS}?action=buscarEnderecos&q=${encodeURIComponent(query)}`);
+            const resultados = await resp.json();
+            container.innerHTML = '';
+            if (resultados.length === 0) { container.style.display = 'none'; return; }
+            resultados.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'sugestao-item';
+                div.style.cssText = 'padding: 8px 12px; border-bottom:1px solid #eee; cursor:pointer; font-size:13px; text-transform:uppercase;';
+                div.innerHTML = `<strong>${item.endereco}</strong> <br><span style="font-size:11px; color:#666;">${item.bairro} - ${item.uf} (${item.cep || 'N/I'})</span>`;
+                div.onclick = () => {
+                    document.getElementById('cr-endereco').value = item.endereco;
+                    document.getElementById('cr-bairro').value = item.bairro;
+                    document.getElementById('cr-uf').value = item.uf;
+                    document.getElementById('cr-cep').value = item.cep || '';
+                    container.style.display = 'none';
+                    input.value = '';
+                };
+                container.appendChild(div);
+            });
+            container.style.display = 'block';
+        } catch (e) {
+            console.error(e);
+            container.style.display = 'none';
+        }
+    }, 400);
+}
+
+// 2. BUSCAR CEP VIA VIACEP (Pelo GS)
+async function buscarCEPComprovante() {
+    const cep = document.getElementById('cr-cep').value.replace(/\D/g,'');
+    if (cep.length !== 8) { alert("CEP inválido"); return; }
+    try {
+        const resp = await fetch(`${URL_API_GS}?action=buscarCEP&cep=${cep}`);
+        const dados = await resp.json();
+        if (dados.erro) { alert("CEP não encontrado"); return; }
+        document.getElementById('cr-endereco').value = dados.logradouro.toUpperCase();
+        document.getElementById('cr-bairro').value = `${dados.bairro} / ${dados.localidade}`.toUpperCase();
+        document.getElementById('cr-uf').value = dados.uf.toUpperCase();
+    } catch (e) {
+        alert("Erro ao buscar CEP: " + e.message);
+    }
+}
+
+// 3. BUSCAR CPF NA PLANILHA
+async function buscarCPFComprovante() {
+    const cpf = document.getElementById('cr-cpf').value.replace(/\D/g,'');
+    if (cpf.length !== 11) { alert("CPF inválido"); return; }
+    try {
+        const resp = await fetch(`${URL_API_GS}?action=buscarCPF&cpf=${cpf}`);
+        const r = await resp.json();
+        if (!r.encontrado) { alert("CPF NÃO LOCALIZADO"); return; }
+        const d = r.dados;
+        document.getElementById('cr-nome').value = d.nome || '';
+        document.getElementById('cr-endereco').value = d.endereco || '';
+        document.getElementById('cr-numero_endereco').value = d.numero_endereco || '';
+        document.getElementById('cr-complemento').value = d.complemento || '';
+        document.getElementById('cr-cep').value = d.cep || '';
+        document.getElementById('cr-bairro').value = d.bairro || '';
+        document.getElementById('cr-uf').value = d.uf || '';
+        document.getElementById('cr-nacionalidade').value = d.nacionalidade || '';
+        document.getElementById('cr-estado_civil').value = d.estado_civil || '';
+        document.getElementById('cr-rg').value = d.rg || '';
+        document.getElementById('cr-emissor').value = d.emissor || '';
+        document.getElementById('cr-propria').checked = d.propria || false;
+        document.getElementById('cr-alugada').checked = d.alugada || false;
+        document.getElementById('cr-emprestada').checked = d.emprestada || false;
+    } catch (e) {
+        alert("Erro ao buscar CPF: " + e.message);
+    }
+}
+
+// 4. SALVAR E IMPRIMIR COM O GS
+async function salvarComprovante() {
+    const dados = [
+        document.getElementById('cr-numero').value,
+        new Date().toLocaleDateString('pt-BR'),
+        new Date().getFullYear(),
+        document.getElementById('cr-nome').value.toUpperCase(),
+        document.getElementById('cr-endereco').value.toUpperCase(),
+        document.getElementById('cr-numero_endereco').value.toUpperCase(),
+        document.getElementById('cr-complemento').value.toUpperCase(),
+        document.getElementById('cr-cep').value,
+        document.getElementById('cr-bairro').value.toUpperCase(),
+        document.getElementById('cr-uf').value.toUpperCase(),
+        document.getElementById('cr-nacionalidade').value.toUpperCase(),
+        document.getElementById('cr-estado_civil').value.toUpperCase(),
+        document.getElementById('cr-cpf').value,
+        document.getElementById('cr-rg').value,
+        document.getElementById('cr-emissor').value.toUpperCase(),
+        document.getElementById('cr-propria').checked ? "Casa Própria" : "",
+        document.getElementById('cr-alugada').checked ? "Alugada" : "",
+        document.getElementById('cr-emprestada').checked ? "Emprestada" : ""
+    ];
+
+    const btnSalvar = document.querySelector('#modal-comprovante .btn-primary');
+    btnSalvar.innerText = 'Salvando...';
+    btnSalvar.disabled = true;
+
+    try {
+        await fetch(URL_API_GS, {
+            method: 'POST',
+            body: JSON.stringify(dados)
+        });
+        alert("Dados salvos com sucesso!");
+        fecharModal('modal-comprovante');
+    } catch (e) {
+        alert("Erro ao salvar: " + e.message);
+    } finally {
+        btnSalvar.innerText = '💾 Salvar e Imprimir';
+        btnSalvar.disabled = false;
+    }
+}
+
+// Fechar sugestões ao clicar fora
+document.addEventListener('click', function(e) {
+    const container = document.getElementById('lista-sugestoes');
+    const input = document.getElementById('cr-busca-rua');
+    if (container && input && !container.contains(e.target) && e.target !== input) {
+        container.style.display = 'none';
+    }
+});
+
+// ==========================================
+// ABRIR E FECHAR MODAIS (SEM CLIQUE EXTERNO)
+// ==========================================
 function abrirModal(id) { document.getElementById(id).classList.add('active'); }
 function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
