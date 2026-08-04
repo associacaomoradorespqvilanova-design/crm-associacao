@@ -43,9 +43,12 @@
     <!-- DASHBOARD -->
     <div id="dashboard-screen">
         <div class="header">
-            <div style="display: flex; align-items: center; gap: 20px;">
+            <div style="display: flex; align-items: center; gap: 20px; justify-content: center; flex-wrap: wrap;">
                 <h1>ASSOCIAÇÃO <span>PQ VILA NOVA</span></h1>
-                <div id="current-time">00:00:00</div>
+                <!-- RELÓGIO GRANDE COM EFEITO DE PAPEL -->
+                <div id="clock-wrapper">
+                    <div id="current-time">00:00:00</div>
+                </div>
             </div>
         </div>
 
@@ -92,7 +95,133 @@
         </div>
     </div>
 
-    <!-- MODAIS -->
+    <!-- MODAL CURRÍCULO -->
+    <div id="modal-curriculo" class="modal-overlay">
+        <div class="modal-box">
+            <span class="close-btn" onclick="fecharModal('modal-curriculo')">×</span>
+            <h3>📄 Preencher Currículo</h3>
+            
+            <div class="grid-cv full">
+                <label>Nome Completo</label>
+                <input type="text" id="cv-nome" placeholder="Seu nome completo">
+            </div>
+            <div class="grid-cv">
+                <div>
+                    <label>Data de Nascimento</label>
+                    <input type="date" id="cv-nascimento">
+                </div>
+                <div>
+                    <label>Telefone (1)</label>
+                    <div style="display:flex; gap:5px; align-items:center;">
+                        <input type="text" id="cv-tel-1" placeholder="(XX) XXXXX-XXXX" style="flex:1;">
+                        <button class="btn-sm" onclick="adicionarTelefone()" id="btn-add-tel" style="font-size: 10px; padding: 6px 10px;">+ Tel</button>
+                    </div>
+                    <div id="tel-extra-container" style="margin-top: 5px;">
+                        <div id="cv-tel-container-2" style="display:none; margin-top:5px;">
+                            <label style="font-size:12px; margin:0;">Telefone (2)</label>
+                            <input type="text" id="cv-tel-2" placeholder="(XX) XXXXX-XXXX" style="width:100%;">
+                        </div>
+                        <div id="cv-tel-container-3" style="display:none; margin-top:5px;">
+                            <label style="font-size:12px; margin:0;">Telefone (3)</label>
+                            <input type="text" id="cv-tel-3" placeholder="(XX) XXXXX-XXXX" style="width:100%;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid-cv full">
+                <label>E-mail</label>
+                <input type="email" id="cv-email" placeholder="email@exemplo.com">
+            </div>
+
+            <!-- ENDEREÇO COM CEP AUTOMÁTICO -->
+            <div class="grid-cv" style="grid-template-columns: 1fr 2fr;">
+                <div>
+                    <label>CEP</label>
+                    <input type="text" id="cv-cep" placeholder="00000-000" onblur="buscarCEP()" maxlength="9">
+                </div>
+                <div>
+                    <label>Nº da Residência</label>
+                    <input type="text" id="cv-numero" placeholder="Ex: 123">
+                </div>
+            </div>
+            <div class="grid-cv" style="grid-template-columns: 2fr 1fr 2fr;">
+                <div><label>Logradouro</label><input type="text" id="cv-logradouro" readonly></div>
+                <div><label>Bairro</label><input type="text" id="cv-bairro" readonly></div>
+                <div><label>Cidade - UF</label><input type="text" id="cv-cidade" readonly></div>
+            </div>
+
+            <div class="grid-cv full">
+                <label>Objetivo Profissional</label>
+                <textarea id="cv-objetivo" rows="2">Profissional proativo, dinâmico e engajado, em busca de uma oportunidade para aplicar minhas habilidades e contribuir para o crescimento da empresa.</textarea>
+            </div>
+
+            <!-- FORMAÇÃO / CURSOS (Dinâmico) -->
+            <div class="grid-cv full" style="border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label style="margin:0;">Formação & Cursos</label>
+                    <button class="btn-sm" onclick="adicionarCurso()" style="font-size: 10px; padding: 4px 12px;">+ Adicionar Curso</button>
+                </div>
+                <div id="cursos-container"></div>
+            </div>
+
+            <!-- EXPERIÊNCIAS PROFISSIONAIS (Dinâmico) -->
+            <div class="grid-cv full">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label style="margin:0;">Experiência Profissional</label>
+                    <button class="btn-sm" onclick="adicionarExperiencia()" style="font-size: 10px; padding: 4px 12px;">+ Adicionar Experiência</button>
+                </div>
+                <div id="exp-container"></div>
+            </div>
+
+            <div class="grid-cv full">
+                <label>Habilidades / Competências</label>
+                <textarea id="cv-habilidades" rows="3">Trabalho em equipe, Comunicação eficaz, Proatividade, Organização, Pacote Office intermediário, Atendimento ao cliente, Resolução de problemas.</textarea>
+            </div>
+
+            <div class="modal-actions" style="justify-content: center; margin-top: 20px;">
+                <button class="btn-cancel" onclick="fecharModal('modal-curriculo')">Cancelar</button>
+                <button class="btn-primary" onclick="gerarCurriculo()" style="width: auto; padding: 10px 30px;">🎯 Gerar Currículo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LAYOUT ESCONDIDO PARA GERAR O PDF DO CURRÍCULO (Design Gracioso) -->
+    <div id="cv-pdf-layout">
+        <div class="pdf-container">
+            <div class="pdf-left">
+                <div class="pdf-photo-placeholder"></div>
+                <h1 id="pdf-nome">Nome Completo</h1>
+                <div class="pdf-contact">
+                    <div><strong>📞 Contato</strong></div>
+                    <div id="pdf-tel">Telefone</div>
+                    <div id="pdf-email">E-mail</div>
+                    <div id="pdf-endereco">Endereço</div>
+                </div>
+                <div class="pdf-divider"></div>
+                <div class="pdf-section">
+                    <h3>Objetivo</h3>
+                    <p id="pdf-objetivo" class="pdf-italic">Objetivo profissional...</p>
+                </div>
+                <div class="pdf-section">
+                    <h3>Habilidades</h3>
+                    <ul id="pdf-habilidades" class="pdf-list"></ul>
+                </div>
+            </div>
+            <div class="pdf-right">
+                <div class="pdf-section">
+                    <h3>📚 Formação & Cursos</h3>
+                    <div id="pdf-cursos"></div>
+                </div>
+                <div class="pdf-section">
+                    <h3>💼 Experiência Profissional</h3>
+                    <div id="pdf-experiencias"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAIS DEMAIS (Agenda, Cartões, Popup) -->
     <div id="modal-agenda" class="modal-overlay">
         <div class="modal-box">
             <span class="close-btn" onclick="fecharModal('modal-agenda')">×</span>
@@ -110,60 +239,6 @@
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="fecharModal('modal-agenda')">Cancelar</button>
                 <button class="btn-primary" onclick="salvarAgenda()">Salvar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL CURRÍCULO -->
-    <div id="modal-curriculo" class="modal-overlay">
-        <div class="modal-box">
-            <span class="close-btn" onclick="fecharModal('modal-curriculo')">×</span>
-            <h3>📄 Preencher Currículo</h3>
-            <div class="grid-cv full">
-                <label>Nome Completo</label>
-                <input type="text" id="cv-nome" placeholder="Seu nome completo">
-            </div>
-            <div class="grid-cv">
-                <div>
-                    <label>Data de Nascimento</label>
-                    <input type="date" id="cv-nascimento">
-                </div>
-                <div>
-                    <label>Telefone</label>
-                    <input type="text" id="cv-tel" placeholder="(XX) XXXXX-XXXX">
-                </div>
-            </div>
-            <div class="grid-cv full">
-                <label>E-mail</label>
-                <input type="email" id="cv-email" placeholder="email@exemplo.com">
-                <label>Endereço Completo</label>
-                <input type="text" id="cv-endereco" placeholder="Rua, Número, Bairro, Cidade - UF">
-            </div>
-            <div class="grid-cv full">
-                <label>Objetivo Profissional</label>
-                <textarea id="cv-objetivo" rows="2" placeholder="Digite seu objetivo profissional..."></textarea>
-            </div>
-            <div class="grid-cv">
-                <div>
-                    <label>Formação / Curso</label>
-                    <input type="text" id="cv-curso" placeholder="Ex: Administração">
-                </div>
-                <div>
-                    <label>Instituição</label>
-                    <input type="text" id="cv-instituicao" placeholder="Nome da faculdade/escola">
-                </div>
-            </div>
-            <div class="grid-cv full">
-                <label>Experiência Profissional</label>
-                <textarea id="cv-experiencia" rows="3" placeholder="Empresa, Cargo, Período e Principais Atividades..."></textarea>
-            </div>
-            <div class="grid-cv full">
-                <label>Habilidades / Competências</label>
-                <textarea id="cv-habilidades" rows="2" placeholder="Separe por vírgulas. Ex: Trabalho em equipe, Pacote Office, Inglês intermediário"></textarea>
-            </div>
-            <div class="modal-actions" style="justify-content: center;">
-                <button class="btn-cancel" onclick="fecharModal('modal-curriculo')">Cancelar</button>
-                <button class="btn-primary" onclick="gerarCurriculo()" style="width: auto; padding: 10px 30px;">🎯 Gerar Currículo</button>
             </div>
         </div>
     </div>
@@ -199,25 +274,7 @@
         </div>
     </div>
 
-    <!-- LAYOUT ESCONDIDO PARA GERAR O PDF DO CURRÍCULO -->
-    <div id="cv-pdf-layout">
-        <h1 id="pdf-nome">Nome Completo</h1>
-        <div class="contact-info">
-            <span id="pdf-tel">Telefone</span>
-            <span id="pdf-email">E-mail</span>
-            <span id="pdf-endereco">Endereço</span>
-        </div>
-        <h2>Objetivo</h2>
-        <p id="pdf-objetivo" style="font-style: italic; margin-bottom: 15px;">Objetivo profissional...</p>
-        <h2>Formação Acadêmica</h2>
-        <p id="pdf-formacao"><strong>Curso:</strong> <span id="pdf-curso"></span> - <span id="pdf-instituicao"></span></p>
-        <h2>Experiência Profissional</h2>
-        <p id="pdf-experiencia" style="white-space: pre-line;">Experiência...</p>
-        <h2>Habilidades</h2>
-        <p id="pdf-habilidades">Habilidades...</p>
-    </div>
-
-    <!-- IMPORTAR O JS SEPARADO (SEMPRE ANTES DE FECHAR O BODY) -->
+    <!-- IMPORTAR O JS SEPARADO -->
     <script src="script.js"></script>
 </body>
 </html>
