@@ -1,4 +1,3 @@
-// --- DADOS INICIAIS ---
 let dadosAgenda = [
     { id: 1, nome: "João Silva", data: "2026-08-05", periodo: "Manhã", endereco: "Qd 12", telefone: "99999-9999" },
     { id: 2, nome: "Maria Oliveira", data: "2026-08-15", periodo: "Tarde", endereco: "Qd 08", telefone: "98888-8888" }
@@ -16,9 +15,12 @@ let idCounterCartoes = 5;
 let telefoneCount = 1;
 let cursoCount = 0;
 let expCount = 0;
-let fotoBase64 = null; // Guarda a imagem 3x4 cortada
+let fotoBase64 = null;
 
-// --- RELÓGIO ---
+// Variáveis de Controle de Edição
+let editingAgendaId = null;
+let editingCartaoId = null;
+
 function updateClock() {
     const now = new Date();
     const timeString = now.toLocaleTimeString('pt-BR', { hour12: false });
@@ -32,7 +34,6 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-// --- FECHAR MODAL COM ESC ---
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         const activeModal = document.querySelector('.modal-overlay.active');
@@ -40,7 +41,6 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// --- LOGIN ---
 function login() {
     const user = document.getElementById('username').value;
     const pass = document.getElementById('password').value;
@@ -83,7 +83,14 @@ function renderizarAgenda() {
         const dataItem = new Date(item.data + 'T00:00:00');
         const dataFormatada = dataItem.toLocaleDateString('pt-BR');
         if (!encontrouProximo && dataItem >= hoje) { tr.className = 'highlight-row'; encontrouProximo = true; }
-        tr.innerHTML = `<td>${dataFormatada}</td><td>${item.periodo}</td><td style="font-weight:600;">${item.nome}</td><td>${item.endereco}</td><td>${item.telefone}</td>`;
+        tr.innerHTML = `
+            <td>${dataFormatada}</td>
+            <td>${item.periodo}</td>
+            <td style="font-weight:600;">${item.nome}</td>
+            <td>${item.endereco}</td>
+            <td>${item.telefone}</td>
+            <td><button class="btn-edit" onclick="editarAgenda(${item.id})" title="Editar">✎</button></td>
+        `;
         tbody.appendChild(tr);
     });
 }
@@ -102,11 +109,47 @@ function renderizarCartoes() {
         const tr = document.createElement('tr');
         const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
         const totalDia = valores.cezar + valores.walter;
-        tr.innerHTML = `<td>${dataFormatada}</td><td><strong>${valores.cezar > 0 ? valores.cezar : '-'}</strong></td><td><strong>${valores.walter > 0 ? valores.walter : '-'}</strong></td><td style="color:#4a7c2e; font-weight:700;">${totalDia}</td>`;
+        tr.innerHTML = `
+            <td>${dataFormatada}</td>
+            <td><strong>${valores.cezar > 0 ? valores.cezar : '-'}</strong></td>
+            <td><strong>${valores.walter > 0 ? valores.walter : '-'}</strong></td>
+            <td style="color:#4a7c2e; font-weight:700;">${totalDia}</td>
+            <td><button class="btn-edit" onclick="editarCartao(${sorted.find(i => i.data === data).id})" title="Editar">✎</button></td>
+        `;
         tbody.appendChild(tr);
     }
     document.getElementById('total-cezar').innerText = totalCezar;
     document.getElementById('total-walter').innerText = totalWalter;
+}
+
+// ==========================================
+// LÓGICAS DE EDIÇÃO E SALVAMENTO
+// ==========================================
+
+function editarAgenda(id) {
+    const item = dadosAgenda.find(x => x.id === id);
+    if (!item) return;
+    document.getElementById('ag-nome').value = item.nome;
+    document.getElementById('ag-data').value = item.data;
+    document.getElementById('ag-periodo').value = item.periodo;
+    document.getElementById('ag-end').value = item.endereco;
+    document.getElementById('ag-tel').value = item.telefone;
+    
+    editingAgendaId = id;
+    document.getElementById('agenda-modal-title').innerText = "Editar Agendamento";
+    abrirModal('modal-agenda');
+}
+
+function editarCartao(id) {
+    const item = dadosCartoes.find(x => x.id === id);
+    if (!item) return;
+    document.getElementById('card-responsavel').value = item.responsavel;
+    document.getElementById('card-qtd').value = item.qtd;
+    document.getElementById('card-data').value = item.data;
+    
+    editingCartaoId = id;
+    document.getElementById('cartao-modal-title').innerText = "Editar Lote";
+    abrirModal('modal-cartoes');
 }
 
 function salvarAgenda() {
@@ -116,7 +159,20 @@ function salvarAgenda() {
     const endereco = document.getElementById('ag-end').value;
     const telefone = document.getElementById('ag-tel').value;
     if(!nome || !data) { alert("Preencha pelo menos o Nome e a Data."); return; }
-    dadosAgenda.push({ id: idCounterAgenda++, nome, data, periodo, endereco, telefone });
+
+    if (editingAgendaId) {
+        // Modo Edição
+        const idx = dadosAgenda.findIndex(x => x.id === editingAgendaId);
+        if (idx !== -1) {
+            dadosAgenda[idx] = { ...dadosAgenda[idx], nome, data, periodo, endereco, telefone };
+        }
+        editingAgendaId = null;
+        document.getElementById('agenda-modal-title').innerText = "Novo Agendamento";
+    } else {
+        // Modo Criação
+        dadosAgenda.push({ id: idCounterAgenda++, nome, data, periodo, endereco, telefone });
+    }
+
     fecharModal('modal-agenda'); renderizarAgenda();
     document.getElementById('ag-nome').value = ''; document.getElementById('ag-data').value = ''; document.getElementById('ag-periodo').value = ''; document.getElementById('ag-end').value = ''; document.getElementById('ag-tel').value = '';
 }
@@ -126,7 +182,20 @@ function salvarCartoes() {
     const qtd = parseInt(document.getElementById('card-qtd').value);
     const data = document.getElementById('card-data').value;
     if(!qtd || !data) { alert("Preencha a Quantidade e a Data."); return; }
-    dadosCartoes.push({ id: idCounterCartoes++, responsavel, qtd, data });
+
+    if (editingCartaoId) {
+        // Modo Edição
+        const idx = dadosCartoes.findIndex(x => x.id === editingCartaoId);
+        if (idx !== -1) {
+            dadosCartoes[idx] = { ...dadosCartoes[idx], responsavel, qtd, data };
+        }
+        editingCartaoId = null;
+        document.getElementById('cartao-modal-title').innerText = "Adicionar Lote de Cartões";
+    } else {
+        // Modo Criação
+        dadosCartoes.push({ id: idCounterCartoes++, responsavel, qtd, data });
+    }
+
     fecharModal('modal-cartoes'); renderizarCartoes();
     document.getElementById('card-qtd').value = ''; document.getElementById('card-data').value = '';
 }
@@ -135,7 +204,6 @@ function salvarCartoes() {
 // LÓGICAS DO CURRÍCULO
 // ==========================================
 
-// 1. Foto 3x4 e Crop sem achatar
 function handlePhotoUpload(event) {
     const file = event.target.files[0];
     if (file) {
@@ -144,18 +212,15 @@ function handlePhotoUpload(event) {
             const img = new Image();
             img.onload = function() {
                 const canvas = document.createElement('canvas');
-                const targetWidth = 300; // 3 partes
-                const targetHeight = 400; // 4 partes
+                const targetWidth = 300;
+                const targetHeight = 400;
                 canvas.width = targetWidth;
                 canvas.height = targetHeight;
                 const ctx = canvas.getContext('2d');
-
-                // Calcula o recorte central
                 const aspectRatio = targetWidth / targetHeight;
                 let srcWidth = img.width;
                 let srcHeight = img.height;
                 let srcX = 0, srcY = 0;
-
                 const imgRatio = srcWidth / srcHeight;
                 if (imgRatio > aspectRatio) {
                     srcWidth = srcHeight * aspectRatio;
@@ -164,11 +229,8 @@ function handlePhotoUpload(event) {
                     srcHeight = srcWidth / aspectRatio;
                     srcY = (img.height - srcHeight) / 2;
                 }
-
                 ctx.drawImage(img, srcX, srcY, srcWidth, srcHeight, 0, 0, targetWidth, targetHeight);
                 fotoBase64 = canvas.toDataURL('image/jpeg');
-
-                // Exibe a prévia 3x4
                 const preview = document.getElementById('cv-photo-preview');
                 preview.src = fotoBase64;
                 preview.style.display = 'block';
@@ -179,7 +241,6 @@ function handlePhotoUpload(event) {
     }
 }
 
-// 2. Buscar CEP
 async function buscarCEP() {
     let cep = document.getElementById('cv-cep').value.replace(/\D/g, '');
     if (cep.length === 8) {
@@ -199,7 +260,6 @@ async function buscarCEP() {
     }
 }
 
-// 3. Adicionar Telefone
 function adicionarTelefone() {
     if (telefoneCount < 3) {
         telefoneCount++;
@@ -210,7 +270,6 @@ function adicionarTelefone() {
     }
 }
 
-// 4. Adicionar Curso
 function adicionarCurso() {
     const container = document.getElementById('cursos-container');
     const id = `curso-${Date.now()}`;
@@ -231,7 +290,6 @@ function adicionarCurso() {
     cursoCount++;
 }
 
-// 5. Adicionar Experiência
 function adicionarExperiencia() {
     if (expCount >= 6) {
         alert("Limite de 6 experiências atingido.");
@@ -256,7 +314,6 @@ function adicionarExperiencia() {
     expCount++;
 }
 
-// 6. Remover Item Dinâmico
 function removerItem(id) {
     const el = document.getElementById(id);
     if (el) {
@@ -266,9 +323,6 @@ function removerItem(id) {
     }
 }
 
-// ==========================================
-// GERAR CURRÍCULO COM O MODELO ESCOLHIDO
-// ==========================================
 async function gerarCurriculo() {
     const nome = document.getElementById('cv-nome').value;
     if (!nome) { alert("Por favor, preencha pelo menos o Nome Completo."); return; }
@@ -292,7 +346,6 @@ async function gerarCurriculo() {
 
     let tels = [tel1, tel2, tel3].filter(t => t.trim() !== '');
 
-    // Coletar Cursos
     const cursosNodes = document.querySelectorAll('#cursos-container .dynamic-item');
     const cursos = [];
     cursosNodes.forEach(node => {
@@ -302,7 +355,6 @@ async function gerarCurriculo() {
         cursos.push({ curso, inst, periodo });
     });
 
-    // Coletar Experiências
     const expNodes = document.querySelectorAll('#exp-container .dynamic-item');
     const experiencias = [];
     expNodes.forEach(node => {
@@ -312,14 +364,12 @@ async function gerarCurriculo() {
         experiencias.push({ empresa, funcao, periodo });
     });
 
-    // Injetar dados no layout do PDF
     document.getElementById('pdf-nome').innerText = nome;
     document.getElementById('pdf-tel').innerText = tels.length > 0 ? tels.join(' / ') : '(Não informado)';
     document.getElementById('pdf-email').innerText = email || '(Não informado)';
     document.getElementById('pdf-endereco').innerText = endereco || '(Não informado)';
     document.getElementById('pdf-objetivo').innerText = objetivo || 'Não informado.';
 
-    // Injetar Foto
     const pdfPhoto = document.getElementById('pdf-photo');
     if (fotoBase64) {
         pdfPhoto.src = fotoBase64;
@@ -328,7 +378,6 @@ async function gerarCurriculo() {
         pdfPhoto.style.display = 'none';
     }
 
-    // Injetar Habilidades
     const pdfSkills = document.getElementById('pdf-habilidades');
     pdfSkills.innerHTML = '';
     if (habilidades.trim() !== '') {
@@ -342,7 +391,6 @@ async function gerarCurriculo() {
         pdfSkills.innerHTML = '<li>Não informado.</li>';
     }
 
-    // Injetar Cursos
     const pdfCursos = document.getElementById('pdf-cursos');
     pdfCursos.innerHTML = '';
     if (cursos.length === 0) {
@@ -360,7 +408,6 @@ async function gerarCurriculo() {
         });
     }
 
-    // Injetar Experiências
     const pdfExp = document.getElementById('pdf-experiencias');
     pdfExp.innerHTML = '';
     if (experiencias.length === 0) {
@@ -378,9 +425,8 @@ async function gerarCurriculo() {
         });
     }
 
-    // Aplicar a classe do modelo escolhido e gerar PDF
     const pdfLayout = document.getElementById('cv-pdf-layout');
-    pdfLayout.className = `template-${templateSelecionado}`; // Troca o estilo do PDF na hora
+    pdfLayout.className = `template-${templateSelecionado}`;
     pdfLayout.style.display = 'block';
 
     try {
@@ -405,8 +451,5 @@ async function gerarCurriculo() {
     }
 }
 
-// ==========================================
-// ABRIR E FECHAR MODAIS (Sem clique externo)
-// ==========================================
 function abrirModal(id) { document.getElementById(id).classList.add('active'); }
 function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
