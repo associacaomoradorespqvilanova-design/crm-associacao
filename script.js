@@ -17,7 +17,6 @@ let cursoCount = 0;
 let expCount = 0;
 let fotoBase64 = null;
 
-// Variáveis de Controle de Edição
 let editingAgendaId = null;
 let editingCartaoId = null;
 
@@ -122,10 +121,6 @@ function renderizarCartoes() {
     document.getElementById('total-walter').innerText = totalWalter;
 }
 
-// ==========================================
-// LÓGICAS DE EDIÇÃO E SALVAMENTO
-// ==========================================
-
 function editarAgenda(id) {
     const item = dadosAgenda.find(x => x.id === id);
     if (!item) return;
@@ -161,7 +156,6 @@ function salvarAgenda() {
     if(!nome || !data) { alert("Preencha pelo menos o Nome e a Data."); return; }
 
     if (editingAgendaId) {
-        // Modo Edição
         const idx = dadosAgenda.findIndex(x => x.id === editingAgendaId);
         if (idx !== -1) {
             dadosAgenda[idx] = { ...dadosAgenda[idx], nome, data, periodo, endereco, telefone };
@@ -169,7 +163,6 @@ function salvarAgenda() {
         editingAgendaId = null;
         document.getElementById('agenda-modal-title').innerText = "Novo Agendamento";
     } else {
-        // Modo Criação
         dadosAgenda.push({ id: idCounterAgenda++, nome, data, periodo, endereco, telefone });
     }
 
@@ -184,7 +177,6 @@ function salvarCartoes() {
     if(!qtd || !data) { alert("Preencha a Quantidade e a Data."); return; }
 
     if (editingCartaoId) {
-        // Modo Edição
         const idx = dadosCartoes.findIndex(x => x.id === editingCartaoId);
         if (idx !== -1) {
             dadosCartoes[idx] = { ...dadosCartoes[idx], responsavel, qtd, data };
@@ -192,17 +184,12 @@ function salvarCartoes() {
         editingCartaoId = null;
         document.getElementById('cartao-modal-title').innerText = "Adicionar Lote de Cartões";
     } else {
-        // Modo Criação
         dadosCartoes.push({ id: idCounterCartoes++, responsavel, qtd, data });
     }
 
     fecharModal('modal-cartoes'); renderizarCartoes();
     document.getElementById('card-qtd').value = ''; document.getElementById('card-data').value = '';
 }
-
-// ==========================================
-// LÓGICAS DO CURRÍCULO
-// ==========================================
 
 function handlePhotoUpload(event) {
     const file = event.target.files[0];
@@ -270,7 +257,12 @@ function adicionarTelefone() {
     }
 }
 
+// ********** LIMITE DE 3 CURSOS **********
 function adicionarCurso() {
+    if (cursoCount >= 3) {
+        alert("Você já atingiu o limite máximo de 3 cursos para caber em 1 única folha A4.");
+        return;
+    }
     const container = document.getElementById('cursos-container');
     const id = `curso-${Date.now()}`;
     const html = `
@@ -290,9 +282,10 @@ function adicionarCurso() {
     cursoCount++;
 }
 
+// ********** LIMITE DE 6 EXPERIÊNCIAS **********
 function adicionarExperiencia() {
     if (expCount >= 6) {
-        alert("Limite de 6 experiências atingido.");
+        alert("Você já atingiu o limite máximo de 6 experiências para caber em 1 única folha A4.");
         return;
     }
     const container = document.getElementById('exp-container');
@@ -323,12 +316,12 @@ function removerItem(id) {
     }
 }
 
+// ********** GERADOR DE PDF INTELIGENTE (CAIXA ÚNICA A4) **********
 async function gerarCurriculo() {
     const nome = document.getElementById('cv-nome').value;
     if (!nome) { alert("Por favor, preencha pelo menos o Nome Completo."); return; }
 
     const templateSelecionado = document.getElementById('cv-template').value;
-    const nascimento = document.getElementById('cv-nascimento').value;
     const tel1 = document.getElementById('cv-tel-1').value;
     const tel2 = document.getElementById('cv-tel-2').value;
     const tel3 = document.getElementById('cv-tel-3').value;
@@ -434,9 +427,22 @@ async function gerarCurriculo() {
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('p', 'mm', 'a4');
+        
         const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+
+        // Capturar as dimensões reais da imagem gerada
+        const imgProps = pdf.getImageProperties(imgData);
+        const imgW = imgProps.width;
+        const imgH = imgProps.height;
+
+        // Calcular o fator de escala PERFEITO para caber DENTRO do A4 sem distorcer
+        const scaleX = pdfWidth / imgW;
+        const scaleY = pdfHeight / imgH;
+        let finalScale = Math.min(scaleX, scaleY);
+
+        // Aplicar a imagem no PDF com o fator de escala inteligente
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgW * finalScale, imgH * finalScale);
 
         const pdfBlob = pdf.output('blob');
         window.open(URL.createObjectURL(pdfBlob), '_blank');
