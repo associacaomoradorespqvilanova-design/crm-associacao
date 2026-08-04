@@ -451,21 +451,19 @@ async function gerarCurriculo() {
 }
 
 // ==========================================
-// LÓGICA DO COMPROVANTE DE RESIDÊNCIA (LAYOUT EXATO)
+// LÓGICA DO COMPROVANTE DE RESIDÊNCIA (CÓDIGO EXATO DO POPUP)
 // ==========================================
-// IMPORTANTE: COLE A URL DO SEU WEB APP GOOGLE AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbyUHEaQtjHXFdujIJBjNB3OuqeXpvHaS-_pJsXAjVgncJPwDTxfvAbJqE5pey3t45zxHQ/exec"; 
+const URL_API_GS = "COLE_AQUI_A_SUA_URL_DO_APPS_SCRIPT"; 
 
-// Máscaras de formatação
+// Máscaras exatas
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
 function formatarCPFPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); }
 function formatarRGPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{1,2})(\d{3})(\d{3})(\d{1})$/,'$1.$2.$3-$4'); }
 
-// Abrir o modal e buscar o próximo número automaticamente
+// Abrir o modal (com a data automática e o próximo número da planilha)
 async function abrirComprovantePrint() {
     abrirModal('modal-comprovante-print');
     
-    // Resetar campos padrão
     document.getElementById('print-nome').value = '';
     document.getElementById('print-endereco').value = '';
     document.getElementById('print-numero_endereco').value = '';
@@ -482,13 +480,11 @@ async function abrirComprovantePrint() {
     document.getElementById('print-alugada').checked = false;
     document.getElementById('print-emprestada').checked = false;
     
-    // Pegar a data atual
     const m = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
     const h = new Date();
     document.getElementById("print-data").value = `${String(h.getDate()).padStart(2,'0')} DE ${m[h.getMonth()]}`;
     document.getElementById("print-ano").value = h.getFullYear();
     
-    // Pega o próximo número da planilha
     try {
         const resp = await fetch(`${URL_API_GS}?action=getNumero`);
         const dados = await resp.json();
@@ -498,7 +494,7 @@ async function abrirComprovantePrint() {
     }
 }
 
-// Buscar CEP pelo botão (Via API do GS)
+// Buscar CEP chamando o GS (via Fetch)
 async function buscarCEPPrint() {
     const cep = document.getElementById('print-cep').value.replace(/\D/g,'');
     if (cep.length !== 8) { alert("CEP inválido"); return; }
@@ -512,7 +508,7 @@ async function buscarCEPPrint() {
     } catch (e) { alert("Erro na busca do CEP"); }
 }
 
-// Buscar CPF na Planilha
+// Buscar CPF chamando o GS
 async function buscarCPFPrint() {
     const cpf = document.getElementById('print-cpf').value.replace(/\D/g,'');
     if (cpf.length !== 11) { alert("CPF inválido"); return; }
@@ -538,7 +534,7 @@ async function buscarCPFPrint() {
     } catch (e) { alert("Erro ao buscar CPF"); }
 }
 
-// Salvar e finalizar
+// Salvar no GS (via Fetch Post)
 async function salvarComprovantePrint() {
     const dados = [
         document.getElementById('print-numero').value,
@@ -571,13 +567,13 @@ async function salvarComprovantePrint() {
     } catch (e) {
         alert("Erro ao salvar: " + e.message);
     } finally {
-        btnSalvar.innerText = '💾 Salvar e Imprimir';
+        btnSalvar.innerText = '💾 Salvar';
         btnSalvar.disabled = false;
     }
 }
 
 // ==========================================
-// ABRIR E FECHAR MODAIS (SEM CLIQUE EXTERNO)
+// ABRIR E FECHAR MODAIS
 // ==========================================
 function abrirModal(id) { document.getElementById(id).classList.add('active'); }
 function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
