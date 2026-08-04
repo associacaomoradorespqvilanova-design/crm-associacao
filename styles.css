@@ -88,6 +88,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .dynamic-item .remove-btn { position: absolute; right: 8px; top: 8px; background: rgba(255, 0, 0, 0.1); border: none; color: #d9534f; cursor: pointer; border-radius: 50%; width: 24px; height: 24px; font-weight: bold; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
 .dynamic-item .remove-btn:hover { background: #d9534f; color: #fff; }
 
+/* ========== CURRÍCULO - LAYOUT DO PDF ========== */
 #cv-pdf-layout { position: absolute; left: -9999px; top: 0; width: 210mm; min-height: 297mm; background: #ffffff; box-sizing: border-box; line-height: 1.4; transition: all 0.2s; }
 .pdf-container { display: flex; min-height: 297mm; }
 .pdf-photo-placeholder { width: 120px; height: 120px; border-radius: 50%; background: #e0e0e0; margin: 0 auto 15px auto; border: 4px solid #fff; display: flex; justify-content: center; align-items: center; overflow: hidden; }
@@ -147,6 +148,37 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 #cv-pdf-layout.template-basico .pdf-entry-title { font-size: 14px; font-weight: 700; color: #2c3e50; }
 #cv-pdf-layout.template-basico .pdf-entry-sub { font-size: 13px; color: #555; }
 #cv-pdf-layout.template-basico .pdf-entry-period { font-size: 12px; color: #888; }
+
+/* ========== COMPROVANTE DE IMPRESSÃO ========== */
+.input-field-print {
+    font-size: 13px;
+    padding: 2px 4px;
+    font-weight: bold;
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid #aaa !important;
+    outline: none;
+    color: black;
+    text-transform: uppercase;
+}
+.input-field-print:focus {
+    border-bottom: 2px solid #4a7c2e !important;
+}
+.input-field-print[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    background: white;
+    border: 1px solid #444 !important;
+    accent-color: black;
+}
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    .input-field-print {
+        border-bottom: none !important;
+    }
+}
 
 @media (max-width: 900px) {
     .grid-container { grid-template-columns: 1fr; }
