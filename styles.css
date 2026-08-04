@@ -1,15 +1,12 @@
-/* ===== RESET E FONTES ===== */
 * { box-sizing: border-box; font-family: 'Montserrat', sans-serif; }
 body { margin: 0; padding: 0; min-height: 100vh; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); display: flex; justify-content: center; align-items: center; position: relative; overflow-x: hidden; }
 
-/* ===== ANIMAÇÃO DE FUNDO ===== */
 .floating-shape { position: fixed; z-index: -1; border-radius: 50%; opacity: 0.15; pointer-events: none; animation: floatUp 20s infinite alternate ease-in-out; }
 .shape1 { width: 300px; height: 300px; background: #7baa48; top: 10%; left: -10%; }
 .shape2 { width: 400px; height: 400px; background: #F5B041; bottom: -10%; right: -10%; animation-delay: -5s; opacity: 0.1; }
 .shape3 { width: 150px; height: 150px; background: #4a7c2e; top: 60%; left: 80%; animation-duration: 25s; }
 @keyframes floatUp { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 33% { transform: translate(30px, -50px) scale(1.1) rotate(120deg); } 66% { transform: translate(-20px, 20px) scale(0.9) rotate(240deg); } 100% { transform: translate(10px, -30px) scale(1.05) rotate(360deg); } }
 
-/* ===== TELA DE LOGIN ===== */
 #login-screen { background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(12px); padding: 45px 40px; border-radius: 24px; max-width: 420px; width: 100%; box-shadow: 0 15px 40px rgba(0,0,0,0.05); border: 1px solid rgba(255, 255, 255, 0.5); text-align: center; position: relative; z-index: 10; }
 .login-logo { width: 100px; height: 100px; border-radius: 50%; border: 3px solid rgba(123, 170, 72, 0.8); background: #fdfdfd; margin: 0 auto 20px auto; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #4a7c2e; font-weight: 600; text-align: center; padding: 10px; background-image: url('https://via.placeholder.com/100x100?text=Logo'); background-size: cover; }
 #login-screen h2 { color: #2c3e50; font-weight: 700; margin: 0 0 5px 0; font-size: 22px; }
@@ -24,17 +21,16 @@ body { margin: 0; padding: 0; min-height: 100vh; background: linear-gradient(135
 .login-footer { margin-top: 25px; font-size: 12px; color: #95a5a6; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 20px; }
 .login-footer a { color: #7baa48; text-decoration: none; font-weight: 600; }
 
-/* ===== DASHBOARD E RELÓGIO ===== */
 #dashboard-screen { display: none; max-width: 1400px; margin: 0 auto; padding: 30px; }
 .header { display: flex; justify-content: center; align-items: center; margin-bottom: 40px; gap: 15px; }
 .header h1 { font-size: 34px; font-weight: 800; color: #2c3e50; letter-spacing: 1px; margin: 0; position: relative; }
 .header h1 span { color: #4a7c2e; }
 .header::after { content: ''; flex: 1; height: 2px; background: linear-gradient(to right, transparent, #7baa48, transparent); }
+
 #clock-wrapper { perspective: 300px; background: rgba(255, 255, 255, 0.8); padding: 5px 25px; border-radius: 40px; backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.9); box-shadow: 0 2px 15px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: center; }
 #current-time { font-size: 2.2rem; font-weight: 700; color: #4a7c2e; transition: transform 0.3s ease, opacity 0.3s ease; animation: paperFlip 0.4s ease-in-out; display: inline-block; }
 @keyframes paperFlip { 0% { transform: rotateY(0deg); opacity: 1; } 30% { transform: rotateY(90deg); opacity: 0.8; } 70% { transform: rotateY(-90deg); opacity: 0.8; } 100% { transform: rotateY(0deg); opacity: 1; } }
 
-/* ===== GRID ===== */
 .grid-container { display: grid; grid-template-columns: 1.1fr 1.8fr 1.1fr; gap: 25px; align-items: start; }
 .panel { background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(8px); border-radius: 16px; padding: 20px; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06); border: 1px solid rgba(255, 255, 255, 0.8); transition: transform 0.3s, box-shadow 0.3s; }
 .panel:hover { transform: translateY(-5px); box-shadow: 0 15px 40px 0 rgba(31, 38, 135, 0.15); }
@@ -43,7 +39,6 @@ body { margin: 0; padding: 0; min-height: 100vh; background: linear-gradient(135
 .btn-sm { background: rgba(255, 255, 255, 0.5); border: 1px solid #7baa48; color: #4a7c2e; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.3s; }
 .btn-sm:hover { background: #4a7c2e; color: #fff; transform: scale(1.05); }
 
-/* ===== TABELAS ===== */
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 table thead { background: rgba(26, 26, 26, 0.9); color: #fff; }
 table th, table td { padding: 10px 8px; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.05); }
@@ -51,7 +46,10 @@ table th { font-weight: 600; font-size: 11px; text-transform: uppercase; letter-
 table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .highlight-row { background-color: #eafde8; border-left: 4px solid #7baa48; font-weight: 700; }
 
-/* ===== BOTÕES CENTRAIS ===== */
+/* Botão de Editar (Lápis) */
+.btn-edit { background: transparent; border: none; color: #4a7c2e; cursor: pointer; font-size: 16px; transition: 0.2s; padding: 0 5px; }
+.btn-edit:hover { color: #1e3d0e; transform: scale(1.2); }
+
 .col-center { display: flex; flex-direction: column; align-items: center; padding-top: 10px; }
 .logo-circle { width: 180px; height: 180px; border-radius: 50%; border: 4px solid #4a7c2e; background: #fff; margin-bottom: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #4a7c2e; font-weight: 600; text-align: center; background-image: url('https://via.placeholder.com/180x180?text=Logo+Associação'); background-size: cover; padding: 10px; box-shadow: 0 0 0 8px rgba(123, 170, 72, 0.1); }
 .menu-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; max-width: 450px; width: 100%; }
@@ -66,7 +64,6 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .table-cards th { background: rgba(74, 124, 46, 0.9); color: #fff; }
 .total-geral { margin-top: 15px; border-top: 2px solid #7baa48; padding-top: 10px; display: flex; justify-content: space-between; font-weight: 700; font-size: 14px; }
 
-/* ===== MODAIS ===== */
 .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); backdrop-filter: blur(6px); z-index: 1000; justify-content: center; align-items: center; }
 .modal-overlay.active { display: flex; }
 .modal-box { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); padding: 30px; border-radius: 20px; width: 100%; max-width: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); position: relative; border: 1px solid rgba(255, 255, 255, 0.8); animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -82,7 +79,6 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .close-btn { position: absolute; right: 15px; top: 15px; cursor: pointer; font-size: 20px; color: #888; transition: 0.3s; }
 .close-btn:hover { color: #333; transform: rotate(90deg); }
 
-/* ===== MODAL CURRÍCULO ===== */
 #modal-curriculo .modal-box { max-width: 800px; max-height: 90vh; overflow-y: auto; }
 #modal-curriculo .modal-box::-webkit-scrollbar { width: 6px; }
 #modal-curriculo .modal-box::-webkit-scrollbar-thumb { background: #7baa48; border-radius: 8px; }
@@ -93,12 +89,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .dynamic-item .remove-btn { position: absolute; right: 8px; top: 8px; background: rgba(255, 0, 0, 0.1); border: none; color: #d9534f; cursor: pointer; border-radius: 50%; width: 24px; height: 24px; font-weight: bold; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
 .dynamic-item .remove-btn:hover { background: #d9534f; color: #fff; }
 
-/* ================================================================ */
-/* CSS DOS 3 MODELOS DE PDF (PADRÃO, MODERNO, CHIC)                 */
-/* ================================================================ */
 #cv-pdf-layout { position: absolute; left: -9999px; top: 0; width: 210mm; min-height: 297mm; background: #ffffff; box-sizing: border-box; line-height: 1.4; transition: all 0.2s; }
-
-/* BASE COMUM AOS 3 MODELOS */
 .pdf-container { display: flex; min-height: 297mm; }
 .pdf-photo-placeholder { width: 120px; height: 120px; border-radius: 50%; background: #e0e0e0; margin: 0 auto 15px auto; border: 4px solid #fff; display: flex; justify-content: center; align-items: center; overflow: hidden; }
 #pdf-photo { width: 100%; height: 100%; object-fit: cover; }
@@ -109,7 +100,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .pdf-entry-sub { font-weight: 600; font-size: 12px; margin: 0 0 2px 0; }
 .pdf-entry-period { font-size: 11px; color: #888; margin: 0; }
 
-/* ===== 1. MODELO PADRÃO ===== */
+/* MODELO PADRÃO */
 #cv-pdf-layout.template-padrao { font-family: 'Montserrat', sans-serif; color: #2c3e50; }
 #cv-pdf-layout.template-padrao .pdf-left { width: 33%; background: #f4f6f9; padding: 15mm 10mm; border-right: 2px solid #4a7c2e; }
 #cv-pdf-layout.template-padrao .pdf-right { width: 67%; padding: 15mm 12mm; }
@@ -119,7 +110,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 #cv-pdf-layout.template-padrao .pdf-section h3 { color: #4a7c2e; border-bottom: 1px solid #e0e0e0; padding-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; font-size: 13px;}
 #cv-pdf-layout.template-padrao .pdf-right .pdf-section h3 { color: #2c3e50; border-bottom: 2px solid #4a7c2e; }
 
-/* ===== 2. MODELO MODERNO ===== */
+/* MODELO MODERNO */
 #cv-pdf-layout.template-moderno { font-family: 'Montserrat', sans-serif; color: #333; }
 #cv-pdf-layout.template-moderno .pdf-container { flex-direction: column; }
 #cv-pdf-layout.template-moderno .pdf-left { width: 100%; background: #2c3e50; padding: 10mm 10mm 5mm 10mm; border-right: none; text-align: center; }
@@ -131,7 +122,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 #cv-pdf-layout.template-moderno .pdf-section h3 { color: #2c3e50; border-bottom: 2px solid #4a7c2e; text-transform: uppercase; letter-spacing: 1px; font-size: 13px; padding-bottom: 4px; }
 #cv-pdf-layout.template-moderno .pdf-right .pdf-section h3 { color: #2c3e50; }
 
-/* ===== 3. MODELO CHIC ===== */
+/* MODELO CHIC */
 #cv-pdf-layout.template-chic { font-family: 'Playfair Display', serif; color: #4a4a4a; }
 #cv-pdf-layout.template-chic .pdf-container { flex-direction: column; padding: 15mm; }
 #cv-pdf-layout.template-chic .pdf-left { width: 100%; background: transparent; padding: 0 0 15px 0; border-right: none; text-align: center; border-bottom: 2px solid #c0a47c; }
@@ -146,7 +137,22 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 #cv-pdf-layout.template-chic .pdf-entry-sub { font-family: 'Playfair Display', serif; color: #c0a47c; font-weight: 700; }
 #cv-pdf-layout.template-chic .pdf-entry-period { font-family: 'Montserrat', sans-serif; }
 
-/* ===== RESPONSIVO ===== */
+/* MODELO BÁSICO (NOVO) */
+#cv-pdf-layout.template-basico { font-family: 'Montserrat', sans-serif; color: #333; background: #fff; }
+#cv-pdf-layout.template-basico .pdf-container { flex-direction: column; padding: 15mm 20mm; }
+#cv-pdf-layout.template-basico .pdf-left { width: 100%; background: transparent; border-right: none; padding: 0 0 15px 0; position: relative; border-bottom: 2px solid #2c3e50; margin-bottom: 15px; }
+#cv-pdf-layout.template-basico .pdf-photo-placeholder { position: absolute; top: 0; right: 0; width: 100px; height: 100px; margin: 0; border: 2px solid #e0e0e0; border-radius: 50%; background: #f4f6f9; }
+#cv-pdf-layout.template-basico .pdf-left h1 { font-size: 26px; color: #2c3e50; font-weight: 800; text-align: left; margin: 0 0 5px 0; padding-right: 120px; }
+#cv-pdf-layout.template-basico .pdf-contact { font-size: 12px; color: #666; text-align: left; margin: 0; display: flex; flex-wrap: wrap; gap: 15px; padding-right: 120px; }
+#cv-pdf-layout.template-basico .pdf-divider { display: none; }
+#cv-pdf-layout.template-basico .pdf-right { width: 100%; padding: 0; background: transparent; }
+#cv-pdf-layout.template-basico .pdf-section h3 { font-size: 13px; color: #2c3e50; border-bottom: 1px solid #e0e0e0; padding-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; margin-top: 15px; }
+#cv-pdf-layout.template-basico .pdf-section h3:first-of-type { margin-top: 0; }
+#cv-pdf-layout.template-basico .pdf-list { font-size: 12px; padding-left: 18px; }
+#cv-pdf-layout.template-basico .pdf-entry-title { font-size: 14px; font-weight: 700; color: #2c3e50; }
+#cv-pdf-layout.template-basico .pdf-entry-sub { font-size: 13px; color: #555; }
+#cv-pdf-layout.template-basico .pdf-entry-period { font-size: 12px; color: #888; }
+
 @media (max-width: 900px) {
     .grid-container { grid-template-columns: 1fr; }
     .col-center { order: -1; }
