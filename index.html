@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Associação PQ Vila Nova - CRM</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <!-- LINK PARA O CSS EXTERNO -->
+    <!-- BIBLIOTECAS PARA GERAR O PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -38,7 +40,11 @@
     <!-- DASHBOARD -->
     <div id="dashboard-screen">
         <div class="header">
-            <h1>ASSOCIAÇÃO <span>PQ VILA NOVA</span></h1>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <h1>ASSOCIAÇÃO <span>PQ VILA NOVA</span></h1>
+                <!-- RELÓGIO ATUAL -->
+                <div id="current-time">00:00:00</div>
+            </div>
         </div>
 
         <div class="grid-container">
@@ -56,7 +62,7 @@
             <div class="col-center">
                 <div class="logo-circle">Logotipo da Associação</div>
                 <div class="menu-buttons">
-                    <button class="btn-action">CURRICULO</button>
+                    <button class="btn-action" onclick="abrirModal('modal-curriculo')">CURRICULO</button>
                     <button class="btn-action">WHATSAPP</button>
                     <button class="btn-action">SEM ASSINATURA</button>
                     <button class="btn-action">COMPROVANTE</button>
@@ -106,6 +112,60 @@
         </div>
     </div>
 
+    <!-- MODAL CURRÍCULO (NOVO) -->
+    <div id="modal-curriculo" class="modal-overlay">
+        <div class="modal-box">
+            <span class="close-btn" onclick="fecharModal('modal-curriculo')">×</span>
+            <h3>📄 Preencher Currículo</h3>
+            <div class="grid-cv full">
+                <label>Nome Completo</label>
+                <input type="text" id="cv-nome" placeholder="Seu nome completo">
+            </div>
+            <div class="grid-cv">
+                <div>
+                    <label>Data de Nascimento</label>
+                    <input type="date" id="cv-nascimento">
+                </div>
+                <div>
+                    <label>Telefone</label>
+                    <input type="text" id="cv-tel" placeholder="(XX) XXXXX-XXXX">
+                </div>
+            </div>
+            <div class="grid-cv full">
+                <label>E-mail</label>
+                <input type="email" id="cv-email" placeholder="email@exemplo.com">
+                <label>Endereço Completo</label>
+                <input type="text" id="cv-endereco" placeholder="Rua, Número, Bairro, Cidade - UF">
+            </div>
+            <div class="grid-cv full">
+                <label>Objetivo Profissional</label>
+                <textarea id="cv-objetivo" rows="2" placeholder="Digite seu objetivo profissional..."></textarea>
+            </div>
+            <div class="grid-cv">
+                <div>
+                    <label>Formação / Curso</label>
+                    <input type="text" id="cv-curso" placeholder="Ex: Administração">
+                </div>
+                <div>
+                    <label>Instituição</label>
+                    <input type="text" id="cv-instituicao" placeholder="Nome da faculdade/escola">
+                </div>
+            </div>
+            <div class="grid-cv full">
+                <label>Experiência Profissional</label>
+                <textarea id="cv-experiencia" rows="3" placeholder="Empresa, Cargo, Período e Principais Atividades..."></textarea>
+            </div>
+            <div class="grid-cv full">
+                <label>Habilidades / Competências</label>
+                <textarea id="cv-habilidades" rows="2" placeholder="Separe por vírgulas. Ex: Trabalho em equipe, Pacote Office, Inglês intermediário"></textarea>
+            </div>
+            <div class="modal-actions" style="justify-content: center;">
+                <button class="btn-cancel" onclick="fecharModal('modal-curriculo')">Cancelar</button>
+                <button class="btn-primary" onclick="gerarCurriculo()" style="width: auto; padding: 10px 30px;">🎯 Gerar Currículo</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modal-cartoes" class="modal-overlay">
         <div class="modal-box">
             <span class="close-btn" onclick="fecharModal('modal-cartoes')">×</span>
@@ -137,8 +197,31 @@
         </div>
     </div>
 
-    <!-- JAVASCRIPT (Mantido igual ao anterior) -->
+    <!-- LAYOUT ESCONDIDO PARA GERAR O PDF DO CURRÍCULO -->
+    <div id="cv-pdf-layout">
+        <h1 id="pdf-nome">Nome Completo</h1>
+        <div class="contact-info">
+            <span id="pdf-tel">Telefone</span>
+            <span id="pdf-email">E-mail</span>
+            <span id="pdf-endereco">Endereço</span>
+        </div>
+
+        <h2>Objetivo</h2>
+        <p id="pdf-objetivo" style="font-style: italic; margin-bottom: 15px;">Objetivo profissional...</p>
+
+        <h2>Formação Acadêmica</h2>
+        <p id="pdf-formacao"><strong>Curso:</strong> <span id="pdf-curso"></span> - <span id="pdf-instituicao"></span></p>
+
+        <h2>Experiência Profissional</h2>
+        <p id="pdf-experiencia" style="white-space: pre-line;">Experiência...</p>
+
+        <h2>Habilidades</h2>
+        <p id="pdf-habilidades">Habilidades...</p>
+    </div>
+
+    <!-- JAVASCRIPT -->
     <script>
+        // --- DADOS INICIAIS ---
         let dadosAgenda = [
             { id: 1, nome: "João Silva", data: "2026-08-05", periodo: "Manhã", endereco: "Qd 12", telefone: "99999-9999" },
             { id: 2, nome: "Maria Oliveira", data: "2026-08-15", periodo: "Tarde", endereco: "Qd 08", telefone: "98888-8888" }
@@ -154,6 +237,26 @@
         let idCounterAgenda = 3;
         let idCounterCartoes = 5;
 
+        // --- RELÓGIO EM TEMPO REAL ---
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('pt-BR', { hour12: false });
+            document.getElementById('current-time').innerText = timeString;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // --- FECHAR MODAL COM TECLA ESC ---
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const activeModal = document.querySelector('.modal-overlay.active');
+                if (activeModal) {
+                    activeModal.classList.remove('active');
+                }
+            }
+        });
+
+        // --- LOGIN ---
         function login() {
             const user = document.getElementById('username').value;
             const pass = document.getElementById('password').value;
@@ -242,6 +345,64 @@
             dadosCartoes.push({ id: idCounterCartoes++, responsavel, qtd, data });
             fecharModal('modal-cartoes'); renderizarCartoes();
             document.getElementById('card-qtd').value = ''; document.getElementById('card-data').value = '';
+        }
+
+        // --- LÓGICA DO CURRÍCULO (Gerar PDF e Abrir em Nova Guia) ---
+        async function gerarCurriculo() {
+            // 1. Coletar os dados preenchidos
+            const nome = document.getElementById('cv-nome').value;
+            const nascimento = document.getElementById('cv-nascimento').value;
+            const tel = document.getElementById('cv-tel').value;
+            const email = document.getElementById('cv-email').value;
+            const endereco = document.getElementById('cv-endereco').value;
+            const objetivo = document.getElementById('cv-objetivo').value;
+            const curso = document.getElementById('cv-curso').value;
+            const instituicao = document.getElementById('cv-instituicao').value;
+            const experiencia = document.getElementById('cv-experiencia').value;
+            const habilidades = document.getElementById('cv-habilidades').value;
+
+            if(!nome) { alert("Por favor, preencha pelo menos o Nome Completo."); return; }
+
+            // 2. Alimentar o layout oculto do PDF com os dados
+            document.getElementById('pdf-nome').innerText = nome;
+            document.getElementById('pdf-tel').innerText = tel || '(Não informado)';
+            document.getElementById('pdf-email').innerText = email || '(Não informado)';
+            document.getElementById('pdf-endereco').innerText = endereco || '(Não informado)';
+            document.getElementById('pdf-objetivo').innerText = objetivo || 'Não informado.';
+            document.getElementById('pdf-curso').innerText = curso || 'Não informado';
+            document.getElementById('pdf-instituicao').innerText = instituicao || 'Não informado';
+            document.getElementById('pdf-experiencia').innerText = experiencia || 'Não informado.';
+            document.getElementById('pdf-habilidades').innerText = habilidades || 'Não informado.';
+
+            // 3. Gerar o PDF
+            const pdfContent = document.getElementById('cv-pdf-layout');
+            pdfContent.style.display = 'block'; // Torna visível para o html2canvas capturar
+
+            try {
+                const canvas = await html2canvas(pdfContent, { scale: 2, useCORS: true, logging: false });
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                
+                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                
+                // 4. Gerar blob e abrir em NOVA GUIA
+                const pdfBlob = pdf.output('blob');
+                const blobUrl = URL.createObjectURL(pdfBlob);
+                window.open(blobUrl, '_blank');
+
+                // 5. Finalizar
+                pdfContent.style.display = 'none';
+                fecharModal('modal-curriculo');
+
+            } catch (error) {
+                console.error("Erro ao gerar PDF:", error);
+                alert("Ocorreu um erro ao gerar o currículo. Tente novamente.");
+                pdfContent.style.display = 'none';
+            }
         }
 
         function abrirModal(id) { document.getElementById(id).classList.add('active'); }
