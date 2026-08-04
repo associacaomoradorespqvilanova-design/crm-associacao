@@ -451,16 +451,25 @@ async function gerarCurriculo() {
 }
 
 // ==========================================
-// LÓGICA DO COMPROVANTE DE RESIDÊNCIA (CÓDIGO EXATO DO POPUP)
+// LÓGICA DO COMPROVANTE (COM BUSCA AUTOMÁTICA)
 // ==========================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbyUHEaQtjHXFdujIJBjNB3OuqeXpvHaS-_pJsXAjVgncJPwDTxfvAbJqE5pey3t45zxHQ/exec"; 
+// COLE A URL DO SEU APPS SCRIPT AQUI
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwNtkVXz-dtHubBl8u_HATOxtLX0rSVVExhbA5BaWZeGiRa182oMzclN1Te-U2UmPZk/exec"; 
 
-// Máscaras exatas
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
 function formatarCPFPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); }
 function formatarRGPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{1,2})(\d{3})(\d{3})(\d{1})$/,'$1.$2.$3-$4'); }
 
-// Abrir o modal (com a data automática e o próximo número da planilha)
+// Funções automáticas para CPF e CEP (executadas ao clicar fora do campo)
+function autoBuscarCEP(el) {
+    const cep = el.value.replace(/\D/g, '');
+    if (cep.length === 8) { buscarCEPPrint(); }
+}
+function autoBuscarCPF(el) {
+    const cpf = el.value.replace(/\D/g, '');
+    if (cpf.length === 11) { buscarCPFPrint(); }
+}
+
 async function abrirComprovantePrint() {
     document.getElementById('modal-comprovante-print').style.display = 'flex';
     
@@ -494,7 +503,6 @@ async function abrirComprovantePrint() {
     }
 }
 
-// Buscar CEP chamando o GS (via Fetch)
 async function buscarCEPPrint() {
     const cep = document.getElementById('print-cep').value.replace(/\D/g,'');
     if (cep.length !== 8) { alert("CEP inválido"); return; }
@@ -508,7 +516,6 @@ async function buscarCEPPrint() {
     } catch (e) { alert("Erro na busca do CEP"); }
 }
 
-// Buscar CPF chamando o GS
 async function buscarCPFPrint() {
     const cpf = document.getElementById('print-cpf').value.replace(/\D/g,'');
     if (cpf.length !== 11) { alert("CPF inválido"); return; }
@@ -534,7 +541,6 @@ async function buscarCPFPrint() {
     } catch (e) { alert("Erro ao buscar CPF"); }
 }
 
-// Salvar no GS (via Fetch Post)
 async function salvarComprovantePrint() {
     const dados = [
         document.getElementById('print-numero').value,
@@ -572,9 +578,6 @@ async function salvarComprovantePrint() {
     }
 }
 
-// ==========================================
-// ABRIR E FECHAR MODAIS (SEM CLIQUE EXTERNO)
-// ==========================================
 function abrirModal(id) { document.getElementById(id).classList.add('active'); }
 function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
 function fecharComprovantePrint() { document.getElementById('modal-comprovante-print').style.display = 'none'; }
