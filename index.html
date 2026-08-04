@@ -136,16 +136,14 @@
         </div>
     </div>
 
-    <!-- MODAL COMPROVANTE (COM SCROLL E BUSCA AUTOMÁTICA) -->
+    <!-- MODAL COMPROVANTE -->
     <div id="modal-comprovante-print" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(6px); z-index: 1000; justify-content: center; overflow-y: auto; padding: 40px 0;">
         
         <div style="position: relative; width: 794px; height: 1123px; background-image: url('https://i.imgur.com/lFhk0Hq.png'); background-size: 100% 100%; background-color: white; background-position: center; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.4); flex-shrink: 0; margin: 0 auto; overflow: hidden;">
             
-            <!-- Botão Fechar -->
             <span class="close-btn" onclick="fecharComprovantePrint()" style="position: absolute; top: -15px; right: -15px; background: #4a7c2e; color: #fff; border-radius: 50%; width: 30px; height: 30px; padding: 0; display: flex; align-items: center; justify-content: center; z-index: 10; border: 2px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.2); cursor: pointer;">×</span>
             
-            <!-- =============== CAMPOS COM COORDENADAS EXATAS =============== -->
-            
+            <!-- CAMPOS COM COORDENADAS EXATAS -->
             <input id="print-numero" class="input-field-print" style="position:absolute; top:386px; left:230px; width:80px; z-index:1;" readonly>
             <input id="print-data" class="input-field-print" style="position:absolute; top:386px; left:390px; width:130px; z-index:1;">
             <input id="print-ano" class="input-field-print" style="position:absolute; top:386px; left:580px; width:80px; z-index:1;">
@@ -177,10 +175,11 @@
             <input type="checkbox" id="print-alugada" class="input-field-print" style="position:absolute; top:844px; left:425px; z-index:1; width:16px; height:16px;">
             <input type="checkbox" id="print-emprestada" class="input-field-print" style="position:absolute; top:844px; left:652px; z-index:1; width:16px; height:16px;">
 
-            <!-- BOTÕES (Salvar e Cancelar) -->
-            <div class="buttons-container no-print" style="position:absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 10;">
+            <!-- BOTÕES DE AÇÃO COM SALVAR E IMPRIMIR -->
+            <div class="buttons-container no-print" style="position:absolute; bottom: 25px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 10;">
                 <button class="btn-cancel" onclick="fecharComprovantePrint()" style="padding: 10px 20px; border-radius: 6px; border: none; background: #ccc; color: #333; cursor: pointer;">Cancelar</button>
-                <button class="btn-primary" onclick="salvarComprovantePrint()" style="padding: 10px 20px; border-radius: 6px; border: none; color: white; cursor: pointer; background: #4CAF50;">💾 Salvar</button>
+                <button class="btn-primary btn-save" onclick="salvarApenas()" style="padding: 10px 20px; border-radius: 6px; border: none; color: white; cursor: pointer; background: #4CAF50;">💾 Salvar</button>
+                <button class="btn-primary btn-print" onclick="salvarEImprimir()" style="padding: 10px 20px; border-radius: 6px; border: none; color: white; cursor: pointer; background: #007BFF;">🖨️ Imprimir</button>
             </div>
 
         </div>
