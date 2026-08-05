@@ -22,14 +22,14 @@ let editingCartaoId = null;
 let lastSearchedCPF = '';
 
 // 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwvsz_sN_-CA2eaPdwYyJ1D1DkEgPy-SFpuU4kiUOvzmRoNnZbvw9Iwh3QLdmT_vEVE9g/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzhOY80N2atL7kR8uWrltrWFHr1Qz9Rd2o0nM20TrEWmNe6dt8QiEKNK_D4EHa533Sk1A/exec"; 
 
 // ==========================================================
-// 🔥 COMUNICAÇÃO À PROVA DE BLOQUEIO (ESTILO STAGE TELECOM)
+// 🔥 FUNÇÕES DE COMUNICAÇÃO DO STAGE TELECOM (INFALÍVEL)
 // ==========================================================
 
-// Função GET usando JSONP (Ignora bloqueios do navegador)
-function jsonpRequest(acao, params = {}) {
+// GET via JSONP (Ignora bloqueios de rastreamento do navegador)
+function fetchFromGS(acao, params = {}) {
     return new Promise((resolve, reject) => {
         const callbackName = 'cb' + Date.now() + Math.random().toString(36).substr(2, 8);
         const urlParams = new URLSearchParams({ acao, callback: callbackName, ...params });
@@ -38,7 +38,7 @@ function jsonpRequest(acao, params = {}) {
         
         const timeout = setTimeout(() => {
             if (document.body.contains(script)) document.body.removeChild(script);
-            reject(new Error('Tempo limite (JSONP)'));
+            reject(new Error('Timeout na requisição JSONP'));
             setTimeout(() => { delete window[callbackName]; }, 1000);
         }, 15000);
         
@@ -52,23 +52,20 @@ function jsonpRequest(acao, params = {}) {
         script.onerror = () => {
             clearTimeout(timeout);
             if (document.body.contains(script)) document.body.removeChild(script);
-            reject(new Error('Erro de rede no JSONP'));
+            setTimeout(() => { delete window[callbackName]; }, 1000);
+            reject(new Error('Erro de rede na requisição JSONP'));
         };
         
         document.body.appendChild(script);
     });
 }
 
-// Função POST usando FormData (Navegador trata como seguro)
-async function postRequest(acao, dados = {}) {
+// POST via FormData (Navegador permite sem CORS)
+async function postParaGoogleSheets(acao, dados = {}) {
     const formData = new URLSearchParams();
     formData.append('acao', acao);
     formData.append('dados', JSON.stringify(dados));
-    await fetch(URL_API_GS, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData
-    });
+    await fetch(URL_API_GS, { method: 'POST', body: formData, mode: 'no-cors' });
 }
 
 // ==========================================================
@@ -505,7 +502,7 @@ async function gerarCurriculo() {
 }
 
 // ==========================================
-// LÓGICA DO COMPROVANTE (Baseada no seu código original)
+// LÓGICA DO COMPROVANTE (100% STAGE TELECOM)
 // ==========================================
 
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
@@ -557,11 +554,12 @@ async function abrirComprovantePrint() {
         if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
-        const dados = await jsonpRequest('getNumero');
+        // 🔥 CHAMADA STAGE TELECOM
+        const dados = await fetchFromGS('getNumero');
         document.getElementById('print-numero').value = dados.numero || '0000001';
     } catch (e) {
         console.error(e);
-        alert("Erro ao buscar o número da declaração.");
+        alert("Erro ao buscar o número da declaração. Verifique a URL do Apps Script.");
         document.getElementById('print-numero').value = '0000001';
     }
 }
@@ -591,7 +589,8 @@ async function buscarCPFPrint() {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
         
-        const r = await jsonpRequest('buscarCPF', { cpf: cpf });
+        // 🔥 CHAMADA STAGE TELECOM
+        const r = await fetchFromGS('buscarCPF', { cpf: cpf });
         
         if (r.erro) { 
             alert("ERRO DO APPS SCRIPT: " + r.erro); 
@@ -604,7 +603,6 @@ async function buscarCPFPrint() {
         }
         const d = r.dados;
         
-        // 🔥 PREENCHE EXATAMENTE OS CAMPOS DA SUA IMAGEM
         document.getElementById('print-nome').value = d.nome || '';
         document.getElementById('print-endereco').value = d.endereco || '';
         document.getElementById('print-numero_endereco').value = d.numero_endereco || '';
@@ -707,7 +705,9 @@ async function salvarDadosComprovante() {
         document.getElementById('print-alugada').checked ? "Alugada" : "",
         document.getElementById('print-emprestada').checked ? "Emprestada" : ""
     ];
-    await postRequest('salvarDeclaracao', dados);
+    
+    // 🔥 CHAMADA DE SALVAR DO STAGE TELECOM
+    await postParaGoogleSheets('salvarDeclaracao', dados);
 }
 
 async function salvarApenas() {
