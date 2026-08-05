@@ -22,27 +22,43 @@ let editingCartaoId = null;
 let lastSearchedCPF = '';
 
 // 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbxMU-S7aDtTlIn9W0f1ISOZVXBCTQl6tZkDI5y2s0R1ajYOivCEotGhcRQMl-MlcEHD5g/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbxzA-M9klpb0D8vrRuUgPcsINiL8FHsNMxRa_VLLKv7EntscRiH3f_WVrTFj0pyYW62NA/exec"; 
 
 // ==========================================================
-// 🔥 COMUNICAÇÃO DEFINITIVA (APENAS FETCH, SEM JSONP)
+// 🔥 COMUNICAÇÃO JSONP DO STAGE TELECOM (IGNORA CORS)
 // ==========================================================
 
-// GET via fetch (CORS já foi liberado no GS)
-async function getGS(acao, params = {}) {
-    const urlParams = new URLSearchParams({ acao, ...params });
-    const url = `${URL_API_GS}?${urlParams.toString()}`;
-    try {
-        const resposta = await fetch(url);
-        if (!resposta.ok) throw new Error(`Erro HTTP ${resposta.status}`);
-        return await resposta.json();
-    } catch (e) {
-        console.error("Erro no GET:", e);
-        throw e;
-    }
+function fetchFromGS(acao, params = {}) {
+    return new Promise((resolve, reject) => {
+        const callbackName = 'cb' + Date.now() + Math.random().toString(36).substr(2, 8);
+        const urlParams = new URLSearchParams({ acao, callback: callbackName, ...params });
+        const script = document.createElement('script');
+        script.src = URL_API_GS + '?' + urlParams.toString();
+        
+        const timeout = setTimeout(() => {
+            if (document.body.contains(script)) document.body.removeChild(script);
+            reject(new Error('Timeout na requisição JSONP'));
+            setTimeout(() => { delete window[callbackName]; }, 1000);
+        }, 15000);
+        
+        window[callbackName] = (res) => {
+            clearTimeout(timeout);
+            if (document.body.contains(script)) document.body.removeChild(script);
+            resolve(res);
+            setTimeout(() => { delete window[callbackName]; }, 1000);
+        };
+        
+        script.onerror = () => {
+            clearTimeout(timeout);
+            if (document.body.contains(script)) document.body.removeChild(script);
+            setTimeout(() => { delete window[callbackName]; }, 1000);
+            reject(new Error('Erro de rede na requisição JSONP'));
+        };
+        
+        document.body.appendChild(script);
+    });
 }
 
-// POST (já estava funcionando, mantido igual)
 async function postParaGoogleSheets(acao, dados = {}) {
     const formData = new URLSearchParams();
     formData.append('acao', acao);
@@ -484,7 +500,7 @@ async function gerarCurriculo() {
 }
 
 // ==========================================
-// LÓGICA DO COMPROVANTE (FETCH REAL, SEM JSONP, SEM ERRO)
+// LÓGICA DO COMPROVANTE (JSONP final, sem CORS)
 // ==========================================
 
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
@@ -536,12 +552,11 @@ async function abrirComprovantePrint() {
         if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
-        // 🔥 GET via fetch
-        const dados = await getGS('getNumero');
+        const dados = await fetchFromGS('getNumero');
         document.getElementById('print-numero').value = dados.numero || '0000001';
     } catch (e) {
         console.error(e);
-        alert("Erro ao buscar o número da declaração: " + e.message);
+        alert("Erro ao buscar o número da declaração.");
         document.getElementById('print-numero').value = '0000001';
     }
 }
@@ -571,8 +586,8 @@ async function buscarCPFPrint() {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
         
-        // 🔥 GET via fetch (busca o CPF na planilha)
-        const r = await getGS('buscarCPF', { cpf: cpf });
+        // 🔥 JSONP Infalível (Sem erros de CORS, sem bloqueios)
+        const r = await fetchFromGS('buscarCPF', { cpf: cpf });
         
         if (r.erro) { 
             alert("ERRO DO APPS SCRIPT: " + r.erro); 
