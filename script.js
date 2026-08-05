@@ -22,7 +22,7 @@ let editingCartaoId = null;
 let lastSearchedCPF = '';
 
 // 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbxGfs7A5vlq6ZlEQQ7jcU8iFCaSyQe1mAKIkqlj7TnYedFoZ5fwvsxt376mfv8Unvu6Ng/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzrl-OXOxFtuiToXEjwzjNw-4GB4x5HRhDdZI6TDAWGo-dSfQNV4QNN8XLBn6oai5YGwQ/exec"; 
 
 // ==========================================================
 // 🔥 COMUNICAÇÃO JSONP DO STAGE TELECOM (IGNORA CORS)
