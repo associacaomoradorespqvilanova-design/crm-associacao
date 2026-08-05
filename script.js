@@ -21,8 +21,8 @@ let editingAgendaId = null;
 let editingCartaoId = null;
 let lastSearchedCPF = '';
 
-// 🔥 URL DO SEU GOOGLE APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbysUU_1VZLKvq1ccgSyjZ0j_5VVDN2R_QZGbUWBPQAajvt_c_axKVFp53llziorEBqW/exec"; 
+// 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbxYwmsoyceOQicto8x9VWDYt1hawicOh5FBF2HlTFeLuK0AGdfsocmPBhn7G3hE13aVfQ/exec"; 
 
 // ==========================================================
 // 🔥 COMUNICAÇÃO À PROVA DE BLOQUEIO (ESTILO STAGE TELECOM)
@@ -505,7 +505,7 @@ async function gerarCurriculo() {
 }
 
 // ==========================================
-// LÓGICA DO COMPROVANTE (Infalível JSONP + FormData)
+// LÓGICA DO COMPROVANTE (Baseada no seu código original)
 // ==========================================
 
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
@@ -591,25 +591,35 @@ async function buscarCPFPrint() {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
         
-        // 🔥 CHAMADA JSONP
         const r = await jsonpRequest('buscarCPF', { cpf: cpf });
         
-        // 🔥 AGORA COM ALERTA DE ERRO DETALHADO CASO O APPS SCRIPT FALHE
         if (r.erro) { 
             alert("ERRO DO APPS SCRIPT: " + r.erro); 
             return; 
         }
 
         if (!r.encontrado) { 
-            alert("CPF NÃO LOCALIZADO na planilha. Dica: Verifique se a coluna do CPF está formatada como 'Texto' na planilha, e não como Número.");
+            alert("CPF NÃO LOCALIZADO na planilha."); 
             return; 
         }
         const d = r.dados;
+        
+        // 🔥 PREENCHE EXATAMENTE OS CAMPOS DA SUA IMAGEM
         document.getElementById('print-nome').value = d.nome || '';
         document.getElementById('print-endereco').value = d.endereco || '';
+        document.getElementById('print-numero_endereco').value = d.numero_endereco || '';
+        document.getElementById('print-complemento').value = d.complemento || '';
+        document.getElementById('print-cep').value = d.cep || '';
         document.getElementById('print-bairro').value = d.bairro || '';
         document.getElementById('print-uf').value = d.uf || '';
-        document.getElementById('print-cep').value = d.cep || '';
+        document.getElementById('print-nacionalidade').value = d.nacionalidade || '';
+        document.getElementById('print-estado_civil').value = d.estado_civil || '';
+        document.getElementById('print-cpf').value = d.cpf || '';
+        document.getElementById('print-rg').value = d.rg || '';
+        document.getElementById('print-emissor').value = d.emissor || '';
+        document.getElementById('print-propria').checked = d.propria || false;
+        document.getElementById('print-alugada').checked = d.alugada || false;
+        document.getElementById('print-emprestada').checked = d.emprestada || false;
     } catch (e) { 
         console.error(e);
         alert("Erro de comunicação: " + e.message); 
