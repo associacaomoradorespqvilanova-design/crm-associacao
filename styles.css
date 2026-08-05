@@ -185,6 +185,27 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 }
 .suggestion-item:hover small { color: #eee; }
 
+/* ==========================================================
+   MELHORIAS DE ROLAMENTE (SCROLLBAR) NO MODAL DO COMPROVANTE
+   ========================================================== */
+#modal-comprovante-print::-webkit-scrollbar {
+    width: 12px;
+}
+#modal-comprovante-print::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+    margin: 10px 0;
+}
+#modal-comprovante-print::-webkit-scrollbar-thumb {
+    background: #7baa48;
+    border-radius: 6px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    background-clip: padding-box;
+}
+#modal-comprovante-print::-webkit-scrollbar-thumb:hover {
+    background: #4a7c2e;
+}
+
 @media (max-width: 900px) {
     .grid-container { grid-template-columns: 1fr; }
     .col-center { order: -1; }
@@ -193,4 +214,4 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     .header { flex-direction: column; text-align: center; }
     .header::after { display: none; }
     #login-screen { margin: 20px; padding: 30px 20px; }
-}s
+}
