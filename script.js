@@ -22,7 +22,7 @@ let editingCartaoId = null;
 let lastSearchedCPF = '';
 
 // 🔥 URL DO SEU GOOGLE APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzagbcO0aK6iTTFOowx5symaPFJIuf9oAHHS8GH3fEv4aS-4rYgdJcJD9mCG1iJ5peaUw/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbysUU_1VZLKvq1ccgSyjZ0j_5VVDN2R_QZGbUWBPQAajvt_c_axKVFp53llziorEBqW/exec"; 
 
 // ==========================================================
 // 🔥 COMUNICAÇÃO À PROVA DE BLOQUEIO (ESTILO STAGE TELECOM)
