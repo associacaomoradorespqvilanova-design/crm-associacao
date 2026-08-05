@@ -21,29 +21,54 @@ let editingAgendaId = null;
 let editingCartaoId = null;
 let lastSearchedCPF = '';
 
-// 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbxD7DFTvhsClD3gsbiPgAjWz7fnyCV3D7FaypD21vK7a7i9prZG5EywlOY_2oAsT_u_Jw/exec"; 
+// 🔥 URL DO SEU GOOGLE APPS SCRIPT AQUI
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbz_vCUAXi_L8rF413kORbVVJmnbRfoQGWpfMhkyDA7fEZ9u0Dw1h8ZVfugYqfEG5OY7TA/exec"; 
 
 // ==========================================================
-// 🔥 FUNÇÃO DE COMUNICAÇÃO CORRIGIDA (ENVIA JSON PURO)
+// 🔥 COMUNICAÇÃO À PROVA DE BLOQUEIO (ESTILO STAGE TELECOM)
 // ==========================================================
-async function chamarGS(acao, params = {}) {
-    const urlParams = new URLSearchParams({ acao, ...params });
-    const url = `${URL_API_GS}?${urlParams.toString()}`;
-    const resposta = await fetch(url);
-    if (!resposta.ok) throw new Error(`Erro HTTP ${resposta.status}`);
-    return await resposta.json();
+
+// Função GET usando JSONP (Ignora bloqueios do navegador)
+function jsonpRequest(acao, params = {}) {
+    return new Promise((resolve, reject) => {
+        const callbackName = 'cb' + Date.now() + Math.random().toString(36).substr(2, 8);
+        const urlParams = new URLSearchParams({ acao, callback: callbackName, ...params });
+        const script = document.createElement('script');
+        script.src = URL_API_GS + '?' + urlParams.toString();
+        
+        const timeout = setTimeout(() => {
+            if (document.body.contains(script)) document.body.removeChild(script);
+            reject(new Error('Tempo limite (JSONP)'));
+            setTimeout(() => { delete window[callbackName]; }, 1000);
+        }, 15000);
+        
+        window[callbackName] = (res) => {
+            clearTimeout(timeout);
+            if (document.body.contains(script)) document.body.removeChild(script);
+            resolve(res);
+            setTimeout(() => { delete window[callbackName]; }, 1000);
+        };
+        
+        script.onerror = () => {
+            clearTimeout(timeout);
+            if (document.body.contains(script)) document.body.removeChild(script);
+            reject(new Error('Erro de rede no JSONP'));
+        };
+        
+        document.body.appendChild(script);
+    });
 }
 
-// ✅ POST CORRIGIDO: Envia JSON puro e não usa 'no-cors', permitindo ver erros reais
-async function postGS(acao, dados = {}) {
-    const resposta = await fetch(URL_API_GS, {
+// Função POST usando FormData (Navegador trata como seguro)
+async function postRequest(acao, dados = {}) {
+    const formData = new URLSearchParams();
+    formData.append('acao', acao);
+    formData.append('dados', JSON.stringify(dados));
+    await fetch(URL_API_GS, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ acao: acao, dados: dados })
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData
     });
-    if (!resposta.ok) throw new Error(`Erro HTTP ${resposta.status}`);
-    return await resposta.json();
 }
 
 // ==========================================================
@@ -221,7 +246,7 @@ function salvarCartoes() {
 }
 
 // ==========================================
-// LÓGICAS DO CURRÍCULO (GERAÇÃO DE PDF, FOTO, DINÂMICO)
+// LÓGICAS DO CURRÍCULO (PDF, FOTO, DINÂMICO)
 // ==========================================
 function handlePhotoUpload(event) {
     const file = event.target.files[0];
@@ -480,7 +505,7 @@ async function gerarCurriculo() {
 }
 
 // ==========================================
-// LÓGICA DO COMPROVANTE (COM A CORREÇÃO DE CONEXÃO)
+// LÓGICA DO COMPROVANTE (Infalível JSONP + FormData)
 // ==========================================
 
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
@@ -532,11 +557,12 @@ async function abrirComprovantePrint() {
         if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
-        const dados = await chamarGS('getNumero');
+        // 🔥 GET VIA JSONP
+        const dados = await jsonpRequest('getNumero');
         document.getElementById('print-numero').value = dados.numero || '0000001';
     } catch (e) {
         console.error(e);
-        alert("Erro ao buscar o número da declaração. Verifique a URL do Apps Script.");
+        alert("Erro ao buscar o número da declaração.");
         document.getElementById('print-numero').value = '0000001';
     }
 }
@@ -554,7 +580,7 @@ async function buscarCEPPrint() {
         document.getElementById('print-uf').value = (dados.uf || '').toUpperCase();
     } catch (e) { 
         console.error(e);
-        alert("Erro de conexão ao buscar o CEP. Verifique o console (F12)."); 
+        alert("Erro de conexão ao buscar o CEP."); 
     }
 }
 
@@ -565,9 +591,9 @@ async function buscarCPFPrint() {
         if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
-        const r = await chamarGS('buscarCPF', { cpf: cpf });
+        // 🔥 GET VIA JSONP (Não sofre bloqueio de navegador)
+        const r = await jsonpRequest('buscarCPF', { cpf: cpf });
         
-        // 🔥 SE O GS RETORNAR UM ERRO, EXIBE O ERRO EXATO (EX: COLUNA NÃO ENCONTRADA)
         if (r.erro) { 
             alert("ERRO NO APPS SCRIPT: " + r.erro); 
             return; 
@@ -585,7 +611,7 @@ async function buscarCPFPrint() {
         document.getElementById('print-cep').value = d.cep || '';
     } catch (e) { 
         console.error(e);
-        alert("Erro de comunicação com o Google Sheets ao buscar CPF. Verifique o console (F12)."); 
+        alert("Erro de comunicação. Verifique a URL da planilha."); 
     }
 }
 
@@ -671,8 +697,8 @@ async function salvarDadosComprovante() {
         document.getElementById('print-emprestada').checked ? "Emprestada" : ""
     ];
     
-    // 🔥 CHAMADA DE SALVAR CORRIGIDA: Envia o array como JSON puro
-    await postGS('salvarDeclaracao', dados);
+    // 🔥 POST VIA FORM DATA (Navegador não bloqueia requisições POST com FormData)
+    await postRequest('salvarDeclaracao', dados);
 }
 
 async function salvarApenas() {
