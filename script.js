@@ -21,59 +21,30 @@ let editingAgendaId = null;
 let editingCartaoId = null;
 let lastSearchedCPF = '';
 
-// ⚠️ URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzU1qjlMYUsUUEX7DfZB3EHkF_QWae2_9cg8HvbSPgGKHhhFln4-cukklQC9uQHW2z4yA/exec"; 
+// 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
+const URL_API_GS = "COLE_AQUI_A_SUA_URL_DO_APPS_SCRIPT"; 
 
 // ==========================================================
-// 🔥 A MAGIA DO STAGE TELECOM: JSONP EM VEZ DE FETCH
+// 🔥 COMUNICAÇÃO CORRIGIDA (FETCH PURO, SEM JSONP)
 // ==========================================================
-function fetchFromGS(acao, params = {}) {
-    return new Promise((resolve, reject) => {
-        const callbackName = 'cb' + Date.now() + Math.random().toString(36).substr(2, 8);
-        const urlParams = new URLSearchParams({ acao, callback: callbackName, ...params });
-        const script = document.createElement('script');
-        script.src = URL_API_GS + '?' + urlParams.toString();
-        
-        const timeout = setTimeout(() => {
-            if (document.body.contains(script)) document.body.removeChild(script);
-            reject(new Error('Timeout na requisição JSONP'));
-            setTimeout(() => { delete window[callbackName]; }, 1000);
-        }, 15000);
-        
-        window[callbackName] = (res) => {
-            clearTimeout(timeout);
-            if (document.body.contains(script)) document.body.removeChild(script);
-            resolve(res);
-            setTimeout(() => { delete window[callbackName]; }, 1000);
-        };
-        
-        script.onerror = () => {
-            clearTimeout(timeout);
-            if (document.body.contains(script)) document.body.removeChild(script);
-            setTimeout(() => { delete window[callbackName]; }, 1000);
-            reject(new Error('Erro de rede na requisição JSONP'));
-        };
-        
-        document.body.appendChild(script);
-    });
+async function chamarGS(acao, params = {}) {
+    const urlParams = new URLSearchParams({ acao, ...params });
+    const url = `${URL_API_GS}?${urlParams.toString()}`;
+    const resposta = await fetch(url);
+    if (!resposta.ok) throw new Error(`Erro HTTP ${resposta.status}`);
+    return await resposta.json();
 }
 
-// POST (mantido com fetch pois o navegador não bloqueia POSTs com modo no-cors)
-async function postParaGoogleSheets(acao, dados = {}) {
-    try {
-        const formData = new URLSearchParams();
-        formData.append('acao', acao);
-        for (let key in dados) {
-            if (dados.hasOwnProperty(key)) formData.append(key, dados[key]);
-        }
-        await fetch(URL_API_GS, { method: 'POST', body: formData, mode: 'no-cors' });
-    } catch (e) { console.warn('Falha no POST:', e); }
+async function postGS(acao, dados = {}) {
+    const formData = new URLSearchParams();
+    formData.append('acao', acao);
+    for (let key in dados) formData.append(key, dados[key]);
+    await fetch(URL_API_GS, { method: 'POST', body: formData, mode: 'no-cors' });
 }
 
 // ==========================================================
-// LÓGICAS DO CRM
+// LÓGICAS DO CRM (AGENDA, CARTÕES, CURRÍCULO)
 // ==========================================================
-
 function updateClock() {
     const now = new Date();
     const timeString = now.toLocaleTimeString('pt-BR', { hour12: false });
@@ -246,7 +217,7 @@ function salvarCartoes() {
 }
 
 // ==========================================
-// LÓGICAS DO CURRÍCULO
+// LÓGICAS DO CURRÍCULO (GERAÇÃO DE PDF, FOTO, DINÂMICO)
 // ==========================================
 function handlePhotoUpload(event) {
     const file = event.target.files[0];
@@ -374,12 +345,138 @@ function removerItem(id) {
 async function gerarCurriculo() {
     const nome = document.getElementById('cv-nome').value;
     if (!nome) { alert("Por favor, preencha pelo menos o Nome Completo."); return; }
-    // ... (código de geração do currículo mantido igual ao seu) ...
-    // Resumindo: Se já estava funcionando, não mexo
+
+    const templateSelecionado = document.getElementById('cv-template').value;
+    const tel1 = document.getElementById('cv-tel-1').value;
+    const tel2 = document.getElementById('cv-tel-2').value;
+    const tel3 = document.getElementById('cv-tel-3').value;
+    const email = document.getElementById('cv-email').value;
+    const logradouro = document.getElementById('cv-logradouro').value;
+    const numero = document.getElementById('cv-numero').value;
+    const bairro = document.getElementById('cv-bairro').value;
+    const cidade = document.getElementById('cv-cidade').value;
+    const objetivo = document.getElementById('cv-objetivo').value;
+    const habilidades = document.getElementById('cv-habilidades').value;
+
+    let endereco = `${logradouro}, ${numero}`;
+    if (bairro) endereco += ` - ${bairro}`;
+    if (cidade) endereco += ` - ${cidade}`;
+
+    let tels = [tel1, tel2, tel3].filter(t => t.trim() !== '');
+
+    const cursosNodes = document.querySelectorAll('#cursos-container .dynamic-item');
+    const cursos = [];
+    cursosNodes.forEach(node => {
+        const curso = node.querySelector('.input-curso').value || 'Curso não informado';
+        const inst = node.querySelector('.input-inst').value || 'Instituição não informada';
+        const periodo = node.querySelector('.input-periodo').value || 'Período não informado';
+        cursos.push({ curso, inst, periodo });
+    });
+
+    const expNodes = document.querySelectorAll('#exp-container .dynamic-item');
+    const experiencias = [];
+    expNodes.forEach(node => {
+        const empresa = node.querySelector('.input-empresa').value || 'Empresa não informada';
+        const funcao = node.querySelector('.input-funcao').value || 'Função não informada';
+        const periodo = node.querySelector('.input-periodo-exp').value || 'Período não informado';
+        experiencias.push({ empresa, funcao, periodo });
+    });
+
+    document.getElementById('pdf-nome').innerText = nome;
+    document.getElementById('pdf-tel').innerText = tels.length > 0 ? tels.join(' / ') : '(Não informado)';
+    document.getElementById('pdf-email').innerText = email || '(Não informado)';
+    document.getElementById('pdf-endereco').innerText = endereco || '(Não informado)';
+    document.getElementById('pdf-objetivo').innerText = objetivo || 'Não informado.';
+
+    const pdfPhoto = document.getElementById('pdf-photo');
+    if (fotoBase64) {
+        pdfPhoto.src = fotoBase64;
+        pdfPhoto.style.display = 'block';
+    } else {
+        pdfPhoto.style.display = 'none';
+    }
+
+    const pdfSkills = document.getElementById('pdf-habilidades');
+    pdfSkills.innerHTML = '';
+    if (habilidades.trim() !== '') {
+        const skillList = habilidades.split(',').map(s => s.trim()).filter(s => s !== '');
+        skillList.forEach(skill => {
+            const li = document.createElement('li');
+            li.innerText = skill;
+            pdfSkills.appendChild(li);
+        });
+    } else {
+        pdfSkills.innerHTML = '<li>Não informado.</li>';
+    }
+
+    const pdfCursos = document.getElementById('pdf-cursos');
+    pdfCursos.innerHTML = '';
+    if (cursos.length === 0) {
+        pdfCursos.innerHTML = '<p style="font-size:12px; color:#888;">Nenhum curso informado.</p>';
+    } else {
+        cursos.forEach(c => {
+            const div = document.createElement('div');
+            div.className = 'pdf-entry';
+            div.innerHTML = `
+                <div class="pdf-entry-title">${c.curso}</div>
+                <div class="pdf-entry-sub">${c.inst}</div>
+                <div class="pdf-entry-period">${c.periodo}</div>
+            `;
+            pdfCursos.appendChild(div);
+        });
+    }
+
+    const pdfExp = document.getElementById('pdf-experiencias');
+    pdfExp.innerHTML = '';
+    if (experiencias.length === 0) {
+        pdfExp.innerHTML = '<p style="font-size:12px; color:#888;">Nenhuma experiência informada.</p>';
+    } else {
+        experiencias.forEach(e => {
+            const div = document.createElement('div');
+            div.className = 'pdf-entry';
+            div.innerHTML = `
+                <div class="pdf-entry-title">${e.empresa}</div>
+                <div class="pdf-entry-sub">${e.funcao}</div>
+                <div class="pdf-entry-period">${e.periodo}</div>
+            `;
+            pdfExp.appendChild(div);
+        });
+    }
+
+    const pdfLayout = document.getElementById('cv-pdf-layout');
+    pdfLayout.className = `template-${templateSelecionado}`;
+    pdfLayout.style.display = 'block';
+
+    try {
+        const canvas = await html2canvas(pdfLayout, { scale: 2, useCORS: true, logging: false });
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgProps = pdf.getImageProperties(imgData);
+        const imgW = imgProps.width;
+        const imgH = imgProps.height;
+        const scaleX = pdfWidth / imgW;
+        const scaleY = pdfHeight / imgH;
+        let finalScale = Math.min(scaleX, scaleY);
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgW * finalScale, imgH * finalScale);
+
+        const pdfBlob = pdf.output('blob');
+        window.open(URL.createObjectURL(pdfBlob), '_blank');
+
+        pdfLayout.style.display = 'none';
+        fecharModal('modal-curriculo');
+
+    } catch (error) {
+        console.error("Erro ao gerar PDF:", error);
+        alert("Ocorreu um erro ao gerar o currículo.");
+        pdfLayout.style.display = 'none';
+    }
 }
 
 // ==========================================
-// LÓGICA DO COMPROVANTE (AGORA COM JSONP E SEM DUPLO DISPARO)
+// LÓGICA DO COMPROVANTE (COM A CORREÇÃO DE CONEXÃO)
 // ==========================================
 
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
@@ -429,10 +526,10 @@ async function abrirComprovantePrint() {
     
     try {
         if (URL_API_GS.includes('COLE_AQUI')) {
-            throw new Error("A URL do Apps Script não foi configurada no script.js!");
+            throw new Error("A URL do Apps Script não foi configurada!");
         }
-        // 🔥 AGORA USANDO JSONP EM VEZ DE FETCH
-        const dados = await fetchFromGS('getNumero');
+        // 🔥 USANDO O FETCH CORRIGIDO
+        const dados = await chamarGS('getNumero');
         document.getElementById('print-numero').value = dados.numero || '0000001';
     } catch (e) {
         console.error(e);
@@ -465,13 +562,10 @@ async function buscarCPFPrint() {
         if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
-        // 🔥 AGORA USANDO JSONP EM VEZ DE FETCH
-        const r = await fetchFromGS('buscarCPF', { cpf: cpf });
+        // 🔥 USANDO O FETCH CORRIGIDO (SEM CORS BLOCK)
+        const r = await chamarGS('buscarCPF', { cpf: cpf });
         
-        if (r.error) {
-            alert(r.error);
-            return;
-        }
+        if (r.error) { alert(r.error); return; }
 
         if (!r.encontrado) { 
             alert("CPF NÃO LOCALIZADO na planilha"); 
@@ -480,18 +574,9 @@ async function buscarCPFPrint() {
         const d = r.dados;
         document.getElementById('print-nome').value = d.nome || '';
         document.getElementById('print-endereco').value = d.endereco || '';
-        document.getElementById('print-numero_endereco').value = d.numero_endereco || '';
-        document.getElementById('print-complemento').value = d.complemento || '';
-        document.getElementById('print-cep').value = d.cep || '';
         document.getElementById('print-bairro').value = d.bairro || '';
         document.getElementById('print-uf').value = d.uf || '';
-        document.getElementById('print-nacionalidade').value = d.nacionalidade || '';
-        document.getElementById('print-estado_civil').value = d.estado_civil || '';
-        document.getElementById('print-rg').value = d.rg || '';
-        document.getElementById('print-emissor').value = d.emissor || '';
-        document.getElementById('print-propria').checked = d.propria || false;
-        document.getElementById('print-alugada').checked = d.alugada || false;
-        document.getElementById('print-emprestada').checked = d.emprestada || false;
+        document.getElementById('print-cep').value = d.cep || '';
     } catch (e) { 
         console.error(e);
         alert("Erro de comunicação com o Google Sheets ao buscar CPF. Verifique o console (F12)."); 
@@ -579,7 +664,7 @@ async function salvarDadosComprovante() {
         document.getElementById('print-alugada').checked ? "Alugada" : "",
         document.getElementById('print-emprestada').checked ? "Emprestada" : ""
     ];
-    await postParaGoogleSheets('salvarDeclaracao', { dados: JSON.stringify(dados) });
+    await postGS('salvarDeclaracao', { dados: JSON.stringify(dados) });
 }
 
 async function salvarApenas() {
