@@ -22,7 +22,7 @@ let editingCartaoId = null;
 let lastSearchedCPF = '';
 
 // 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbxzA-M9klpb0D8vrRuUgPcsINiL8FHsNMxRa_VLLKv7EntscRiH3f_WVrTFj0pyYW62NA/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbxGfs7A5vlq6ZlEQQ7jcU8iFCaSyQe1mAKIkqlj7TnYedFoZ5fwvsxt376mfv8Unvu6Ng/exec"; 
 
 // ==========================================================
 // 🔥 COMUNICAÇÃO JSONP DO STAGE TELECOM (IGNORA CORS)
@@ -500,7 +500,7 @@ async function gerarCurriculo() {
 }
 
 // ==========================================
-// LÓGICA DO COMPROVANTE (JSONP final, sem CORS)
+// LÓGICA DO COMPROVANTE (COM SUGESTÃO DE ENDEREÇO)
 // ==========================================
 
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
@@ -585,8 +585,6 @@ async function buscarCPFPrint() {
         if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
-        
-        // 🔥 JSONP Infalível (Sem erros de CORS, sem bloqueios)
         const r = await fetchFromGS('buscarCPF', { cpf: cpf });
         
         if (r.erro) { 
@@ -621,6 +619,71 @@ async function buscarCPFPrint() {
     }
 }
 
+// ==========================================================
+// 🚀 BUSCA INTELIGENTE DE ENDEREÇOS (COM DEBOUNCE E JSONP)
+// ==========================================================
+let debounceTimerEndereco;
+
+function buscarSugestoesEndereco() {
+    const input = document.getElementById('print-endereco');
+    const container = document.getElementById('address-suggestions');
+    const query = input.value.trim();
+
+    clearTimeout(debounceTimerEndereco);
+
+    if (query.length < 2) {
+        container.style.display = 'none';
+        return;
+    }
+
+    debounceTimerEndereco = setTimeout(async () => {
+        try {
+            const resultados = await fetchFromGS('buscarEnderecos', { q: query });
+            
+            container.innerHTML = '';
+            if (!resultados || resultados.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            resultados.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'suggestion-item';
+                div.innerHTML = `
+                    <strong>${item.endereco}</strong>
+                    <small>${item.bairro || ''} - ${item.uf || ''} (CEP: ${item.cep || 'N/I'})</small>
+                `;
+                div.onclick = () => {
+                    document.getElementById('print-endereco').value = item.endereco || '';
+                    document.getElementById('print-bairro').value = item.bairro || '';
+                    document.getElementById('print-uf').value = item.uf || '';
+                    document.getElementById('print-cep').value = item.cep || '';
+                    
+                    container.style.display = 'none';
+                };
+                container.appendChild(div);
+            });
+            container.style.display = 'block';
+
+        } catch (e) {
+            console.warn("Erro ao buscar endereços:", e);
+            container.style.display = 'none';
+        }
+    }, 300); // 300ms de debounce
+}
+
+// Fecha as sugestões se o usuário clicar fora delas
+document.addEventListener('click', function(e) {
+    const container = document.getElementById('address-suggestions');
+    const input = document.getElementById('print-endereco');
+    if (container && input && !container.contains(e.target) && e.target !== input) {
+        container.style.display = 'none';
+    }
+});
+
+// ==========================================================
+// IMPRESSÃO E SALVAMENTO DO COMPROVANTE
+// ==========================================================
 function obterValoresComprovante() {
     return {
         numero: document.getElementById('print-numero').value,
