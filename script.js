@@ -22,7 +22,7 @@ let editingCartaoId = null;
 let lastSearchedCPF = '';
 
 // ⚠️ URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwpyFQk1eU30ZiP4-MqvDsQSXjp-5RfjZ0kejZ7eIGFdR5SI6owAo2g0mxyXTf5hILnmg/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzU1qjlMYUsUUEX7DfZB3EHkF_QWae2_9cg8HvbSPgGKHhhFln4-cukklQC9uQHW2z4yA/exec"; 
 
 // ==========================================================
 // 🔥 A MAGIA DO STAGE TELECOM: JSONP EM VEZ DE FETCH
