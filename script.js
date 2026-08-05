@@ -494,7 +494,8 @@ async function abrirComprovantePrint() {
     document.getElementById("print-ano").value = h.getFullYear();
     
     try {
-        if (URL_API_GS.includes('https://script.google.com/macros/s/AKfycbwWyc75vVbehRkptQZ_LY7JsqeW-C1ksK-z0zryo1zxkuNAtDW_98c6nw0nI92VXgpaCw/exec')) {
+        // ✅ CORREÇÃO APLICADA AQUI: Verifica se ainda contém o placeholder 'COLE_AQUI'
+        if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada no script.js!");
         }
         const resp = await fetch(`${URL_API_GS}?action=getNumero`);
@@ -515,12 +516,10 @@ async function buscarCEPPrint() {
     const cep = document.getElementById('print-cep').value.replace(/\D/g,'');
     if (cep.length !== 8) { alert("CEP inválido"); return; }
     try {
-        // Consulta direta à API pública dos Correios
         const resp = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
         const dados = await resp.json();
         if (dados.erro) { alert("CEP não encontrado na API dos Correios"); return; }
         
-        // Preenche os campos com segurança
         document.getElementById('print-endereco').value = (dados.logradouro || '').toUpperCase();
         document.getElementById('print-bairro').value = (dados.bairro || '').toUpperCase();
         document.getElementById('print-uf').value = (dados.uf || '').toUpperCase();
