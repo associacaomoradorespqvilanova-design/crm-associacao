@@ -22,7 +22,7 @@ let editingCartaoId = null;
 let lastSearchedCPF = '';
 
 // 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "COLE_AQUI_A_SUA_URL_DO_APPS_SCRIPT"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbxMU-S7aDtTlIn9W0f1ISOZVXBCTQl6tZkDI5y2s0R1ajYOivCEotGhcRQMl-MlcEHD5g/exec"; 
 
 // ==========================================================
 // 🔥 COMUNICAÇÃO DEFINITIVA (APENAS FETCH, SEM JSONP)
