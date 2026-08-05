@@ -20,6 +20,9 @@ let fotoBase64 = null;
 let editingAgendaId = null;
 let editingCartaoId = null;
 
+// 🛑 CONTROLE PARA EVITAR DISPAROS MÚLTIPLOS DO CPF
+let lastSearchedCPF = '';
+
 function updateClock() {
     const now = new Date();
     const timeString = now.toLocaleTimeString('pt-BR', { hour12: false });
@@ -454,7 +457,7 @@ async function gerarCurriculo() {
 // LÓGICA DO COMPROVANTE (COM IMPRESSÃO E SALVAMENTO)
 // ==========================================
 // ⚠️ OBRIGATÓRIO: COLE A URL DO SEU WEB APP DO GOOGLE AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwWyc75vVbehRkptQZ_LY7JsqeW-C1ksK-z0zryo1zxkuNAtDW_98c6nw0nI92VXgpaCw/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbyNrw8pX0RX5e-n7U_RSqn2ncDEk8Oex6yyQl-3Ao7S4bWD6-nW83zc6-KUT9KUZP9GlQ/exec"; 
 
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
 function formatarCPFPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); }
@@ -464,9 +467,19 @@ function autoBuscarCEP(el) {
     const cep = el.value.replace(/\D/g, '');
     if (cep.length === 8) { buscarCEPPrint(); }
 }
+
 function autoBuscarCPF(el) {
     const cpf = el.value.replace(/\D/g, '');
-    if (cpf.length === 11) { buscarCPFPrint(); }
+    if (cpf.length === 11) {
+        // ✅ CORREÇÃO AQUI: Só busca se o CPF for DIFERENTE do que já foi buscado
+        if (lastSearchedCPF !== cpf) {
+            lastSearchedCPF = cpf;
+            buscarCPFPrint();
+        }
+    } else {
+        // Limpa o cache se o CPF for apagado
+        lastSearchedCPF = '';
+    }
 }
 
 async function abrirComprovantePrint() {
@@ -494,11 +507,13 @@ async function abrirComprovantePrint() {
     document.getElementById("print-ano").value = h.getFullYear();
     
     try {
-        // ✅ CORREÇÃO APLICADA AQUI: Verifica se ainda contém o placeholder 'COLE_AQUI'
         if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada no script.js!");
         }
-        const resp = await fetch(`${URL_API_GS}?action=getNumero`);
+        const resp = await fetch(`${URL_API_GS}?action=getNumero`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' } // ✅ Força o cabeçalho para melhor compatibilidade
+        });
         if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
         const dados = await resp.json();
         document.getElementById('print-numero').value = dados.numero || '0000001';
@@ -539,9 +554,20 @@ async function buscarCPFPrint() {
         if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
-        const resp = await fetch(`${URL_API_GS}?action=buscarCPF&cpf=${cpf}`);
+        // ✅ Adicionei os headers e o método explícito para evitar problemas de CORS/cache
+        const resp = await fetch(`${URL_API_GS}?action=buscarCPF&cpf=${cpf}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
         if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
         const r = await resp.json();
+        
+        // Se o GS retornar um erro personalizado
+        if (r.error) {
+            alert(r.error);
+            return;
+        }
+
         if (!r.encontrado) { alert("CPF NÃO LOCALIZADO na planilha"); return; }
         const d = r.dados;
         document.getElementById('print-nome').value = d.nome || '';
