@@ -453,8 +453,8 @@ async function gerarCurriculo() {
 // ==========================================
 // LÓGICA DO COMPROVANTE (COM IMPRESSÃO E SALVAMENTO)
 // ==========================================
-// IMPORTANTE: COLE A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwNtkVXz-dtHubBl8u_HATOxtLX0rSVVExhbA5BaWZeGiRa182oMzclN1Te-U2UmPZk/exec"; 
+// ⚠️ OBRIGATÓRIO: COLE A URL DO SEU WEB APP DO GOOGLE AQUI
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbxmqHNahPuyiAoArHWIXkeNg_zMy_2XF_kPLC1Vf1uchPnhSQtiTrN1l3OiKwSOnxeyOg/exec"; 
 
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
 function formatarCPFPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); }
@@ -494,10 +494,16 @@ async function abrirComprovantePrint() {
     document.getElementById("print-ano").value = h.getFullYear();
     
     try {
+        if (URL_API_GS.includes('COLE_AQUI')) {
+            throw new Error("A URL do Apps Script não foi configurada no script.js!");
+        }
         const resp = await fetch(`${URL_API_GS}?action=getNumero`);
+        if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
         const dados = await resp.json();
         document.getElementById('print-numero').value = dados.numero || '0000001';
     } catch (e) {
+        console.error(e);
+        alert("Erro ao buscar o número da declaração. Verifique a URL do Apps Script.");
         document.getElementById('print-numero').value = '0000001';
     }
 }
@@ -506,22 +512,33 @@ async function buscarCEPPrint() {
     const cep = document.getElementById('print-cep').value.replace(/\D/g,'');
     if (cep.length !== 8) { alert("CEP inválido"); return; }
     try {
+        if (URL_API_GS.includes('COLE_AQUI')) {
+            throw new Error("A URL do Apps Script não foi configurada!");
+        }
         const resp = await fetch(`${URL_API_GS}?action=buscarCEP&cep=${cep}`);
+        if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
         const dados = await resp.json();
-        if (dados.erro) { alert("CEP não encontrado"); return; }
+        if (dados.erro) { alert("CEP não encontrado na API dos Correios"); return; }
         document.getElementById('print-endereco').value = dados.logradouro.toUpperCase();
         document.getElementById('print-bairro').value = dados.bairro.toUpperCase();
         document.getElementById('print-uf').value = dados.uf.toUpperCase();
-    } catch (e) { alert("Erro na busca do CEP"); }
+    } catch (e) { 
+        console.error(e);
+        alert("Erro de comunicação com o Google Sheets ao buscar CEP. Verifique o console (F12)."); 
+    }
 }
 
 async function buscarCPFPrint() {
     const cpf = document.getElementById('print-cpf').value.replace(/\D/g,'');
     if (cpf.length !== 11) { alert("CPF inválido"); return; }
     try {
+        if (URL_API_GS.includes('COLE_AQUI')) {
+            throw new Error("A URL do Apps Script não foi configurada!");
+        }
         const resp = await fetch(`${URL_API_GS}?action=buscarCPF&cpf=${cpf}`);
+        if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
         const r = await resp.json();
-        if (!r.encontrado) { alert("CPF NÃO LOCALIZADO"); return; }
+        if (!r.encontrado) { alert("CPF NÃO LOCALIZADO na planilha"); return; }
         const d = r.dados;
         document.getElementById('print-nome').value = d.nome || '';
         document.getElementById('print-endereco').value = d.endereco || '';
@@ -537,10 +554,12 @@ async function buscarCPFPrint() {
         document.getElementById('print-propria').checked = d.propria || false;
         document.getElementById('print-alugada').checked = d.alugada || false;
         document.getElementById('print-emprestada').checked = d.emprestada || false;
-    } catch (e) { alert("Erro ao buscar CPF"); }
+    } catch (e) { 
+        console.error(e);
+        alert("Erro de comunicação com o Google Sheets ao buscar CPF. Verifique o console (F12)."); 
+    }
 }
 
-// Função para pegar os valores atuais do formulário
 function obterValoresComprovante() {
     return {
         numero: document.getElementById('print-numero').value,
@@ -564,7 +583,6 @@ function obterValoresComprovante() {
     };
 }
 
-// Gera o HTML exato para imprimir em nova aba (igual ao do GS)
 function gerarHTMLImpressaoCRM(v) {
     return `
     <!DOCTYPE html><html><head>
@@ -602,7 +620,6 @@ function gerarHTMLImpressaoCRM(v) {
     </body></html>`;
 }
 
-// Função comum para salvar os dados no GS (usada pelos dois botões)
 async function salvarDadosComprovante() {
     const dados = [
         document.getElementById('print-numero').value,
@@ -627,7 +644,6 @@ async function salvarDadosComprovante() {
     await fetch(URL_API_GS, { method: 'POST', body: JSON.stringify(dados) });
 }
 
-// Botão Salvar (apenas salva)
 async function salvarApenas() {
     const btn = document.querySelector('#modal-comprovante-print .btn-save');
     btn.innerText = 'Salvando...'; btn.disabled = true;
@@ -639,17 +655,13 @@ async function salvarApenas() {
     finally { btn.innerText = '💾 Salvar'; btn.disabled = false; }
 }
 
-// Botão Imprimir (salva E já abre a tela de impressão)
 async function salvarEImprimir() {
     const btn = document.querySelector('#modal-comprovante-print .btn-print');
     btn.innerText = 'Salvando...'; btn.disabled = true;
     try {
         await salvarDadosComprovante();
-        
         const v = obterValoresComprovante();
         let htmlPrint = gerarHTMLImpressaoCRM(v);
-        
-        // Adiciona o script para dar o comando de impressão assim que abrir
         htmlPrint = htmlPrint.replace('</body>', `
             <script>
                 window.addEventListener('load', function() {
