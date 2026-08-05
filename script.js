@@ -454,7 +454,7 @@ async function gerarCurriculo() {
 // LÓGICA DO COMPROVANTE (COM IMPRESSÃO E SALVAMENTO)
 // ==========================================
 // ⚠️ OBRIGATÓRIO: COLE A URL DO SEU WEB APP DO GOOGLE AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbxmqHNahPuyiAoArHWIXkeNg_zMy_2XF_kPLC1Vf1uchPnhSQtiTrN1l3OiKwSOnxeyOg/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwWyc75vVbehRkptQZ_LY7JsqeW-C1ksK-z0zryo1zxkuNAtDW_98c6nw0nI92VXgpaCw/exec"; 
 
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
 function formatarCPFPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); }
@@ -494,7 +494,7 @@ async function abrirComprovantePrint() {
     document.getElementById("print-ano").value = h.getFullYear();
     
     try {
-        if (URL_API_GS.includes('COLE_AQUI')) {
+        if (URL_API_GS.includes('https://script.google.com/macros/s/AKfycbwWyc75vVbehRkptQZ_LY7JsqeW-C1ksK-z0zryo1zxkuNAtDW_98c6nw0nI92VXgpaCw/exec')) {
             throw new Error("A URL do Apps Script não foi configurada no script.js!");
         }
         const resp = await fetch(`${URL_API_GS}?action=getNumero`);
@@ -508,28 +508,31 @@ async function abrirComprovantePrint() {
     }
 }
 
+// ============================================================
+// 🔥 BUSCAR CEP AGORA É FEITO DIRETAMENTE NO JS (NÃO VAI AO GS)
+// ============================================================
 async function buscarCEPPrint() {
     const cep = document.getElementById('print-cep').value.replace(/\D/g,'');
     if (cep.length !== 8) { alert("CEP inválido"); return; }
     try {
-        if (URL_API_GS.includes('COLE_AQUI')) {
-            throw new Error("A URL do Apps Script não foi configurada!");
-        }
-        const resp = await fetch(`${URL_API_GS}?action=buscarCEP&cep=${cep}`);
-        if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
+        // Consulta direta à API pública dos Correios
+        const resp = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
         const dados = await resp.json();
         if (dados.erro) { alert("CEP não encontrado na API dos Correios"); return; }
         
-        // 🔧 CORREÇÃO DO ERRO .toUpperCase(): Fallback seguro para caso os campos venham undefined
+        // Preenche os campos com segurança
         document.getElementById('print-endereco').value = (dados.logradouro || '').toUpperCase();
         document.getElementById('print-bairro').value = (dados.bairro || '').toUpperCase();
         document.getElementById('print-uf').value = (dados.uf || '').toUpperCase();
     } catch (e) { 
         console.error(e);
-        alert("Erro de comunicação com o Google Sheets ao buscar CEP. Verifique o console (F12)."); 
+        alert("Erro de conexão ao buscar o CEP. Verifique o console (F12)."); 
     }
 }
 
+// ============================================================
+// 🔍 BUSCAR CPF (PRECISA DO GS POIS ACESSA A PLANILHA)
+// ============================================================
 async function buscarCPFPrint() {
     const cpf = document.getElementById('print-cpf').value.replace(/\D/g,'');
     if (cpf.length !== 11) { alert("CPF inválido"); return; }
