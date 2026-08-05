@@ -22,7 +22,7 @@ let editingCartaoId = null;
 let lastSearchedCPF = '';
 
 // 🔥 URL DO SEU GOOGLE APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbz_vCUAXi_L8rF413kORbVVJmnbRfoQGWpfMhkyDA7fEZ9u0Dw1h8ZVfugYqfEG5OY7TA/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzagbcO0aK6iTTFOowx5symaPFJIuf9oAHHS8GH3fEv4aS-4rYgdJcJD9mCG1iJ5peaUw/exec"; 
 
 // ==========================================================
 // 🔥 COMUNICAÇÃO À PROVA DE BLOQUEIO (ESTILO STAGE TELECOM)
@@ -557,7 +557,6 @@ async function abrirComprovantePrint() {
         if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
-        // 🔥 GET VIA JSONP
         const dados = await jsonpRequest('getNumero');
         document.getElementById('print-numero').value = dados.numero || '0000001';
     } catch (e) {
@@ -591,16 +590,18 @@ async function buscarCPFPrint() {
         if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
-        // 🔥 GET VIA JSONP (Não sofre bloqueio de navegador)
+        
+        // 🔥 CHAMADA JSONP
         const r = await jsonpRequest('buscarCPF', { cpf: cpf });
         
+        // 🔥 AGORA COM ALERTA DE ERRO DETALHADO CASO O APPS SCRIPT FALHE
         if (r.erro) { 
-            alert("ERRO NO APPS SCRIPT: " + r.erro); 
+            alert("ERRO DO APPS SCRIPT: " + r.erro); 
             return; 
         }
 
         if (!r.encontrado) { 
-            alert("CPF NÃO LOCALIZADO na planilha"); 
+            alert("CPF NÃO LOCALIZADO na planilha. Dica: Verifique se a coluna do CPF está formatada como 'Texto' na planilha, e não como Número.");
             return; 
         }
         const d = r.dados;
@@ -611,7 +612,7 @@ async function buscarCPFPrint() {
         document.getElementById('print-cep').value = d.cep || '';
     } catch (e) { 
         console.error(e);
-        alert("Erro de comunicação. Verifique a URL da planilha."); 
+        alert("Erro de comunicação: " + e.message); 
     }
 }
 
@@ -696,8 +697,6 @@ async function salvarDadosComprovante() {
         document.getElementById('print-alugada').checked ? "Alugada" : "",
         document.getElementById('print-emprestada').checked ? "Emprestada" : ""
     ];
-    
-    // 🔥 POST VIA FORM DATA (Navegador não bloqueia requisições POST com FormData)
     await postRequest('salvarDeclaracao', dados);
 }
 
