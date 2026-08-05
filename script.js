@@ -19,8 +19,6 @@ let fotoBase64 = null;
 
 let editingAgendaId = null;
 let editingCartaoId = null;
-
-// 🛑 CONTROLE PARA EVITAR DISPAROS MÚLTIPLOS DO CPF
 let lastSearchedCPF = '';
 
 function updateClock() {
@@ -454,7 +452,7 @@ async function gerarCurriculo() {
 }
 
 // ==========================================
-// LÓGICA DO COMPROVANTE (COM IMPRESSÃO E SALVAMENTO)
+// LÓGICA DO COMPROVANTE (CORRIGIDO PARA EVITAR CORS)
 // ==========================================
 // ⚠️ OBRIGATÓRIO: COLE A URL DO SEU WEB APP DO GOOGLE AQUI
 const URL_API_GS = "https://script.google.com/macros/s/AKfycbyNrw8pX0RX5e-n7U_RSqn2ncDEk8Oex6yyQl-3Ao7S4bWD6-nW83zc6-KUT9KUZP9GlQ/exec"; 
@@ -471,13 +469,11 @@ function autoBuscarCEP(el) {
 function autoBuscarCPF(el) {
     const cpf = el.value.replace(/\D/g, '');
     if (cpf.length === 11) {
-        // ✅ CORREÇÃO AQUI: Só busca se o CPF for DIFERENTE do que já foi buscado
         if (lastSearchedCPF !== cpf) {
             lastSearchedCPF = cpf;
             buscarCPFPrint();
         }
     } else {
-        // Limpa o cache se o CPF for apagado
         lastSearchedCPF = '';
     }
 }
@@ -510,10 +506,8 @@ async function abrirComprovantePrint() {
         if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada no script.js!");
         }
-        const resp = await fetch(`${URL_API_GS}?action=getNumero`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' } // ✅ Força o cabeçalho para melhor compatibilidade
-        });
+        // ✅ CORREÇÃO CORS: Removido method e headers para evitar requisição OPTIONS
+        const resp = await fetch(`${URL_API_GS}?action=getNumero`);
         if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
         const dados = await resp.json();
         document.getElementById('print-numero').value = dados.numero || '0000001';
@@ -525,7 +519,7 @@ async function abrirComprovantePrint() {
 }
 
 // ============================================================
-// 🔥 BUSCAR CEP AGORA É FEITO DIRETAMENTE NO JS (NÃO VAI AO GS)
+// 🔥 BUSCAR CEP DIRETO PELA API DOS CORREIOS
 // ============================================================
 async function buscarCEPPrint() {
     const cep = document.getElementById('print-cep').value.replace(/\D/g,'');
@@ -545,7 +539,7 @@ async function buscarCEPPrint() {
 }
 
 // ============================================================
-// 🔍 BUSCAR CPF (PRECISA DO GS POIS ACESSA A PLANILHA)
+// 🔍 BUSCAR CPF (PRECISA DO GS)
 // ============================================================
 async function buscarCPFPrint() {
     const cpf = document.getElementById('print-cpf').value.replace(/\D/g,'');
@@ -554,15 +548,11 @@ async function buscarCPFPrint() {
         if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
-        // ✅ Adicionei os headers e o método explícito para evitar problemas de CORS/cache
-        const resp = await fetch(`${URL_API_GS}?action=buscarCPF&cpf=${cpf}`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
-        });
+        // ✅ CORREÇÃO CORS: Removido method e headers para evitar requisição OPTIONS
+        const resp = await fetch(`${URL_API_GS}?action=buscarCPF&cpf=${cpf}`);
         if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
         const r = await resp.json();
         
-        // Se o GS retornar um erro personalizado
         if (r.error) {
             alert(r.error);
             return;
