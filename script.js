@@ -22,22 +22,27 @@ let editingCartaoId = null;
 let lastSearchedCPF = '';
 
 // 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwlxXFwQlUnO8VT02j4WGgBHPT9QbDWt067mDLvC-uOp1Ik997xeCxlsyN8NpqSlxo-hA/exec"; 
+const URL_API_GS = "COLE_AQUI_A_SUA_URL_DO_APPS_SCRIPT"; 
 
 // ==========================================================
-// 🔥 COMUNICAÇÃO APENAS COM FETCH (SEM JSONP, SEM REFERENCEERROR)
+// 🔥 COMUNICAÇÃO DEFINITIVA (APENAS FETCH, SEM JSONP)
 // ==========================================================
 
-// GET usando fetch comum (com CORS liberado pelo GS)
+// GET via fetch (CORS já foi liberado no GS)
 async function getGS(acao, params = {}) {
     const urlParams = new URLSearchParams({ acao, ...params });
     const url = `${URL_API_GS}?${urlParams.toString()}`;
-    const resposta = await fetch(url);
-    if (!resposta.ok) throw new Error(`Erro HTTP ${resposta.status}`);
-    return await resposta.json();
+    try {
+        const resposta = await fetch(url);
+        if (!resposta.ok) throw new Error(`Erro HTTP ${resposta.status}`);
+        return await resposta.json();
+    } catch (e) {
+        console.error("Erro no GET:", e);
+        throw e;
+    }
 }
 
-// POST já estava funcionando, mantido igual
+// POST (já estava funcionando, mantido igual)
 async function postParaGoogleSheets(acao, dados = {}) {
     const formData = new URLSearchParams();
     formData.append('acao', acao);
@@ -220,7 +225,7 @@ function salvarCartoes() {
 }
 
 // ==========================================
-// LÓGICAS DO CURRÍCULO
+// LÓGICAS DO CURRÍCULO (PDF, FOTO, DINÂMICO)
 // ==========================================
 function handlePhotoUpload(event) {
     const file = event.target.files[0];
@@ -479,7 +484,7 @@ async function gerarCurriculo() {
 }
 
 // ==========================================
-// LÓGICA DO COMPROVANTE (COM FETCH E SEM JSONP)
+// LÓGICA DO COMPROVANTE (FETCH REAL, SEM JSONP, SEM ERRO)
 // ==========================================
 
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
@@ -531,11 +536,12 @@ async function abrirComprovantePrint() {
         if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
+        // 🔥 GET via fetch
         const dados = await getGS('getNumero');
         document.getElementById('print-numero').value = dados.numero || '0000001';
     } catch (e) {
         console.error(e);
-        alert("Erro ao buscar o número da declaração. Verifique a URL do Apps Script.");
+        alert("Erro ao buscar o número da declaração: " + e.message);
         document.getElementById('print-numero').value = '0000001';
     }
 }
@@ -565,7 +571,7 @@ async function buscarCPFPrint() {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
         
-        // 🔥 CHAMADA VIA FETCH (SEM REFERENCE ERROR)
+        // 🔥 GET via fetch (busca o CPF na planilha)
         const r = await getGS('buscarCPF', { cpf: cpf });
         
         if (r.erro) { 
