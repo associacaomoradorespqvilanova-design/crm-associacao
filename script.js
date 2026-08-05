@@ -22,7 +22,7 @@ let editingCartaoId = null;
 let lastSearchedCPF = '';
 
 // 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbyuAW8JEoqpqjUz0GzdBRKZW56sji5hihkriZP5lHlsxz0ash9YZxSxmC5SXWFwLda5fA/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbxD7DFTvhsClD3gsbiPgAjWz7fnyCV3D7FaypD21vK7a7i9prZG5EywlOY_2oAsT_u_Jw/exec"; 
 
 // ==========================================================
 // 🔥 FUNÇÃO DE COMUNICAÇÃO CORRIGIDA (ENVIA JSON PURO)
