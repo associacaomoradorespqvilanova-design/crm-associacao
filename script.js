@@ -22,13 +22,12 @@ let editingCartaoId = null;
 let lastSearchedCPF = '';
 
 // 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbyrYEQtZOfQ7D6ywXo7E_lqte0Y0LMRthSmr8dN3lucriMjywOVg2gP-_bWc4Fkz9o-2w/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbz0fgLFr6kbNQG_twmJUuS7pda5sNxlMywjp5maMCrKdZoE3e51xO-Z40ZNNA9GVG4w/exec"; 
 
 // ==========================================================
 // 🔥 COMUNICAÇÃO JSONP DO STAGE TELECOM (IGNORA CORS)
 // ==========================================================
 
-// Função JSONP modificada para aceitar cancelamento (AbortController)
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
         const callbackName = 'cb' + Date.now() + Math.random().toString(36).substr(2, 8);
@@ -58,7 +57,6 @@ function fetchFromGS(acao, params = {}, signal) {
         
         document.body.appendChild(script);
 
-        // 🔥 Aborta se o usuário digitar uma nova letra e cancelar a requisição anterior
         if (signal) {
             signal.addEventListener('abort', () => {
                 if (document.body.contains(script)) {
@@ -97,7 +95,14 @@ updateClock();
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         const activeModal = document.querySelector('.modal-overlay.active');
-        if (activeModal) activeModal.classList.remove('active');
+        if (activeModal) {
+            activeModal.classList.remove('active');
+        }
+        // Também garante o fechamento do modal do comprovante se ele não tiver a classe .active
+        const comprovante = document.getElementById('modal-comprovante-print');
+        if (comprovante && comprovante.style.display === 'flex') {
+            fecharComprovantePrint();
+        }
     }
 });
 
@@ -253,7 +258,7 @@ function salvarCartoes() {
 }
 
 // ==========================================
-// LÓGICAS DO CURRÍCULO (PDF, FOTO, DINÂMICO)
+// LÓGICAS DO CURRÍCULO
 // ==========================================
 function handlePhotoUpload(event) {
     const file = event.target.files[0];
@@ -512,8 +517,13 @@ async function gerarCurriculo() {
 }
 
 // ==========================================
-// LÓGICA DO COMPROVANTE (COM SENSIBILIDADE MÁXIMA DE DIGITAÇÃO)
+// LÓGICA DO COMPROVANTE (ACENTOS, GÊNERO, ESC E SCROLL)
 // ==========================================
+
+// 🔥 Função para remover acentos das buscas
+function removerAcentos(str) {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
 
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
 function formatarCPFPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); }
@@ -632,7 +642,51 @@ async function buscarCPFPrint() {
 }
 
 // ==========================================================
-// 🚀 BUSCA DE ENDEREÇOS COM 40ms E CANCELAMENTO DE REQUISIÇÃO
+// 🚀 DETECÇÃO DE GÊNERO PELO NOME
+// ==========================================================
+function detectarGeneroENacionalidadeComprovante() {
+    const nomeInput = document.getElementById('print-nome');
+    const nome = nomeInput.value.trim().toUpperCase();
+    
+    if (nome.length < 2) return;
+
+    const primeiroNome = nome.split(' ')[0].toLowerCase();
+    
+    // Regras simples de gênero baseadas na terminação
+    let genero = 'MASCULINO';
+    
+    // Exceções masculinas que terminam com 'a' (Joaquim, Luca, etc...)
+    const excecoesMasculinas = ['joaquim', 'luca', 'noa', 'nicola'];
+    if (excecoesMasculinas.includes(primeiroNome)) {
+        genero = 'MASCULINO';
+    } 
+    // Exceções femininas que não terminam com 'a' (Mar, Luz, etc...)
+    else if (['mar', 'luz', 'flor', 'marjorie', 'alice', 'constance'].includes(primeiroNome)) {
+        genero = 'FEMININO';
+    }
+    // Se terminar com 'a', 'e', 'i' ou sons femininos (ad, ra, na, la, da, ia)
+    else if (primeiroNome.endsWith('a') || primeiroNome.endsWith('e') || primeiroNome.endsWith('i') || 
+             primeiroNome.endsWith('ad') || primeiroNome.endsWith('ra') || primeiroNome.endsWith('na') || 
+             primeiroNome.endsWith('la') || primeiroNome.endsWith('da') || primeiroNome.endsWith('ia')) {
+        genero = 'FEMININO';
+    }
+    // Se terminar com consoante ou 'o' geralmente é masculino
+    else {
+        genero = 'MASCULINO';
+    }
+
+    // Preencher os campos
+    if (genero === 'FEMININO') {
+        document.getElementById('print-nacionalidade').value = 'BRASILEIRA';
+        document.getElementById('print-estado_civil').value = 'SOLTEIRA';
+    } else {
+        document.getElementById('print-nacionalidade').value = 'BRASILEIRO';
+        document.getElementById('print-estado_civil').value = 'SOLTEIRO';
+    }
+}
+
+// ==========================================================
+// 🚀 BUSCA DE ENDEREÇOS COM SENSIBILIDADE A ACENTOS
 // ==========================================================
 let debounceTimerEndereco;
 let enderecoCache = {};
@@ -642,8 +696,8 @@ function buscarSugestoesEndereco() {
     const input = document.getElementById('print-endereco');
     const container = document.getElementById('address-suggestions');
     const query = input.value.trim().toUpperCase();
+    const querySemAcento = removerAcentos(query);
 
-    // 🔥 Aborta a requisição anterior se o usuário digitar rapidamente
     if (searchController) {
         searchController.abort();
         searchController = null;
@@ -661,21 +715,25 @@ function buscarSugestoesEndereco() {
         return;
     }
 
-    // 🔥 Debounce de 40ms (Sensibilidade máxima para início da digitação)
     debounceTimerEndereco = setTimeout(async () => {
         try {
-            // Feedback instantâneo de "carregando" enquanto a rede responde
             container.innerHTML = '<div class="suggestion-item" style="text-align:center;color:#888;cursor:default;">🔍 Buscando...</div>';
             container.style.display = 'block';
 
             searchController = new AbortController();
             const resultados = await fetchFromGS('buscarEnderecos', { q: query }, searchController.signal);
             
-            enderecoCache[query] = resultados;
-            exibirSugestoes(container, resultados);
+            // 🔥 Filtrar localmente ignorando acentos e priorizando início da palavra
+            const resultadosFiltrados = resultados.filter(item => {
+                const enderecoSemAcento = removerAcentos(item.endereco.toUpperCase());
+                // Verifica se o endereço começa com a busca sem acento, ou contém
+                return enderecoSemAcento.startsWith(querySemAcento) || enderecoSemAcento.includes(querySemAcento);
+            });
+
+            enderecoCache[query] = resultadosFiltrados;
+            exibirSugestoes(container, resultadosFiltrados);
 
         } catch (e) {
-            // Se for um abortamento intencional, ignora o erro
             if (e.name !== 'AbortError' && e.message !== 'Erro de rede na requisição JSONP') {
                 console.warn("Erro ao buscar endereços:", e);
                 container.style.display = 'none';
@@ -683,7 +741,7 @@ function buscarSugestoesEndereco() {
         } finally {
             searchController = null;
         }
-    }, 40); // 🔥 40ms para parecer resposta mágica na primeira batida
+    }, 40);
 }
 
 function exibirSugestoes(container, resultados) {
