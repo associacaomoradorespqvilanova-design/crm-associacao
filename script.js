@@ -22,13 +22,14 @@ let editingCartaoId = null;
 let lastSearchedCPF = '';
 
 // 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzrl-OXOxFtuiToXEjwzjNw-4GB4x5HRhDdZI6TDAWGo-dSfQNV4QNN8XLBn6oai5YGwQ/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbyrYEQtZOfQ7D6ywXo7E_lqte0Y0LMRthSmr8dN3lucriMjywOVg2gP-_bWc4Fkz9o-2w/exec"; 
 
 // ==========================================================
 // 🔥 COMUNICAÇÃO JSONP DO STAGE TELECOM (IGNORA CORS)
 // ==========================================================
 
-function fetchFromGS(acao, params = {}) {
+// Função JSONP modificada para aceitar cancelamento (AbortController)
+function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
         const callbackName = 'cb' + Date.now() + Math.random().toString(36).substr(2, 8);
         const urlParams = new URLSearchParams({ acao, callback: callbackName, ...params });
@@ -51,11 +52,22 @@ function fetchFromGS(acao, params = {}) {
         script.onerror = () => {
             clearTimeout(timeout);
             if (document.body.contains(script)) document.body.removeChild(script);
-            setTimeout(() => { delete window[callbackName]; }, 1000);
             reject(new Error('Erro de rede na requisição JSONP'));
+            setTimeout(() => { delete window[callbackName]; }, 1000);
         };
         
         document.body.appendChild(script);
+
+        // 🔥 Aborta se o usuário digitar uma nova letra e cancelar a requisição anterior
+        if (signal) {
+            signal.addEventListener('abort', () => {
+                if (document.body.contains(script)) {
+                    document.body.removeChild(script);
+                    clearTimeout(timeout);
+                    delete window[callbackName];
+                }
+            });
+        }
     });
 }
 
@@ -500,7 +512,7 @@ async function gerarCurriculo() {
 }
 
 // ==========================================
-// LÓGICA DO COMPROVANTE (COM SUGESTÃO DE ENDEREÇO)
+// LÓGICA DO COMPROVANTE (COM SENSIBILIDADE MÁXIMA DE DIGITAÇÃO)
 // ==========================================
 
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
@@ -620,14 +632,22 @@ async function buscarCPFPrint() {
 }
 
 // ==========================================================
-// 🚀 BUSCA INTELIGENTE DE ENDEREÇOS (COM DEBOUNCE E JSONP)
+// 🚀 BUSCA DE ENDEREÇOS COM 40ms E CANCELAMENTO DE REQUISIÇÃO
 // ==========================================================
 let debounceTimerEndereco;
+let enderecoCache = {};
+let searchController = null;
 
 function buscarSugestoesEndereco() {
     const input = document.getElementById('print-endereco');
     const container = document.getElementById('address-suggestions');
-    const query = input.value.trim();
+    const query = input.value.trim().toUpperCase();
+
+    // 🔥 Aborta a requisição anterior se o usuário digitar rapidamente
+    if (searchController) {
+        searchController.abort();
+        searchController = null;
+    }
 
     clearTimeout(debounceTimerEndereco);
 
@@ -636,40 +656,61 @@ function buscarSugestoesEndereco() {
         return;
     }
 
+    if (enderecoCache[query]) {
+        exibirSugestoes(container, enderecoCache[query]);
+        return;
+    }
+
+    // 🔥 Debounce de 40ms (Sensibilidade máxima para início da digitação)
     debounceTimerEndereco = setTimeout(async () => {
         try {
-            const resultados = await fetchFromGS('buscarEnderecos', { q: query });
-            
-            container.innerHTML = '';
-            if (!resultados || resultados.length === 0) {
-                container.style.display = 'none';
-                return;
-            }
-
-            resultados.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'suggestion-item';
-                div.innerHTML = `
-                    <strong>${item.endereco}</strong>
-                    <small>${item.bairro || ''} - ${item.uf || ''} (CEP: ${item.cep || 'N/I'})</small>
-                `;
-                div.onclick = () => {
-                    document.getElementById('print-endereco').value = item.endereco || '';
-                    document.getElementById('print-bairro').value = item.bairro || '';
-                    document.getElementById('print-uf').value = item.uf || '';
-                    document.getElementById('print-cep').value = item.cep || '';
-                    
-                    container.style.display = 'none';
-                };
-                container.appendChild(div);
-            });
+            // Feedback instantâneo de "carregando" enquanto a rede responde
+            container.innerHTML = '<div class="suggestion-item" style="text-align:center;color:#888;cursor:default;">🔍 Buscando...</div>';
             container.style.display = 'block';
 
+            searchController = new AbortController();
+            const resultados = await fetchFromGS('buscarEnderecos', { q: query }, searchController.signal);
+            
+            enderecoCache[query] = resultados;
+            exibirSugestoes(container, resultados);
+
         } catch (e) {
-            console.warn("Erro ao buscar endereços:", e);
-            container.style.display = 'none';
+            // Se for um abortamento intencional, ignora o erro
+            if (e.name !== 'AbortError' && e.message !== 'Erro de rede na requisição JSONP') {
+                console.warn("Erro ao buscar endereços:", e);
+                container.style.display = 'none';
+            }
+        } finally {
+            searchController = null;
         }
-    }, 300); // 300ms de debounce
+    }, 40); // 🔥 40ms para parecer resposta mágica na primeira batida
+}
+
+function exibirSugestoes(container, resultados) {
+    container.innerHTML = '';
+    if (!resultados || resultados.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    resultados.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'suggestion-item';
+        div.innerHTML = `
+            <strong>${item.endereco}</strong>
+            <small>${item.bairro || ''} - ${item.uf || ''} (CEP: ${item.cep || 'N/I'})</small>
+        `;
+        div.onclick = () => {
+            document.getElementById('print-endereco').value = item.endereco || '';
+            document.getElementById('print-bairro').value = item.bairro || '';
+            document.getElementById('print-uf').value = item.uf || '';
+            document.getElementById('print-cep').value = item.cep || '';
+            
+            container.style.display = 'none';
+        };
+        container.appendChild(div);
+    });
+    container.style.display = 'block';
 }
 
 // Fecha as sugestões se o usuário clicar fora delas
