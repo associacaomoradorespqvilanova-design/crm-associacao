@@ -44,7 +44,6 @@ table th, table td { padding: 10px 8px; text-align: left; border-bottom: 1px sol
 table th { font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
 table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .highlight-row { background-color: #eafde8; border-left: 4px solid #7baa48; font-weight: 700; }
-
 .btn-edit { background: transparent; border: none; color: #4a7c2e; cursor: pointer; font-size: 16px; transition: 0.2s; padding: 0 5px; }
 .btn-edit:hover { color: #1e3d0e; transform: scale(1.2); }
 
@@ -146,38 +145,45 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 #cv-pdf-layout.template-basico .pdf-entry-sub { font-size: 13px; color: #555; }
 #cv-pdf-layout.template-basico .pdf-entry-period { font-size: 12px; color: #888; }
 
-.input-field-print {
-    position: absolute;
+.input-field-print { position: absolute; font-size: 13px; padding: 2px 4px; z-index: 1; font-weight: bold; background: transparent; border: none; border-bottom: 1px solid #aaa; outline: none; color: black; text-transform: uppercase; box-sizing: border-box; }
+.input-field-print[type="checkbox"] { width: 16px; height: 16px; background: white; border: 1px solid #444; accent-color: black; }
+.input-field-print:focus { border-bottom: 2px solid #4a7c2e; }
+@media print { .no-print { display: none !important; } .input-field-print { border-bottom: none !important; } }
+
+/* ==========================================================
+   ESTILO DA CAIXA DE SUGESTÕES DE ENDEREÇO
+   ========================================================== */
+.suggestions-box {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    border: 1px solid #ccc;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 10;
+}
+.suggestions-box::-webkit-scrollbar { width: 6px; }
+.suggestions-box::-webkit-scrollbar-thumb { background: #7baa48; border-radius: 4px; }
+
+.suggestion-item {
+    padding: 10px 12px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
     font-size: 13px;
-    padding: 2px 4px;
-    z-index: 1;
-    font-weight: bold;
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid #aaa;
-    outline: none;
-    color: black;
-    text-transform: uppercase;
-    box-sizing: border-box;
+    transition: 0.2s;
 }
-.input-field-print[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    background: white;
-    border: 1px solid #444;
-    accent-color: black;
+.suggestion-item:hover {
+    background: #7baa48;
+    color: #fff;
 }
-.input-field-print:focus {
-    border-bottom: 2px solid #4a7c2e;
+.suggestion-item small {
+    display: block;
+    font-size: 11px;
+    color: #666;
+    margin-top: 2px;
 }
-@media print {
-    .no-print {
-        display: none !important;
-    }
-    .input-field-print {
-        border-bottom: none !important;
-    }
-}
+.suggestion-item:hover small { color: #eee; }
 
 @media (max-width: 900px) {
     .grid-container { grid-template-columns: 1fr; }
@@ -187,4 +193,4 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     .header { flex-direction: column; text-align: center; }
     .header::after { display: none; }
     #login-screen { margin: 20px; padding: 30px 20px; }
-}
+}s
