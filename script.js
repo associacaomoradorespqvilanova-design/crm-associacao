@@ -22,7 +22,7 @@ let editingCartaoId = null;
 let lastSearchedCPF = '';
 
 // 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycby07JkgLLoQJSzSheqh0B5BnCMcc7isXkCDQye9tGYmaGXfDbHCn2bjGTjBbdNu2FrApQ/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbxtEmmRo12NXY_g-K6ZBMrmzP_HH_DMpW5gCm_9_omYW2pm1RIv0ovwkdxILcYbrf5jqQ/exec"; 
 
 // ==========================================================
 // 🔥 FUNÇÕES DE COMUNICAÇÃO DO STAGE TELECOM (INFALÍVEL)
@@ -243,7 +243,7 @@ function salvarCartoes() {
 }
 
 // ==========================================
-// LÓGICAS DO CURRÍCULO (PDF, FOTO, DINÂMICO)
+// LÓGICAS DO CURRÍCULO
 // ==========================================
 function handlePhotoUpload(event) {
     const file = event.target.files[0];
