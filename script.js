@@ -22,7 +22,7 @@ let editingCartaoId = null;
 let lastSearchedCPF = '';
 
 // 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzhOY80N2atL7kR8uWrltrWFHr1Qz9Rd2o0nM20TrEWmNe6dt8QiEKNK_D4EHa533Sk1A/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycby07JkgLLoQJSzSheqh0B5BnCMcc7isXkCDQye9tGYmaGXfDbHCn2bjGTjBbdNu2FrApQ/exec"; 
 
 // ==========================================================
 // 🔥 FUNÇÕES DE COMUNICAÇÃO DO STAGE TELECOM (INFALÍVEL)
@@ -502,7 +502,7 @@ async function gerarCurriculo() {
 }
 
 // ==========================================
-// LÓGICA DO COMPROVANTE (100% STAGE TELECOM)
+// LÓGICA DO COMPROVANTE
 // ==========================================
 
 function formatarCEPPrint(i){ i.value = i.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2'); }
@@ -554,7 +554,6 @@ async function abrirComprovantePrint() {
         if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
-        // 🔥 CHAMADA STAGE TELECOM
         const dados = await fetchFromGS('getNumero');
         document.getElementById('print-numero').value = dados.numero || '0000001';
     } catch (e) {
@@ -589,7 +588,6 @@ async function buscarCPFPrint() {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
         
-        // 🔥 CHAMADA STAGE TELECOM
         const r = await fetchFromGS('buscarCPF', { cpf: cpf });
         
         if (r.erro) { 
@@ -705,8 +703,6 @@ async function salvarDadosComprovante() {
         document.getElementById('print-alugada').checked ? "Alugada" : "",
         document.getElementById('print-emprestada').checked ? "Emprestada" : ""
     ];
-    
-    // 🔥 CHAMADA DE SALVAR DO STAGE TELECOM
     await postParaGoogleSheets('salvarDeclaracao', dados);
 }
 
