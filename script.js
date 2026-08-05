@@ -519,9 +519,11 @@ async function buscarCEPPrint() {
         if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
         const dados = await resp.json();
         if (dados.erro) { alert("CEP não encontrado na API dos Correios"); return; }
-        document.getElementById('print-endereco').value = dados.logradouro.toUpperCase();
-        document.getElementById('print-bairro').value = dados.bairro.toUpperCase();
-        document.getElementById('print-uf').value = dados.uf.toUpperCase();
+        
+        // 🔧 CORREÇÃO DO ERRO .toUpperCase(): Fallback seguro para caso os campos venham undefined
+        document.getElementById('print-endereco').value = (dados.logradouro || '').toUpperCase();
+        document.getElementById('print-bairro').value = (dados.bairro || '').toUpperCase();
+        document.getElementById('print-uf').value = (dados.uf || '').toUpperCase();
     } catch (e) { 
         console.error(e);
         alert("Erro de comunicação com o Google Sheets ao buscar CEP. Verifique o console (F12)."); 
