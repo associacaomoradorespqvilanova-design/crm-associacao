@@ -22,10 +22,10 @@ let editingCartaoId = null;
 let lastSearchedCPF = '';
 
 // 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwJgvIahGCZ0WWK1GnGnPd14kkPiVV6oX3Q1OwTkHObZhwRO9-Quzumt26H9zDfVpCY5A/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzm_riMR_1CAwOX51UIyXe2rbijCBpkStPghcjXKj6SU1XsaXyOhwJLxRKQZNltG8--Qg/exec"; 
 
 // ==========================================================
-// 🔥 COMUNICAÇÃO CORRIGIDA (FETCH PURO, SEM JSONP)
+// 🔥 FUNÇÃO DE COMUNICAÇÃO CORRIGIDA (ENVIA JSON PURO)
 // ==========================================================
 async function chamarGS(acao, params = {}) {
     const urlParams = new URLSearchParams({ acao, ...params });
@@ -35,11 +35,15 @@ async function chamarGS(acao, params = {}) {
     return await resposta.json();
 }
 
+// ✅ POST CORRIGIDO: Envia JSON puro e não usa 'no-cors', permitindo ver erros reais
 async function postGS(acao, dados = {}) {
-    const formData = new URLSearchParams();
-    formData.append('acao', acao);
-    for (let key in dados) formData.append(key, dados[key]);
-    await fetch(URL_API_GS, { method: 'POST', body: formData, mode: 'no-cors' });
+    const resposta = await fetch(URL_API_GS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao: acao, dados: dados })
+    });
+    if (!resposta.ok) throw new Error(`Erro HTTP ${resposta.status}`);
+    return await resposta.json();
 }
 
 // ==========================================================
@@ -528,7 +532,6 @@ async function abrirComprovantePrint() {
         if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
-        // 🔥 USANDO O FETCH CORRIGIDO
         const dados = await chamarGS('getNumero');
         document.getElementById('print-numero').value = dados.numero || '0000001';
     } catch (e) {
@@ -562,10 +565,13 @@ async function buscarCPFPrint() {
         if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
-        // 🔥 USANDO O FETCH CORRIGIDO (SEM CORS BLOCK)
         const r = await chamarGS('buscarCPF', { cpf: cpf });
         
-        if (r.error) { alert(r.error); return; }
+        // 🔥 SE O GS RETORNAR UM ERRO, EXIBE O ERRO EXATO (EX: COLUNA NÃO ENCONTRADA)
+        if (r.erro) { 
+            alert("ERRO NO APPS SCRIPT: " + r.erro); 
+            return; 
+        }
 
         if (!r.encontrado) { 
             alert("CPF NÃO LOCALIZADO na planilha"); 
@@ -664,7 +670,9 @@ async function salvarDadosComprovante() {
         document.getElementById('print-alugada').checked ? "Alugada" : "",
         document.getElementById('print-emprestada').checked ? "Emprestada" : ""
     ];
-    await postGS('salvarDeclaracao', { dados: JSON.stringify(dados) });
+    
+    // 🔥 CHAMADA DE SALVAR CORRIGIDA: Envia o array como JSON puro
+    await postGS('salvarDeclaracao', dados);
 }
 
 async function salvarApenas() {
@@ -674,7 +682,9 @@ async function salvarApenas() {
         await salvarDadosComprovante();
         alert("Dados salvos com sucesso!");
         fecharComprovantePrint();
-    } catch (e) { alert("Erro ao salvar: " + e.message); } 
+    } catch (e) { 
+        alert("Erro ao salvar: " + e.message); 
+    } 
     finally { btn.innerText = '💾 Salvar'; btn.disabled = false; }
 }
 
@@ -703,7 +713,9 @@ async function salvarEImprimir() {
         }
         fecharComprovantePrint();
 
-    } catch (e) { alert("Erro ao salvar: " + e.message); } 
+    } catch (e) { 
+        alert("Erro ao salvar e imprimir: " + e.message); 
+    } 
     finally { btn.innerText = '🖨️ Imprimir'; btn.disabled = false; }
 }
 
