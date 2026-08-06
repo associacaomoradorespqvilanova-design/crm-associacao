@@ -63,8 +63,16 @@
                 <div class="menu-buttons">
                     <button class="btn-action" onclick="abrirModal('modal-curriculo')">CURRICULO</button>
                     <button class="btn-action">WHATSAPP</button>
-                    <button class="btn-action" onclick="abrirModalSemAssinatura()">SEM ASSINATURA</button>
-                    <button class="btn-action" onclick="abrirComprovantePrint()">COMPROVANTE</button>
+                    
+                    <!-- BOTÃO COMPROVANTE COM MENU SUSPENSO -->
+                    <div style="position:relative; display:inline-block; width:100%;">
+                        <button class="btn-action" onclick="toggleComprovanteMenu()" id="btn-comprovante" style="width:100%;">COMPROVANTE</button>
+                        <div id="menu-comprovante" class="menu-dropdown" style="display:none; position:absolute; top:100%; left:0; width:100%; background:#fff; border-radius:0 0 12px 12px; box-shadow:0 4px 10px rgba(0,0,0,0.15); z-index:20; overflow:hidden;">
+                            <div onclick="abrirComprovantePrint('assinatura')" class="menu-option" style="padding:12px 0; text-align:center; cursor:pointer; color:#333; font-weight:600; transition:0.2s; border-bottom:1px solid #eee;">📜 Com Assinatura</div>
+                            <div onclick="abrirComprovantePrint('sem_assinatura')" class="menu-option" style="padding:12px 0; text-align:center; cursor:pointer; color:#333; font-weight:600; transition:0.2s;">📋 Sem Assinatura</div>
+                        </div>
+                    </div>
+
                     <button class="btn-action">ENTREGAS</button>
                     <button class="btn-action">CARTEIRINHAS</button>
                     <button class="btn-action">COMPRA E VENDA</button>
@@ -125,7 +133,7 @@
         </div>
     </div>
 
-    <!-- MODAL COMPROVANTE DE RESIDÊNCIA -->
+    <!-- MODAL COMPROVANTE (ÚNICO, APENAS O FUNDO MUDA) -->
     <div id="modal-comprovante-print" class="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(6px);z-index:1000;justify-content:center;overflow-y:auto;padding:30px 0;">
         <div style="position:relative;width:794px;height:1123px;background-image:url('https://i.imgur.com/lFhk0Hq.png');background-size:100% 100%;background-color:white;background-position:center;border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,0.4);flex-shrink:0;margin:0 auto;overflow:hidden;">
             <span class="close-btn" onclick="fecharComprovantePrint()" style="position:absolute;top:-15px;right:-15px;background:#4a7c2e;color:#fff;border-radius:50%;width:30px;height:30px;padding:0;display:flex;align-items:center;justify-content:center;z-index:10;border:2px solid white;box-shadow:0 4px 8px rgba(0,0,0,0.2);cursor:pointer;">×</span>
@@ -155,39 +163,6 @@
                 <button class="btn-cancel" onclick="fecharComprovantePrint()" style="padding:10px 20px;border-radius:6px;border:none;background:#ccc;color:#333;cursor:pointer;">Cancelar</button>
                 <button class="btn-primary btn-save" onclick="salvarApenas()" style="padding:10px 20px;border-radius:6px;border:none;color:white;cursor:pointer;background:#4CAF50;">💾 Salvar</button>
                 <button class="btn-primary btn-print" onclick="salvarEImprimir()" style="padding:10px 20px;border-radius:6px;border:none;color:white;cursor:pointer;background:#007BFF;">🖨️ Imprimir</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL SEM ASSINATURA (NOVO MODAL CLONADO) -->
-    <div id="modal-sem-assinatura-print" class="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(6px);z-index:1000;justify-content:center;overflow-y:auto;padding:30px 0;">
-        <div style="position:relative;width:794px;height:1123px;background-image:url('https://i.imgur.com/l47wlMJ.png');background-size:100% 100%;background-color:white;background-position:center;border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,0.4);flex-shrink:0;margin:0 auto;overflow:hidden;">
-            <span class="close-btn" onclick="fecharSemAssinaturaPrint()" style="position:absolute;top:-15px;right:-15px;background:#4a7c2e;color:#fff;border-radius:50%;width:30px;height:30px;padding:0;display:flex;align-items:center;justify-content:center;z-index:10;border:2px solid white;box-shadow:0 4px 8px rgba(0,0,0,0.2);cursor:pointer;">×</span>
-            
-            <input id="sa-numero" class="input-field-print" style="position:absolute;top:386px;left:230px;width:80px;z-index:1;" readonly>
-            <input id="sa-data" class="input-field-print" style="position:absolute;top:386px;left:390px;width:130px;z-index:1;">
-            <input id="sa-ano" class="input-field-print" style="position:absolute;top:386px;left:580px;width:80px;z-index:1;">
-            <input id="sa-nome" class="input-field-print" style="position:absolute;top:437px;left:167px;width:500px;font-size:18px;z-index:1;" onblur="detectarGeneroENacionalidadeSemAssinatura()">
-            <input id="sa-endereco" class="input-field-print" style="position:absolute;top:508px;left:216px;width:350px;z-index:1;">
-            <input id="sa-numero_endereco" class="input-field-print" style="position:absolute;top:508px;left:629px;width:90px;z-index:1;">
-            <input id="sa-complemento" class="input-field-print" style="position:absolute;top:568px;left:240px;width:210px;z-index:1;">
-            <input id="sa-cep" class="input-field-print" maxlength="9" style="position:absolute;top:568px;left:530px;width:150px;z-index:1;" oninput="formatarCEPPrint(this)" onblur="autoBuscarCEPSemAssinatura(this)">
-            <button class="btn-sm no-print" style="position:absolute;top:565px;left:690px;padding:2px 8px;font-size:11px;z-index:2;border-radius:4px;background:#7baa48;color:white;border:1px solid #4a7c2e;cursor:pointer;" onclick="buscarCEPSemAssinatura()">Buscar</button>
-            <input id="sa-bairro" class="input-field-print" style="position:absolute;top:633px;left:165px;width:350px;z-index:1;">
-            <input id="sa-uf" class="input-field-print" style="position:absolute;top:633px;left:630px;width:80px;z-index:1;">
-            <input id="sa-nacionalidade" class="input-field-print" style="position:absolute;top:695px;left:247px;width:150px;z-index:1;">
-            <input id="sa-estado_civil" class="input-field-print" style="position:absolute;top:695px;left:555px;width:150px;z-index:1;">
-            <input id="sa-cpf" class="input-field-print" maxlength="14" style="position:absolute;top:758px;left:135px;width:188px;z-index:1;" oninput="formatarCPFPrint(this)" onblur="autoBuscarCPFSemAssinatura(this)">
-            <button class="btn-sm no-print" style="position:absolute;top:755px;left:330px;padding:2px 8px;font-size:11px;z-index:2;border-radius:4px;background:#7baa48;color:white;border:1px solid #4a7c2e;cursor:pointer;" onclick="buscarCPFSemAssinatura()">Buscar</button>
-            <input id="sa-rg" class="input-field-print" maxlength="12" style="position:absolute;top:758px;left:395px;width:100px;z-index:1;" oninput="formatarRGPrint(this)">
-            <select id="sa-emissor" class="input-field-print" style="position:absolute;top:758px;left:625px;width:120px;z-index:1;"><option value="">SELECIONE</option><option value="DETRAN/RJ" selected>DETRAN/RJ</option></select>
-            <input type="checkbox" id="sa-propria" class="input-field-print" style="position:absolute;top:844px;left:249px;z-index:1;width:16px;height:16px;">
-            <input type="checkbox" id="sa-alugada" class="input-field-print" style="position:absolute;top:844px;left:425px;z-index:1;width:16px;height:16px;">
-            <input type="checkbox" id="sa-emprestada" class="input-field-print" style="position:absolute;top:844px;left:652px;z-index:1;width:16px;height:16px;">
-            <div class="buttons-container no-print" style="position:absolute;bottom:25px;left:50%;transform:translateX(-50%);display:flex;gap:10px;z-index:10;">
-                <button class="btn-cancel" onclick="fecharSemAssinaturaPrint()" style="padding:10px 20px;border-radius:6px;border:none;background:#ccc;color:#333;cursor:pointer;">Cancelar</button>
-                <button class="btn-primary btn-save" onclick="salvarApenasSemAssinatura()" style="padding:10px 20px;border-radius:6px;border:none;color:white;cursor:pointer;background:#4CAF50;">💾 Salvar</button>
-                <button class="btn-primary btn-print" onclick="salvarEImprimirSemAssinatura()" style="padding:10px 20px;border-radius:6px;border:none;color:white;cursor:pointer;background:#007BFF;">🖨️ Imprimir</button>
             </div>
         </div>
     </div>
