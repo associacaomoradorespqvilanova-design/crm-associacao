@@ -47,9 +47,6 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .btn-edit { background: transparent; border: none; color: #4a7c2e; cursor: pointer; font-size: 16px; transition: 0.2s; padding: 0 5px; }
 .btn-edit:hover { color: #1e3d0e; transform: scale(1.2); }
 
-/* ==========================================================
-   EFEITO PULSANTE PARA OS EVENTOS DE HOJE E AMANHÃ
-   ========================================================== */
 @keyframes pulseBorder {
     0% { box-shadow: 0 0 0 0 rgba(123, 170, 72, 0.7); }
     70% { box-shadow: 0 0 0 10px rgba(123, 170, 72, 0); }
@@ -163,9 +160,6 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .input-field-print:focus { border-bottom: 2px solid #4a7c2e; }
 @media print { .no-print { display: none !important; } .input-field-print { border-bottom: none !important; } }
 
-/* ==========================================================
-   ESTILO DA CAIXA DE SUGESTÕES DE ENDEREÇO
-   ========================================================== */
 .suggestions-box {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(8px);
@@ -198,17 +192,11 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 }
 .suggestion-item:hover small { color: #eee; }
 
-/* ==========================================================
-   MENU DROPDOWN DO COMPROVANTE
-   ========================================================== */
 .menu-dropdown .menu-option:hover {
     background-color: #eafde8;
     color: #4a7c2e;
 }
 
-/* ==========================================================
-   MELHORIAS DE ROLAMENTE (SCROLLBAR) NO MODAL DO COMPROVANTE
-   ========================================================== */
 #modal-comprovante-print::-webkit-scrollbar {
     width: 12px;
 }
