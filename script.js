@@ -777,6 +777,57 @@ document.addEventListener('click', function(e) {
         container.style.display = 'none';
     }
 });
+// ==========================================
+// LÓGICA DO MODAL SEM ASSINATURA
+// ==========================================
+
+function abrirModalSemAssinatura() {
+    // Pega o elemento que contém a imagem de fundo
+    const fundo = document.getElementById('modal-comprovante-print').querySelector('div[style*="background-image"]');
+    
+    // Guarda a imagem atual do comprovante (para quando fechar, voltar ao normal)
+    const imagemOriginal = "https://i.imgur.com/lFhk0Hq.png";
+    const imagemSemAssinatura = "https://i.imgur.com/l47wlMJ.png";
+
+    // Altera o fundo para a imagem sem assinatura
+    fundo.style.backgroundImage = `url('${imagemSemAssinatura}')`;
+
+    // Abre o modal normalmente
+    document.getElementById('modal-comprovante-print').style.display = 'flex';
+    
+    // Limpa os campos (opcional, mas recomendado)
+    document.getElementById('print-nome').value = '';
+    document.getElementById('print-endereco').value = '';
+    document.getElementById('print-cep').value = '';
+    // ... (limpe o restante conforme necessário)
+
+    // Define a data atual
+    const m = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+    const h = new Date();
+    document.getElementById("print-data").value = `${String(h.getDate()).padStart(2,'0')} DE ${m[h.getMonth()]}`;
+    document.getElementById("print-ano").value = h.getFullYear();
+    
+    // Busca o próximo número da declaração (já que o formulário é o mesmo)
+    try {
+        if (URL_API_GS.includes('COLE_AQUI')) {
+            throw new Error("A URL do Apps Script não foi configurada!");
+        }
+        fetchFromGS('getNumero').then(dados => {
+            document.getElementById('print-numero').value = dados.numero || '0000001';
+        });
+    } catch (e) {
+        console.error(e);
+        document.getElementById('print-numero').value = '0000001';
+    }
+
+    // Sobrescreve a função de fechar para garantir que a imagem volte ao normal quando sair
+    const fecharAntigo = fecharComprovantePrint;
+    fecharComprovantePrint = function() {
+        // Volta a imagem original
+        fundo.style.backgroundImage = `url('${imagemOriginal}')`;
+        document.getElementById('modal-comprovante-print').style.display = 'none';
+    };
+}
 
 // ==========================================================
 // IMPRESSÃO E SALVAMENTO DO COMPROVANTE
