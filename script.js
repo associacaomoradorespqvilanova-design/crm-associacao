@@ -703,7 +703,7 @@ function detectarGeneroENacionalidadeComprovante() {
 }
 
 // ==========================================================
-// 🚀 BUSCA DE ENDEREÇOS COM "TRADUÇÃO" DE ACENTOS ANTES DE ENVIAR
+// 🚀 BUSCA DE ENDEREÇOS (Sem o `async` que causava o erro 815)
 // ==========================================================
 let debounceTimerEndereco;
 let enderecoCache = {};
