@@ -47,6 +47,19 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .btn-edit { background: transparent; border: none; color: #4a7c2e; cursor: pointer; font-size: 16px; transition: 0.2s; padding: 0 5px; }
 .btn-edit:hover { color: #1e3d0e; transform: scale(1.2); }
 
+/* ==========================================================
+   EFEITO PULSANTE PARA OS EVENTOS DE HOJE E AMANHÃ
+   ========================================================== */
+@keyframes pulseBorder {
+    0% { box-shadow: 0 0 0 0 rgba(123, 170, 72, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(123, 170, 72, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(123, 170, 72, 0); }
+}
+.pulse-row {
+    animation: pulseBorder 2s infinite;
+    border-left: 4px solid #7baa48 !important;
+}
+
 .col-center { display: flex; flex-direction: column; align-items: center; padding-top: 10px; }
 .menu-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; max-width: 450px; width: 100%; }
 .btn-action { background: #7baa48; color: #fff; border: none; border-radius: 12px; padding: 15px 0; font-size: 12px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; position: relative; overflow: hidden; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
@@ -193,25 +206,6 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     color: #4a7c2e;
 }
 
-/* ==========================================================
-   EFEITO PULSANTE PARA OS EVENTOS DE HOJE E AMANHÃ
-   ========================================================== */
-@keyframes pulseBorder {
-    0% {
-        box-shadow: 0 0 0 0 rgba(123, 170, 72, 0.7);
-    }
-    70% {
-        box-shadow: 0 0 0 10px rgba(123, 170, 72, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(123, 170, 72, 0);
-    }
-}
-
-.pulse-row {
-    animation: pulseBorder 2s infinite;
-    border-left: 4px solid #7baa48 !important;
-}
 /* ==========================================================
    MELHORIAS DE ROLAMENTE (SCROLLBAR) NO MODAL DO COMPROVANTE
    ========================================================== */
