@@ -22,7 +22,7 @@ let editingCartaoId = null;
 let lastSearchedCPF = '';
 
 // 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbz0fgLFr6kbNQG_twmJUuS7pda5sNxlMywjp5maMCrKdZoE3e51xO-Z40ZNNA9GVG4w/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwoByjUISM5J2UUGHskvLJ8YmbD62uZCt_gbn2W3bb6xfdxLguGKk9yI2l75re9O20KYw/exec"; 
 
 // ==========================================================
 // 🔥 COMUNICAÇÃO JSONP DO STAGE TELECOM (IGNORA CORS)
@@ -98,7 +98,6 @@ document.addEventListener('keydown', function(e) {
         if (activeModal) {
             activeModal.classList.remove('active');
         }
-        // Também garante o fechamento do modal do comprovante se ele não tiver a classe .active
         const comprovante = document.getElementById('modal-comprovante-print');
         if (comprovante && comprovante.style.display === 'flex') {
             fecharComprovantePrint();
@@ -520,7 +519,6 @@ async function gerarCurriculo() {
 // LÓGICA DO COMPROVANTE (ACENTOS, GÊNERO, ESC E SCROLL)
 // ==========================================
 
-// 🔥 Função para remover acentos das buscas
 function removerAcentos(str) {
     return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
@@ -641,9 +639,6 @@ async function buscarCPFPrint() {
     }
 }
 
-// ==========================================================
-// 🚀 DETECÇÃO DE GÊNERO PELO NOME
-// ==========================================================
 function detectarGeneroENacionalidadeComprovante() {
     const nomeInput = document.getElementById('print-nome');
     const nome = nomeInput.value.trim().toUpperCase();
@@ -652,30 +647,24 @@ function detectarGeneroENacionalidadeComprovante() {
 
     const primeiroNome = nome.split(' ')[0].toLowerCase();
     
-    // Regras simples de gênero baseadas na terminação
     let genero = 'MASCULINO';
     
-    // Exceções masculinas que terminam com 'a' (Joaquim, Luca, etc...)
     const excecoesMasculinas = ['joaquim', 'luca', 'noa', 'nicola'];
     if (excecoesMasculinas.includes(primeiroNome)) {
         genero = 'MASCULINO';
     } 
-    // Exceções femininas que não terminam com 'a' (Mar, Luz, etc...)
     else if (['mar', 'luz', 'flor', 'marjorie', 'alice', 'constance'].includes(primeiroNome)) {
         genero = 'FEMININO';
     }
-    // Se terminar com 'a', 'e', 'i' ou sons femininos (ad, ra, na, la, da, ia)
     else if (primeiroNome.endsWith('a') || primeiroNome.endsWith('e') || primeiroNome.endsWith('i') || 
              primeiroNome.endsWith('ad') || primeiroNome.endsWith('ra') || primeiroNome.endsWith('na') || 
              primeiroNome.endsWith('la') || primeiroNome.endsWith('da') || primeiroNome.endsWith('ia')) {
         genero = 'FEMININO';
     }
-    // Se terminar com consoante ou 'o' geralmente é masculino
     else {
         genero = 'MASCULINO';
     }
 
-    // Preencher os campos
     if (genero === 'FEMININO') {
         document.getElementById('print-nacionalidade').value = 'BRASILEIRA';
         document.getElementById('print-estado_civil').value = 'SOLTEIRA';
@@ -686,7 +675,7 @@ function detectarGeneroENacionalidadeComprovante() {
 }
 
 // ==========================================================
-// 🚀 BUSCA DE ENDEREÇOS COM SENSIBILIDADE A ACENTOS
+// 🚀 BUSCA DE ENDEREÇOS COM "TRADUÇÃO" DE ACENTOS ANTES DE ENVIAR
 // ==========================================================
 let debounceTimerEndereco;
 let enderecoCache = {};
@@ -695,8 +684,17 @@ let searchController = null;
 function buscarSugestoesEndereco() {
     const input = document.getElementById('print-endereco');
     const container = document.getElementById('address-suggestions');
-    const query = input.value.trim().toUpperCase();
-    const querySemAcento = removerAcentos(query);
+    const queryOriginal = input.value.trim().toUpperCase();
+    
+    // 🔥 TRADUZ O QUE O USUÁRIO DIGITOU PARA A VERSÃO COM ACENTOS ANTES DE ENVIAR
+    const mapaAcentos = {
+        'A': '[AÁÀÂÃÄ]', 'E': '[EÉÈÊË]', 'I': '[IÍÌÎÏ]', 'O': '[OÓÒÔÕÖ]', 'U': '[UÚÙÛÜ]', 
+        'C': '[CÇ]', 'N': '[NÑ]'
+    };
+    let queryComAcentos = queryOriginal;
+    for (let [letraSem, letraCom] of Object.entries(mapaAcentos)) {
+        queryComAcentos = queryComAcentos.replace(new RegExp(letraSem, 'g'), letraCom);
+    }
 
     if (searchController) {
         searchController.abort();
@@ -705,13 +703,13 @@ function buscarSugestoesEndereco() {
 
     clearTimeout(debounceTimerEndereco);
 
-    if (query.length < 2) {
+    if (queryOriginal.length < 2) {
         container.style.display = 'none';
         return;
     }
 
-    if (enderecoCache[query]) {
-        exibirSugestoes(container, enderecoCache[query]);
+    if (enderecoCache[queryOriginal]) {
+        exibirSugestoes(container, enderecoCache[queryOriginal]);
         return;
     }
 
@@ -721,16 +719,17 @@ function buscarSugestoesEndereco() {
             container.style.display = 'block';
 
             searchController = new AbortController();
-            const resultados = await fetchFromGS('buscarEnderecos', { q: query }, searchController.signal);
+            // 🔥 ENVIA A VERSÃO COM ACENTOS PARA O GOOGLE, MESMO QUE O USUÁRIO TENHA DIGITADO SEM
+            const resultados = await fetchFromGS('buscarEnderecos', { q: queryComAcentos }, searchController.signal);
             
-            // 🔥 Filtrar localmente ignorando acentos e priorizando início da palavra
+            // Filtra localmente mantendo a busca original para segurança
+            const querySemAcento = removerAcentos(queryOriginal);
             const resultadosFiltrados = resultados.filter(item => {
                 const enderecoSemAcento = removerAcentos(item.endereco.toUpperCase());
-                // Verifica se o endereço começa com a busca sem acento, ou contém
                 return enderecoSemAcento.startsWith(querySemAcento) || enderecoSemAcento.includes(querySemAcento);
             });
 
-            enderecoCache[query] = resultadosFiltrados;
+            enderecoCache[queryOriginal] = resultadosFiltrados;
             exibirSugestoes(container, resultadosFiltrados);
 
         } catch (e) {
@@ -771,7 +770,6 @@ function exibirSugestoes(container, resultados) {
     container.style.display = 'block';
 }
 
-// Fecha as sugestões se o usuário clicar fora delas
 document.addEventListener('click', function(e) {
     const container = document.getElementById('address-suggestions');
     const input = document.getElementById('print-endereco');
