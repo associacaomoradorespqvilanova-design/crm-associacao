@@ -22,7 +22,7 @@ let editingCartaoId = null;
 let lastSearchedCPF = '';
 
 // 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwoByjUISM5J2UUGHskvLJ8YmbD62uZCt_gbn2W3bb6xfdxLguGKk9yI2l75re9O20KYw/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzEegl7jqvsCx-Zo2XejdIQ2OSQhzHsMLlWdH9acggkwmAVX7diOnE-XJN4kmNa_B7E0Q/exec"; 
 
 // ==========================================================
 // 🔥 COMUNICAÇÃO JSONP DO STAGE TELECOM (IGNORA CORS)
@@ -101,6 +101,10 @@ document.addEventListener('keydown', function(e) {
         const comprovante = document.getElementById('modal-comprovante-print');
         if (comprovante && comprovante.style.display === 'flex') {
             fecharComprovantePrint();
+        }
+        const semAssinatura = document.getElementById('modal-sem-assinatura-print');
+        if (semAssinatura && semAssinatura.style.display === 'flex') {
+            fecharSemAssinaturaPrint();
         }
     }
 });
@@ -516,7 +520,7 @@ async function gerarCurriculo() {
 }
 
 // ==========================================
-// LÓGICA DO COMPROVANTE (ACENTOS, GÊNERO, ESC E SCROLL)
+// LÓGICAS DO COMPROVANTE E SEM ASSINATURA
 // ==========================================
 
 function removerAcentos(str) {
@@ -686,7 +690,6 @@ function buscarSugestoesEndereco() {
     const container = document.getElementById('address-suggestions');
     const queryOriginal = input.value.trim().toUpperCase();
     
-    // 🔥 TRADUZ O QUE O USUÁRIO DIGITOU PARA A VERSÃO COM ACENTOS ANTES DE ENVIAR
     const mapaAcentos = {
         'A': '[AÁÀÂÃÄ]', 'E': '[EÉÈÊË]', 'I': '[IÍÌÎÏ]', 'O': '[OÓÒÔÕÖ]', 'U': '[UÚÙÛÜ]', 
         'C': '[CÇ]', 'N': '[NÑ]'
@@ -719,10 +722,8 @@ function buscarSugestoesEndereco() {
             container.style.display = 'block';
 
             searchController = new AbortController();
-            // 🔥 ENVIA A VERSÃO COM ACENTOS PARA O GOOGLE, MESMO QUE O USUÁRIO TENHA DIGITADO SEM
             const resultados = await fetchFromGS('buscarEnderecos', { q: queryComAcentos }, searchController.signal);
             
-            // Filtra localmente mantendo a busca original para segurança
             const querySemAcento = removerAcentos(queryOriginal);
             const resultadosFiltrados = resultados.filter(item => {
                 const enderecoSemAcento = removerAcentos(item.endereco.toUpperCase());
@@ -777,60 +778,296 @@ document.addEventListener('click', function(e) {
         container.style.display = 'none';
     }
 });
-// ==========================================
-// LÓGICA DO MODAL SEM ASSINATURA
-// ==========================================
 
+// ==========================================================
+// 🔥 FUNÇÕES DO MODAL "SEM ASSINATURA"
+// ==========================================================
+
+// Abrir modal
 function abrirModalSemAssinatura() {
-    // Pega o elemento que contém a imagem de fundo
-    const fundo = document.getElementById('modal-comprovante-print').querySelector('div[style*="background-image"]');
+    document.getElementById('modal-sem-assinatura-print').style.display = 'flex';
     
-    // Guarda a imagem atual do comprovante (para quando fechar, voltar ao normal)
-    const imagemOriginal = "https://i.imgur.com/lFhk0Hq.png";
-    const imagemSemAssinatura = "https://i.imgur.com/l47wlMJ.png";
-
-    // Altera o fundo para a imagem sem assinatura
-    fundo.style.backgroundImage = `url('${imagemSemAssinatura}')`;
-
-    // Abre o modal normalmente
-    document.getElementById('modal-comprovante-print').style.display = 'flex';
+    document.getElementById('sa-nome').value = '';
+    document.getElementById('sa-endereco').value = '';
+    document.getElementById('sa-numero_endereco').value = '';
+    document.getElementById('sa-complemento').value = '';
+    document.getElementById('sa-cep').value = '';
+    document.getElementById('sa-bairro').value = '';
+    document.getElementById('sa-uf').value = '';
+    document.getElementById('sa-nacionalidade').value = '';
+    document.getElementById('sa-estado_civil').value = '';
+    document.getElementById('sa-cpf').value = '';
+    document.getElementById('sa-rg').value = '';
+    document.getElementById('sa-emissor').value = 'DETRAN/RJ';
+    document.getElementById('sa-propria').checked = false;
+    document.getElementById('sa-alugada').checked = false;
+    document.getElementById('sa-emprestada').checked = false;
     
-    // Limpa os campos (opcional, mas recomendado)
-    document.getElementById('print-nome').value = '';
-    document.getElementById('print-endereco').value = '';
-    document.getElementById('print-cep').value = '';
-    // ... (limpe o restante conforme necessário)
-
-    // Define a data atual
     const m = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
     const h = new Date();
-    document.getElementById("print-data").value = `${String(h.getDate()).padStart(2,'0')} DE ${m[h.getMonth()]}`;
-    document.getElementById("print-ano").value = h.getFullYear();
+    document.getElementById("sa-data").value = `${String(h.getDate()).padStart(2,'0')} DE ${m[h.getMonth()]}`;
+    document.getElementById("sa-ano").value = h.getFullYear();
     
-    // Busca o próximo número da declaração (já que o formulário é o mesmo)
     try {
         if (URL_API_GS.includes('COLE_AQUI')) {
             throw new Error("A URL do Apps Script não foi configurada!");
         }
-        fetchFromGS('getNumero').then(dados => {
-            document.getElementById('print-numero').value = dados.numero || '0000001';
-        });
+        const dados = await fetchFromGS('getNumero');
+        document.getElementById('sa-numero').value = dados.numero || '0000001';
     } catch (e) {
         console.error(e);
-        document.getElementById('print-numero').value = '0000001';
+        alert("Erro ao buscar o número.");
+        document.getElementById('sa-numero').value = '0000001';
+    }
+}
+
+// Buscar CEP
+function autoBuscarCEPSemAssinatura(el) {
+    const cep = el.value.replace(/\D/g, '');
+    if (cep.length === 8) { buscarCEPSemAssinatura(); }
+}
+
+async function buscarCEPSemAssinatura() {
+    const cep = document.getElementById('sa-cep').value.replace(/\D/g,'');
+    if (cep.length !== 8) { alert("CEP inválido"); return; }
+    try {
+        const resp = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        const dados = await resp.json();
+        if (dados.erro) { alert("CEP não encontrado na API dos Correios"); return; }
+        
+        document.getElementById('sa-endereco').value = (dados.logradouro || '').toUpperCase();
+        document.getElementById('sa-bairro').value = (dados.bairro || '').toUpperCase();
+        document.getElementById('sa-uf').value = (dados.uf || '').toUpperCase();
+    } catch (e) { 
+        console.error(e);
+        alert("Erro de conexão ao buscar o CEP."); 
+    }
+}
+
+// Buscar CPF
+function autoBuscarCPFSemAssinatura(el) {
+    const cpf = el.value.replace(/\D/g, '');
+    if (cpf.length === 11) {
+        if (lastSearchedCPF !== cpf) {
+            lastSearchedCPF = cpf;
+            buscarCPFSemAssinatura();
+        }
+    } else {
+        lastSearchedCPF = '';
+    }
+}
+
+async function buscarCPFSemAssinatura() {
+    const cpf = document.getElementById('sa-cpf').value.replace(/\D/g,'');
+    if (cpf.length !== 11) { alert("CPF inválido"); return; }
+    try {
+        if (URL_API_GS.includes('COLE_AQUI')) {
+            throw new Error("A URL do Apps Script não foi configurada!");
+        }
+        const r = await fetchFromGS('buscarCPF', { cpf: cpf });
+        
+        if (r.erro) { 
+            alert("ERRO DO APPS SCRIPT: " + r.erro); 
+            return; 
+        }
+
+        if (!r.encontrado) { 
+            alert("CPF NÃO LOCALIZADO na planilha."); 
+            return; 
+        }
+        const d = r.dados;
+        
+        document.getElementById('sa-nome').value = d.nome || '';
+        document.getElementById('sa-endereco').value = d.endereco || '';
+        document.getElementById('sa-numero_endereco').value = d.numero_endereco || '';
+        document.getElementById('sa-complemento').value = d.complemento || '';
+        document.getElementById('sa-cep').value = d.cep || '';
+        document.getElementById('sa-bairro').value = d.bairro || '';
+        document.getElementById('sa-uf').value = d.uf || '';
+        document.getElementById('sa-nacionalidade').value = d.nacionalidade || '';
+        document.getElementById('sa-estado_civil').value = d.estado_civil || '';
+        document.getElementById('sa-cpf').value = d.cpf || '';
+        document.getElementById('sa-rg').value = d.rg || '';
+        document.getElementById('sa-emissor').value = d.emissor || '';
+        document.getElementById('sa-propria').checked = d.propria || false;
+        document.getElementById('sa-alugada').checked = d.alugada || false;
+        document.getElementById('sa-emprestada').checked = d.emprestada || false;
+    } catch (e) { 
+        console.error(e);
+        alert("Erro de comunicação."); 
+    }
+}
+
+// Detecção de gênero
+function detectarGeneroENacionalidadeSemAssinatura() {
+    const nomeInput = document.getElementById('sa-nome');
+    const nome = nomeInput.value.trim().toUpperCase();
+    
+    if (nome.length < 2) return;
+
+    const primeiroNome = nome.split(' ')[0].toLowerCase();
+    
+    let genero = 'MASCULINO';
+    
+    const excecoesMasculinas = ['joaquim', 'luca', 'noa', 'nicola'];
+    if (excecoesMasculinas.includes(primeiroNome)) {
+        genero = 'MASCULINO';
+    } 
+    else if (['mar', 'luz', 'flor', 'marjorie', 'alice', 'constance'].includes(primeiroNome)) {
+        genero = 'FEMININO';
+    }
+    else if (primeiroNome.endsWith('a') || primeiroNome.endsWith('e') || primeiroNome.endsWith('i') || 
+             primeiroNome.endsWith('ad') || primeiroNome.endsWith('ra') || primeiroNome.endsWith('na') || 
+             primeiroNome.endsWith('la') || primeiroNome.endsWith('da') || primeiroNome.endsWith('ia')) {
+        genero = 'FEMININO';
+    }
+    else {
+        genero = 'MASCULINO';
     }
 
-    // Sobrescreve a função de fechar para garantir que a imagem volte ao normal quando sair
-    const fecharAntigo = fecharComprovantePrint;
-    fecharComprovantePrint = function() {
-        // Volta a imagem original
-        fundo.style.backgroundImage = `url('${imagemOriginal}')`;
-        document.getElementById('modal-comprovante-print').style.display = 'none';
+    if (genero === 'FEMININO') {
+        document.getElementById('sa-nacionalidade').value = 'BRASILEIRA';
+        document.getElementById('sa-estado_civil').value = 'SOLTEIRA';
+    } else {
+        document.getElementById('sa-nacionalidade').value = 'BRASILEIRO';
+        document.getElementById('sa-estado_civil').value = 'SOLTEIRO';
+    }
+}
+
+// Salvar e Imprimir (Sem Assinatura)
+function obterValoresSemAssinatura() {
+    return {
+        numero: document.getElementById('sa-numero').value,
+        data: document.getElementById('sa-data').value,
+        ano: document.getElementById('sa-ano').value,
+        nome: document.getElementById('sa-nome').value.toUpperCase(),
+        endereco: document.getElementById('sa-endereco').value.toUpperCase(),
+        numero_endereco: document.getElementById('sa-numero_endereco').value.toUpperCase(),
+        complemento: document.getElementById('sa-complemento').value.toUpperCase(),
+        cep: document.getElementById('sa-cep').value,
+        bairro: document.getElementById('sa-bairro').value.toUpperCase(),
+        uf: document.getElementById('sa-uf').value.toUpperCase(),
+        nacionalidade: document.getElementById('sa-nacionalidade').value.toUpperCase(),
+        estado_civil: document.getElementById('sa-estado_civil').value.toUpperCase(),
+        cpf: document.getElementById('sa-cpf').value,
+        rg: document.getElementById('sa-rg').value,
+        emissor: document.getElementById('sa-emissor').value.toUpperCase(),
+        propria: document.getElementById('sa-propria').checked,
+        alugada: document.getElementById('sa-alugada').checked,
+        emprestada: document.getElementById('sa-emprestada').checked
     };
 }
 
+function gerarHTMLImpressaoSemAssinatura(v) {
+    return `
+    <!DOCTYPE html><html><head>
+    <style>
+      body{margin:0;padding:0;font-family:Arial,sans-serif;}
+      .popup{position:relative;width:794px;height:1123px;background-color:white;overflow:hidden;margin:0 auto;}
+      .popup-content{position:relative;width:100%;height:100%;}
+      .popup-content img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;z-index:0;}
+      .input-field{position:absolute;font-size:13px;padding:2px 4px;z-index:1;font-weight:bold;background:transparent;border:none;outline:none;color:black;text-transform:uppercase;}
+      .input-field[type="checkbox"]{width:16px;height:16px;accent-color:black;}
+      @media print{body{margin:0!important;padding:0!important;}}
+    </style>
+    </head><body>
+    <div class="popup"><div class="popup-content">
+      <img src="https://i.imgur.com/l47wlMJ.png">
+      <input class="input-field" style="top:386px;left:230px;width:80px" value="${v.numero}" readonly>
+      <input class="input-field" style="top:386px;left:390px;width:130px" value="${v.data}" readonly>
+      <input class="input-field" style="top:386px;left:580px;width:80px" value="${v.ano}" readonly>
+      <input class="input-field" style="top:437px;left:167px;width:500px;font-size:18px" value="${v.nome}" readonly>
+      <input class="input-field" style="top:508px;left:216px;width:350px" value="${v.endereco}" readonly>
+      <input class="input-field" style="top:508px;left:629px;width:90px" value="${v.numero_endereco}" readonly>
+      <input class="input-field" style="top:568px;left:240px;width:210px" value="${v.complemento}" readonly>
+      <input class="input-field" style="top:568px;left:530px;width:150px" value="${v.cep}" readonly>
+      <input class="input-field" style="top:633px;left:165px;width:350px" value="${v.bairro}" readonly>
+      <input class="input-field" style="top:633px;left:630px;width:80px" value="${v.uf}" readonly>
+      <input class="input-field" style="top:695px;left:247px;width:150px" value="${v.nacionalidade}" readonly>
+      <input class="input-field" style="top:695px;left:555px;width:150px" value="${v.estado_civil}" readonly>
+      <input class="input-field" style="top:758px;left:135px;width:188px" value="${v.cpf}" readonly>
+      <input class="input-field" style="top:758px;left:395px;width:100px" value="${v.rg}" readonly>
+      <input class="input-field" style="top:758px;left:625px;width:120px" value="${v.emissor}" readonly>
+      <input type="checkbox" class="input-field" style="top:844px;left:249px" ${v.propria?'checked':''} readonly>
+      <input type="checkbox" class="input-field" style="top:844px;left:425px" ${v.alugada?'checked':''} readonly>
+      <input type="checkbox" class="input-field" style="top:844px;left:652px" ${v.emprestada?'checked':''} readonly>
+    </div></div>
+    </body></html>`;
+}
+
+async function salvarDadosSemAssinatura() {
+    const dados = [
+        document.getElementById('sa-numero').value,
+        document.getElementById('sa-data').value,
+        document.getElementById('sa-ano').value,
+        document.getElementById('sa-nome').value.toUpperCase(),
+        document.getElementById('sa-endereco').value.toUpperCase(),
+        document.getElementById('sa-numero_endereco').value.toUpperCase(),
+        document.getElementById('sa-complemento').value.toUpperCase(),
+        document.getElementById('sa-cep').value,
+        document.getElementById('sa-bairro').value.toUpperCase(),
+        document.getElementById('sa-uf').value.toUpperCase(),
+        document.getElementById('sa-nacionalidade').value.toUpperCase(),
+        document.getElementById('sa-estado_civil').value.toUpperCase(),
+        document.getElementById('sa-cpf').value,
+        document.getElementById('sa-rg').value,
+        document.getElementById('sa-emissor').value.toUpperCase(),
+        document.getElementById('sa-propria').checked ? "Casa Própria" : "",
+        document.getElementById('sa-alugada').checked ? "Alugada" : "",
+        document.getElementById('sa-emprestada').checked ? "Emprestada" : ""
+    ];
+    // OBS: Se quiser salvar em uma ABA DIFERENTE da planilha, crie uma função no GS como salvarSemAssinaturaResidencia(dados)
+    await postParaGoogleSheets('salvarDeclaracao', dados);
+}
+
+async function salvarApenasSemAssinatura() {
+    const btn = document.querySelector('#modal-sem-assinatura-print .btn-save');
+    btn.innerText = 'Salvando...'; btn.disabled = true;
+    try {
+        await salvarDadosSemAssinatura();
+        alert("Dados salvos com sucesso!");
+        fecharSemAssinaturaPrint();
+    } catch (e) { 
+        alert("Erro ao salvar: " + e.message); 
+    } 
+    finally { btn.innerText = '💾 Salvar'; btn.disabled = false; }
+}
+
+async function salvarEImprimirSemAssinatura() {
+    const btn = document.querySelector('#modal-sem-assinatura-print .btn-print');
+    btn.innerText = 'Salvando...'; btn.disabled = true;
+    try {
+        await salvarDadosSemAssinatura();
+        const v = obterValoresSemAssinatura();
+        let htmlPrint = gerarHTMLImpressaoSemAssinatura(v);
+        htmlPrint = htmlPrint.replace('</body>', `
+            <script>
+                window.addEventListener('load', function() {
+                    setTimeout(function() { window.print(); }, 800);
+                });
+            <\/script>
+        </body>`);
+
+        const win = window.open('', '_blank');
+        if (win) {
+            win.document.write(htmlPrint);
+            win.document.close();
+            win.focus();
+        } else {
+            alert("Pop-up bloqueado! Por favor, permita pop-ups no seu navegador para imprimir o documento.");
+        }
+        fecharSemAssinaturaPrint();
+
+    } catch (e) { 
+        alert("Erro ao salvar e imprimir: " + e.message); 
+    } 
+    finally { btn.innerText = '🖨️ Imprimir'; btn.disabled = false; }
+}
+
+function fecharSemAssinaturaPrint() { document.getElementById('modal-sem-assinatura-print').style.display = 'none'; }
+
 // ==========================================================
-// IMPRESSÃO E SALVAMENTO DO COMPROVANTE
+// IMPRESSÃO E SALVAMENTO DO COMPROVANTE (Já existente)
 // ==========================================================
 function obterValoresComprovante() {
     return {
