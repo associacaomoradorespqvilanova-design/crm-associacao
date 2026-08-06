@@ -1,5 +1,8 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzrdAFhfEQ9KIFaEws5_xJJfJF4ZiYwlKgvjZGse3RGdIiHn8nq9yQVJ_ni8Y1z2OcVHg/exec"; 
+const URL_API_GS = "COLE_AQUI_A_SUA_URL_DO_APPS_SCRIPT"; 
 
+// ==========================================================
+// 🔥 COMUNICAÇÃO JSONP DO STAGE TELECOM
+// ==========================================================
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
         const callbackName = 'cb' + Date.now() + Math.random().toString(36).substr(2, 8);
@@ -48,19 +51,61 @@ async function postParaGoogleSheets(acao, dados = {}) {
     await fetch(URL_API_GS, { method: 'POST', body: formData, mode: 'no-cors' });
 }
 
+// ==========================================================
+// 🔥 ESTADO GLOBAL
+// ==========================================================
 const state = {
     dadosAgenda: [],
     dadosCartoes: [],
+    responsaveis: [],
     telefoneCount: 1,
     cursoCount: 0,
     expCount: 0,
     fotoBase64: null,
-    editingAgendaId: null,
-    editingCartaoId: null,
     lastSearchedCPF: '',
     tipoComprovanteAtual: 'assinatura'
 };
 
+// ==========================================================
+// LOGIN PERSISTENTE
+// ==========================================================
+document.addEventListener('DOMContentLoaded', () => {
+    const savedUser = localStorage.getItem('crm_user');
+    if (savedUser === 'admin') {
+        loginSuccess();
+    }
+});
+
+function login() {
+    const user = document.getElementById('username').value;
+    const pass = document.getElementById('password').value;
+    const errorBox = document.getElementById('login-error');
+    errorBox.style.display = 'none';
+    if(user === 'admin' && pass === '123') {
+        localStorage.setItem('crm_user', 'admin');
+        loginSuccess();
+    } else { errorBox.style.display = 'block'; }
+}
+
+function loginSuccess() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('dashboard-screen').style.display = 'block';
+    updateClock();
+    renderizarTabelas();
+    verificarProximaAgendaPopup();
+}
+
+function logout() {
+    localStorage.removeItem('crm_user');
+    document.getElementById('dashboard-screen').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'block';
+    document.getElementById('username').value = '';
+    document.getElementById('password').value = '';
+}
+
+// ==========================================================
+// LÓGICAS GERAIS
+// ==========================================================
 function updateClock() {
     const now = new Date();
     const timeString = now.toLocaleTimeString('pt-BR', { hour12: false });
@@ -87,17 +132,20 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-function login() {
-    const user = document.getElementById('username').value;
-    const pass = document.getElementById('password').value;
-    const errorBox = document.getElementById('login-error');
-    errorBox.style.display = 'none';
-    if(user === 'admin' && pass === '123') {
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('dashboard-screen').style.display = 'block';
-        renderizarTabelas();
-        verificarProximaAgendaPopup();
-    } else { errorBox.style.display = 'block'; }
+function verificarProximaAgendaPopup() {
+    const hoje = new Date();
+    const proximos = state.dadosAgenda.filter(item => new Date(item.data + 'T00:00:00') >= hoje).sort((a, b) => new Date(a.data) - new Date(b.data)).slice(0, 2);
+    if (proximos.length > 0) {
+        const content = document.getElementById('popup-login-content');
+        let html = `<p><strong>Você tem os seguintes compromissos agendados:</strong></p><ul>`;
+        proximos.forEach(item => {
+            const dataFormatada = new Date(item.data + 'T00:00:00').toLocaleDateString('pt-BR');
+            html += `<li><strong>${dataFormatada}</strong> - ${item.nome} (${item.periodo})</li>`;
+        });
+        html += `</ul>`;
+        content.innerHTML = html;
+        abrirModal('modal-popup-login');
+    }
 }
 
 async function renderizarTabelas() { 
@@ -105,6 +153,9 @@ async function renderizarTabelas() {
     await renderizarCartoes(); 
 }
 
+// ==========================================================
+// AGENDA QUADRA
+// ==========================================================
 async function renderizarAgenda() {
     const resp = await fetchFromGS('listarAgenda');
     state.dadosAgenda = resp.itens || [];
@@ -115,28 +166,18 @@ async function renderizarAgenda() {
     tbody.innerHTML = '';
 
     const sorted = [...state.dadosAgenda].sort((a, b) => new Date(a.data) - new Date(b.data));
-    let hojeEncontrado = false;
-    let amanhaEncontrado = false;
+    let hojeEncontrado = false, amanhaEncontrado = false;
 
     sorted.forEach(item => {
         const tr = document.createElement('tr');
         const dataItem = new Date(item.data + 'T00:00:00');
         dataItem.setHours(0,0,0,0);
-        
         const dataFormatada = dataItem.toLocaleDateString('pt-BR');
+        const diffDays = Math.ceil((dataItem - hoje) / (1000 * 60 * 60 * 24));
 
-        const diffTime = dataItem - hoje;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-        if (diffDays === 0) {
-            tr.className = 'highlight-row pulse-row';
-            hojeEncontrado = true;
-        } else if (diffDays === 1) {
-            tr.className = 'highlight-row pulse-row';
-            amanhaEncontrado = true;
-        } else if (diffDays < 0) {
-            return; 
-        }
+        if (diffDays === 0) { tr.className = 'highlight-row pulse-row'; hojeEncontrado = true; }
+        else if (diffDays === 1) { tr.className = 'highlight-row pulse-row'; amanhaEncontrado = true; }
+        else if (diffDays < 0) return;
 
         tr.innerHTML = `
             <td>${dataFormatada}</td>
@@ -152,63 +193,6 @@ async function renderizarAgenda() {
     if (tbody.children.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Nenhum compromisso futuro agendado.</td></tr>';
     }
-
-    if (hojeEncontrado || amanhaEncontrado) {
-        const titulo = document.getElementById('popup-login-content');
-        let msg = '';
-        if (hojeEncontrado) msg += '📅 Você tem um evento HOJE!<br>';
-        if (amanhaEncontrado) msg += '📅 Você tem um evento AMANHÃ!<br>';
-        titulo.innerHTML = msg;
-        abrirModal('modal-popup-login');
-    }
-}
-
-async function renderizarCartoes() {
-    const resp = await fetchFromGS('listarCartoes');
-    state.dadosCartoes = resp.itens || [];
-
-    const tbody = document.getElementById('cards-list');
-    tbody.innerHTML = '';
-    let totalCezar = 0, totalWalter = 0;
-    const agrupadoPorData = {};
-
-    state.dadosCartoes.forEach(item => {
-        if(!agrupadoPorData[item.data]) agrupadoPorData[item.data] = { cezar: 0, walter: 0, ids: [] };
-        if(item.responsavel === 'cezar') {
-            agrupadoPorData[item.data].cezar += item.qtd;
-            totalCezar += item.qtd;
-        }
-        if(item.responsavel === 'walter') {
-            agrupadoPorData[item.data].walter += item.qtd;
-            totalWalter += item.qtd;
-        }
-        agrupadoPorData[item.data].ids.push(item.id);
-    });
-
-    for (const [data, valores] of Object.entries(agrupadoPorData).sort((a,b) => new Date(a[0]) - new Date(b[0]))) {
-        const tr = document.createElement('tr');
-        const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
-        const totalDia = valores.cezar + valores.walter;
-        
-        tr.innerHTML = `
-            <td>${dataFormatada}</td>
-            <td><strong>${valores.cezar > 0 ? valores.cezar : '-'}</strong></td>
-            <td><strong>${valores.walter > 0 ? valores.walter : '-'}</strong></td>
-            <td style="color:#4a7c2e; font-weight:700;">${totalDia}</td>
-            <td>
-                <button class="btn-edit" onclick="excluirMesCartao('cezar', '${data}')" title="Excluir Mês Cezar" style="color:#ff4757; margin-right:5px;">📆🗑️</button>
-                <button class="btn-edit" onclick="excluirMesCartao('walter', '${data}')" title="Excluir Mês Walter" style="color:#ff4757;">📆🗑️</button>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    }
-
-    if (tbody.children.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Nenhum registro de cartão.</td></tr>';
-    }
-
-    document.getElementById('total-cezar').innerText = totalCezar;
-    document.getElementById('total-walter').innerText = totalWalter;
 }
 
 async function salvarAgenda() {
@@ -219,8 +203,7 @@ async function salvarAgenda() {
     const telefone = document.getElementById('ag-tel').value;
     if(!nome || !data) { alert("Preencha pelo menos o Nome e a Data."); return; }
 
-    const novoItem = { id: Date.now(), nome, data, periodo, endereco, telefone };
-    await postParaGoogleSheets('salvarAgenda', novoItem);
+    await postParaGoogleSheets('salvarAgenda', { id: Date.now(), nome, data, periodo, endereco, telefone });
     fecharModal('modal-agenda');
     await renderizarAgenda();
     document.getElementById('ag-nome').value = ''; document.getElementById('ag-data').value = ''; document.getElementById('ag-periodo').value = ''; document.getElementById('ag-end').value = ''; document.getElementById('ag-tel').value = '';
@@ -232,31 +215,410 @@ async function deletarItemAgenda(id) {
     await renderizarAgenda();
 }
 
+// ==========================================================
+// CARTÕES DINÂMICOS E RESPONSÁVEIS
+// ==========================================================
+async function renderizarCartoes() {
+    const resp = await fetchFromGS('listarCartoes');
+    state.dadosCartoes = resp.itens || [];
+
+    const respNomes = await fetchFromGS('listarResponsaveis');
+    state.responsaveis = respNomes.nomes || [];
+
+    const select = document.getElementById('card-responsavel');
+    select.innerHTML = '<option value="">Selecione um responsável</option>';
+    state.responsaveis.forEach(nome => {
+        select.innerHTML += `<option value="${nome}">${nome}</option>`;
+    });
+
+    const tbody = document.getElementById('cards-list');
+    tbody.innerHTML = '';
+    const totais = {};
+
+    state.dadosCartoes.forEach(item => {
+        if(!totais[item.responsavel]) totais[item.responsavel] = 0;
+        totais[item.responsavel] += item.qtd;
+    });
+
+    const agrupado = {};
+    state.dadosCartoes.forEach(item => {
+        if(!agrupado[item.data]) agrupado[item.data] = {};
+        if(!agrupado[item.data][item.responsavel]) agrupado[item.data][item.responsavel] = 0;
+        agrupado[item.data][item.responsavel] += item.qtd;
+    });
+
+    const nomesOrdenados = state.responsaveis;
+
+    for (const [data, valores] of Object.entries(agrupado).sort((a,b) => new Date(a[0]) - new Date(b[0]))) {
+        const tr = document.createElement('tr');
+        const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
+        let totalDia = 0;
+        let colunasHtml = '';
+
+        nomesOrdenados.forEach(nome => {
+            const qtd = valores[nome] || 0;
+            if (qtd > 0) {
+                colunasHtml += `<td style="text-align:center;"><strong>${qtd}</strong></td>`;
+            } else {
+                colunasHtml += `<td style="text-align:center; color:#ccc;">-</td>`;
+            }
+            totalDia += qtd;
+        });
+
+        tr.innerHTML = `
+            <td>${dataFormatada}</td>
+            ${colunasHtml}
+            <td style="color:#4a7c2e; font-weight:700; text-align:center;">${totalDia}</td>
+            <td>
+                <button class="btn-edit" onclick="excluirMesCartao('${data}')" title="Excluir Mês" style="color:#ff4757;">📆🗑️</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    if (tbody.children.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Nenhum registro de cartão.</td></tr>';
+    }
+
+    const totaisDiv = document.getElementById('totais-gerais');
+    let htmlTotais = '';
+    let totalGeral = 0;
+    nomesOrdenados.forEach(nome => {
+        if (totais[nome]) {
+            htmlTotais += `<span>Total ${nome}: <span style="font-weight:700;">${totais[nome]}</span></span>`;
+            totalGeral += totais[nome];
+        }
+    });
+    if (htmlTotais) {
+        htmlTotais += `<span>Total Geral: <span style="font-weight:700; color:#4a7c2e;">${totalGeral}</span></span>`;
+        totaisDiv.innerHTML = htmlTotais;
+        totaisDiv.style.display = 'flex';
+    } else {
+        totaisDiv.style.display = 'none';
+    }
+}
+
+async function excluirMesCartao(data) {
+    const partes = data.split('/');
+    const confirmGeral = confirm(`Isso excluirá os dados de TODOS os responsáveis neste mês (${partes[1]}/${partes[2]}). Confirmar?`);
+    if (!confirmGeral) return;
+    
+    const resp = await fetchFromGS('listarCartoes');
+    const itens = resp.itens || [];
+    
+    for (let item of itens) {
+        const d = new Date(item.data + 'T00:00:00');
+        if (d.getMonth() + 1 === parseInt(partes[1]) && d.getFullYear() === parseInt(partes[2])) {
+            await postParaGoogleSheets('deletarCartoesMes', { responsavel: item.responsavel, mes: parseInt(partes[1]), ano: parseInt(partes[2]) });
+        }
+    }
+    await renderizarCartoes();
+}
+
 async function salvarCartoes() {
     const responsavel = document.getElementById('card-responsavel').value;
     const qtd = parseInt(document.getElementById('card-qtd').value);
     const data = document.getElementById('card-data').value;
-    if(!qtd || !data) { alert("Preencha a Quantidade e a Data."); return; }
+    if(!responsavel || !qtd || !data) { alert("Preencha o Responsável, Quantidade e Data."); return; }
 
-    const novoItem = { id: Date.now(), responsavel, qtd, data };
-    await postParaGoogleSheets('salvarCartao', novoItem);
+    await postParaGoogleSheets('salvarCartao', { id: Date.now(), responsavel, qtd, data });
     fecharModal('modal-cartoes');
     await renderizarCartoes();
     document.getElementById('card-qtd').value = ''; document.getElementById('card-data').value = '';
 }
 
-async function excluirMesCartao(responsavel, dataExemplo) {
-    const partes = dataExemplo.split('/');
-    const mes = parseInt(partes[1]);
-    const ano = parseInt(partes[2]);
-
-    const confirmar = confirm(`Excluir TODOS os cartões do mês ${mes}/${ano} do responsável ${responsavel.toUpperCase()}?`);
-    if (!confirmar) return;
-
-    await postParaGoogleSheets('deletarCartoesMes', { responsavel, mes, ano });
+async function adicionarResponsavel() {
+    const input = document.getElementById('novo-responsavel-input');
+    const nome = input.value.trim();
+    if (!nome) { alert("Digite um nome."); return; }
+    await postParaGoogleSheets('salvarResponsavel', nome);
+    input.value = '';
     await renderizarCartoes();
+    await carregarListaResponsaveisNoModal();
 }
 
+async function carregarListaResponsaveisNoModal() {
+    const resp = await fetchFromGS('listarResponsaveis');
+    state.responsaveis = resp.nomes || [];
+    const container = document.getElementById('lista-responsaveis-cadastrados');
+    container.innerHTML = '';
+    state.responsaveis.forEach(nome => {
+        const span = document.createElement('span');
+        span.style.cssText = 'background:#eafde8; padding:3px 10px; border-radius:12px; font-size:12px; display:flex; align-items:center; gap:5px;';
+        span.innerHTML = `${nome} <button onclick="deletarResponsavel('${nome}')" style="border:none; background:transparent; color:#ff4757; font-weight:bold; cursor:pointer;">×</button>`;
+        container.appendChild(span);
+    });
+}
+
+async function deletarResponsavel(nome) {
+    if (!confirm(`Remover o responsável "${nome}" da lista?`)) return;
+    await postParaGoogleSheets('deletarResponsavel', nome);
+    await renderizarCartoes();
+    await carregarListaResponsaveisNoModal();
+}
+
+// ==========================================================
+// CURRÍCULO
+// ==========================================================
+function handlePhotoUpload(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const targetWidth = 300;
+                const targetHeight = 400;
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+                const ctx = canvas.getContext('2d');
+                const aspectRatio = targetWidth / targetHeight;
+                let srcWidth = img.width;
+                let srcHeight = img.height;
+                let srcX = 0, srcY = 0;
+                const imgRatio = srcWidth / srcHeight;
+                if (imgRatio > aspectRatio) {
+                    srcWidth = srcHeight * aspectRatio;
+                    srcX = (img.width - srcWidth) / 2;
+                } else {
+                    srcHeight = srcWidth / aspectRatio;
+                    srcY = (img.height - srcHeight) / 2;
+                }
+                ctx.drawImage(img, srcX, srcY, srcWidth, srcHeight, 0, 0, targetWidth, targetHeight);
+                state.fotoBase64 = canvas.toDataURL('image/jpeg');
+                const preview = document.getElementById('cv-photo-preview');
+                preview.src = state.fotoBase64;
+                preview.style.display = 'block';
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+async function buscarCEP() {
+    let cep = document.getElementById('cv-cep').value.replace(/\D/g, '');
+    if (cep.length === 8) {
+        try {
+            const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+            const data = await response.json();
+            if (!data.erro) {
+                document.getElementById('cv-logradouro').value = data.logradouro;
+                document.getElementById('cv-bairro').value = data.bairro;
+                document.getElementById('cv-cidade').value = `${data.localidade} - ${data.uf}`;
+            } else {
+                alert("CEP não encontrado.");
+            }
+        } catch (error) {
+            console.error("Erro ao buscar CEP", error);
+        }
+    }
+}
+
+function adicionarTelefone() {
+    if (state.telefoneCount < 3) {
+        state.telefoneCount++;
+        document.getElementById(`cv-tel-container-${state.telefoneCount}`).style.display = 'block';
+        if (state.telefoneCount === 3) {
+            document.getElementById('btn-add-tel').style.display = 'none';
+        }
+    }
+}
+
+function adicionarCurso() {
+    if (state.cursoCount >= 3) {
+        alert("Você já atingiu o limite máximo de 3 cursos para caber em 1 única folha A4.");
+        return;
+    }
+    const container = document.getElementById('cursos-container');
+    const id = `curso-${Date.now()}`;
+    const html = `
+        <div class="dynamic-item" id="${id}">
+            <button class="remove-btn" onclick="removerItem('${id}')">×</button>
+            <div class="grid-cv">
+                <div><label style="font-size:12px;">Curso</label><input type="text" class="input-curso" placeholder="Ex: Administração"></div>
+                <div><label style="font-size:12px;">Instituição</label><input type="text" class="input-inst" placeholder="Ex: UNESP"></div>
+            </div>
+            <div class="grid-cv full">
+                <label style="font-size:12px;">Período</label>
+                <input type="text" class="input-periodo" placeholder="Ex: 2018 - 2022">
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+    state.cursoCount++;
+}
+
+function adicionarExperiencia() {
+    if (state.expCount >= 6) {
+        alert("Você já atingiu o limite máximo de 6 experiências para caber em 1 única folha A4.");
+        return;
+    }
+    const container = document.getElementById('exp-container');
+    const id = `exp-${Date.now()}`;
+    const html = `
+        <div class="dynamic-item" id="${id}">
+            <button class="remove-btn" onclick="removerItem('${id}')">×</button>
+            <div class="grid-cv">
+                <div><label style="font-size:12px;">Empresa</label><input type="text" class="input-empresa" placeholder="Ex: Tech Solutions"></div>
+                <div><label style="font-size:12px;">Função</label><input type="text" class="input-funcao" placeholder="Ex: Assistente Administrativo"></div>
+            </div>
+            <div class="grid-cv full">
+                <label style="font-size:12px;">Período</label>
+                <input type="text" class="input-periodo-exp" placeholder="Ex: Jan/2020 - Dez/2022">
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+    state.expCount++;
+}
+
+function removerItem(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        if (id.startsWith('curso-')) state.cursoCount--;
+        if (id.startsWith('exp-')) state.expCount--;
+        el.remove();
+    }
+}
+
+async function gerarCurriculo() {
+    const nome = document.getElementById('cv-nome').value;
+    if (!nome) { alert("Por favor, preencha pelo menos o Nome Completo."); return; }
+
+    const templateSelecionado = document.getElementById('cv-template').value;
+    const tel1 = document.getElementById('cv-tel-1').value;
+    const tel2 = document.getElementById('cv-tel-2').value;
+    const tel3 = document.getElementById('cv-tel-3').value;
+    const email = document.getElementById('cv-email').value;
+    const logradouro = document.getElementById('cv-logradouro').value;
+    const numero = document.getElementById('cv-numero').value;
+    const bairro = document.getElementById('cv-bairro').value;
+    const cidade = document.getElementById('cv-cidade').value;
+    const objetivo = document.getElementById('cv-objetivo').value;
+    const habilidades = document.getElementById('cv-habilidades').value;
+
+    let endereco = `${logradouro}, ${numero}`;
+    if (bairro) endereco += ` - ${bairro}`;
+    if (cidade) endereco += ` - ${cidade}`;
+
+    let tels = [tel1, tel2, tel3].filter(t => t.trim() !== '');
+
+    const cursosNodes = document.querySelectorAll('#cursos-container .dynamic-item');
+    const cursos = [];
+    cursosNodes.forEach(node => {
+        const curso = node.querySelector('.input-curso').value || 'Curso não informado';
+        const inst = node.querySelector('.input-inst').value || 'Instituição não informada';
+        const periodo = node.querySelector('.input-periodo').value || 'Período não informado';
+        cursos.push({ curso, inst, periodo });
+    });
+
+    const expNodes = document.querySelectorAll('#exp-container .dynamic-item');
+    const experiencias = [];
+    expNodes.forEach(node => {
+        const empresa = node.querySelector('.input-empresa').value || 'Empresa não informada';
+        const funcao = node.querySelector('.input-funcao').value || 'Função não informada';
+        const periodo = node.querySelector('.input-periodo-exp').value || 'Período não informado';
+        experiencias.push({ empresa, funcao, periodo });
+    });
+
+    document.getElementById('pdf-nome').innerText = nome;
+    document.getElementById('pdf-tel').innerText = tels.length > 0 ? tels.join(' / ') : '(Não informado)';
+    document.getElementById('pdf-email').innerText = email || '(Não informado)';
+    document.getElementById('pdf-endereco').innerText = endereco || '(Não informado)';
+    document.getElementById('pdf-objetivo').innerText = objetivo || 'Não informado.';
+
+    const pdfPhoto = document.getElementById('pdf-photo');
+    if (state.fotoBase64) {
+        pdfPhoto.src = state.fotoBase64;
+        pdfPhoto.style.display = 'block';
+    } else {
+        pdfPhoto.style.display = 'none';
+    }
+
+    const pdfSkills = document.getElementById('pdf-habilidades');
+    pdfSkills.innerHTML = '';
+    if (habilidades.trim() !== '') {
+        const skillList = habilidades.split(',').map(s => s.trim()).filter(s => s !== '');
+        skillList.forEach(skill => {
+            const li = document.createElement('li');
+            li.innerText = skill;
+            pdfSkills.appendChild(li);
+        });
+    } else {
+        pdfSkills.innerHTML = '<li>Não informado.</li>';
+    }
+
+    const pdfCursos = document.getElementById('pdf-cursos');
+    pdfCursos.innerHTML = '';
+    if (cursos.length === 0) {
+        pdfCursos.innerHTML = '<p style="font-size:12px; color:#888;">Nenhum curso informado.</p>';
+    } else {
+        cursos.forEach(c => {
+            const div = document.createElement('div');
+            div.className = 'pdf-entry';
+            div.innerHTML = `
+                <div class="pdf-entry-title">${c.curso}</div>
+                <div class="pdf-entry-sub">${c.inst}</div>
+                <div class="pdf-entry-period">${c.periodo}</div>
+            `;
+            pdfCursos.appendChild(div);
+        });
+    }
+
+    const pdfExp = document.getElementById('pdf-experiencias');
+    pdfExp.innerHTML = '';
+    if (experiencias.length === 0) {
+        pdfExp.innerHTML = '<p style="font-size:12px; color:#888;">Nenhuma experiência informada.</p>';
+    } else {
+        experiencias.forEach(e => {
+            const div = document.createElement('div');
+            div.className = 'pdf-entry';
+            div.innerHTML = `
+                <div class="pdf-entry-title">${e.empresa}</div>
+                <div class="pdf-entry-sub">${e.funcao}</div>
+                <div class="pdf-entry-period">${e.periodo}</div>
+            `;
+            pdfExp.appendChild(div);
+        });
+    }
+
+    const pdfLayout = document.getElementById('cv-pdf-layout');
+    pdfLayout.className = `template-${templateSelecionado}`;
+    pdfLayout.style.display = 'block';
+
+    try {
+        const canvas = await html2canvas(pdfLayout, { scale: 2, useCORS: true, logging: false });
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgProps = pdf.getImageProperties(imgData);
+        const imgW = imgProps.width;
+        const imgH = imgProps.height;
+        const scaleX = pdfWidth / imgW;
+        const scaleY = pdfHeight / imgH;
+        let finalScale = Math.min(scaleX, scaleY);
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgW * finalScale, imgH * finalScale);
+
+        const pdfBlob = pdf.output('blob');
+        window.open(URL.createObjectURL(pdfBlob), '_blank');
+
+        pdfLayout.style.display = 'none';
+        fecharModal('modal-curriculo');
+
+    } catch (error) {
+        console.error("Erro ao gerar PDF:", error);
+        alert("Ocorreu um erro ao gerar o currículo.");
+        pdfLayout.style.display = 'none';
+    }
+}
+
+// ==========================================================
+// COMPROVANTE E BUSCA DE ENDEREÇO
+// ==========================================================
 function toggleComprovanteMenu() {
     const menu = document.getElementById('menu-comprovante');
     if (menu.style.display === 'none') {
@@ -438,6 +800,9 @@ function detectarGeneroENacionalidadeComprovante() {
     }
 }
 
+// ==========================================================
+// BUSCA DE ENDEREÇOS
+// ==========================================================
 let debounceTimerEndereco;
 let enderecoCache = {};
 let searchController = null;
@@ -536,6 +901,9 @@ document.addEventListener('click', function(e) {
     }
 });
 
+// ==========================================================
+// SALVAMENTO E IMPRESSÃO DO COMPROVANTE
+// ==========================================================
 function obterValoresComprovante() {
     return {
         numero: document.getElementById('print-numero').value,
@@ -664,6 +1032,9 @@ async function salvarEImprimir() {
     finally { btn.innerText = '🖨️ Imprimir'; btn.disabled = false; }
 }
 
+// ==========================================================
+// UTILITÁRIOS
+// ==========================================================
 function abrirModal(id) { document.getElementById(id).classList.add('active'); }
 function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
 function fecharComprovantePrint() { document.getElementById('modal-comprovante-print').style.display = 'none'; }
