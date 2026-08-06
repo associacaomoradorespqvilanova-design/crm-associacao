@@ -194,6 +194,25 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 }
 
 /* ==========================================================
+   EFEITO PULSANTE PARA OS EVENTOS DE HOJE E AMANHÃ
+   ========================================================== */
+@keyframes pulseBorder {
+    0% {
+        box-shadow: 0 0 0 0 rgba(123, 170, 72, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(123, 170, 72, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(123, 170, 72, 0);
+    }
+}
+
+.pulse-row {
+    animation: pulseBorder 2s infinite;
+    border-left: 4px solid #7baa48 !important;
+}
+/* ==========================================================
    MELHORIAS DE ROLAMENTE (SCROLLBAR) NO MODAL DO COMPROVANTE
    ========================================================== */
 #modal-comprovante-print::-webkit-scrollbar {
