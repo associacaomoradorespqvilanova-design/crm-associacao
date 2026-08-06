@@ -186,6 +186,14 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .suggestion-item:hover small { color: #eee; }
 
 /* ==========================================================
+   MENU DROPDOWN DO COMPROVANTE
+   ========================================================== */
+.menu-dropdown .menu-option:hover {
+    background-color: #eafde8;
+    color: #4a7c2e;
+}
+
+/* ==========================================================
    MELHORIAS DE ROLAMENTE (SCROLLBAR) NO MODAL DO COMPROVANTE
    ========================================================== */
 #modal-comprovante-print::-webkit-scrollbar {
