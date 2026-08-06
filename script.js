@@ -1,9 +1,4 @@
-// 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwI0tuvn5Bfhf0rMwpDht6-WJZsN8skLDaCTjeykuQeZy008lt-B1jNmAD_LTaOto05AA/exec"; 
-
-// ==========================================================
-// 🔥 COMUNICAÇÃO JSONP DO STAGE TELECOM (IGNORA CORS)
-// ==========================================================
+const URL_API_GS = "COLE_AQUI_A_SUA_URL_DO_APPS_SCRIPT"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -53,9 +48,6 @@ async function postParaGoogleSheets(acao, dados = {}) {
     await fetch(URL_API_GS, { method: 'POST', body: formData, mode: 'no-cors' });
 }
 
-// ==========================================================
-// 🔥 ESTADO GLOBAL DO CRM (Elimina os erros de escopo do GitHub)
-// ==========================================================
 const state = {
     dadosAgenda: [],
     dadosCartoes: [],
@@ -69,9 +61,6 @@ const state = {
     tipoComprovanteAtual: 'assinatura'
 };
 
-// ==========================================================
-// LÓGICAS DO CRM (LOGIN E PAINEL)
-// ==========================================================
 function updateClock() {
     const now = new Date();
     const timeString = now.toLocaleTimeString('pt-BR', { hour12: false });
@@ -110,10 +99,6 @@ function login() {
         verificarProximaAgendaPopup();
     } else { errorBox.style.display = 'block'; }
 }
-
-// ==========================================================
-// AGENDA E CARTÕES (LÓGICA PRINCIPAL)
-// ==========================================================
 
 async function renderizarTabelas() { 
     await renderizarAgenda(); 
@@ -226,10 +211,6 @@ async function renderizarCartoes() {
     document.getElementById('total-walter').innerText = totalWalter;
 }
 
-// ==========================================================
-// FUNÇÕES DE SALVAR E DELETAR AGENDA
-// ==========================================================
-
 async function salvarAgenda() {
     const nome = document.getElementById('ag-nome').value;
     const data = document.getElementById('ag-data').value;
@@ -250,10 +231,6 @@ async function deletarItemAgenda(id) {
     await postParaGoogleSheets('deletarAgenda', id);
     await renderizarAgenda();
 }
-
-// ==========================================================
-// FUNÇÕES DE SALVAR E DELETAR CARTÕES
-// ==========================================================
 
 async function salvarCartoes() {
     const responsavel = document.getElementById('card-responsavel').value;
@@ -279,10 +256,6 @@ async function excluirMesCartao(responsavel, dataExemplo) {
     await postParaGoogleSheets('deletarCartoesMes', { responsavel, mes, ano });
     await renderizarCartoes();
 }
-
-// ==========================================================
-// LÓGICA UNIFICADA DO COMPROVANTE (Com e Sem Assinatura)
-// ==========================================================
 
 function toggleComprovanteMenu() {
     const menu = document.getElementById('menu-comprovante');
@@ -465,9 +438,6 @@ function detectarGeneroENacionalidadeComprovante() {
     }
 }
 
-// ==========================================================
-// 🚀 BUSCA DE ENDEREÇOS
-// ==========================================================
 let debounceTimerEndereco;
 let enderecoCache = {};
 let searchController = null;
@@ -566,9 +536,6 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// ==========================================================
-// IMPRESSÃO E SALVAMENTO DO COMPROVANTE
-// ==========================================================
 function obterValoresComprovante() {
     return {
         numero: document.getElementById('print-numero').value,
@@ -697,19 +664,6 @@ async function salvarEImprimir() {
     finally { btn.innerText = '🖨️ Imprimir'; btn.disabled = false; }
 }
 
-// ==========================================================
-// FUNÇÕES DO CURRÍCULO
-// ==========================================================
-function handlePhotoUpload(event) {
-    const file = event.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = new Image();
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                const targetWidth = 300;
-                const targetHeight = 400;
-                canvas.width = targetWidth;
-                canvas.height = targetHeight;
-               
+function abrirModal(id) { document.getElementById(id).classList.add('active'); }
+function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
+function fecharComprovantePrint() { document.getElementById('modal-comprovante-print').style.display = 'none'; }
