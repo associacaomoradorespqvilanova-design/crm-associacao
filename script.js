@@ -1,18 +1,5 @@
-let dadosAgenda = [];
-let dadosCartoes = [];
-let idCounterAgenda = 1;
-let idCounterCartoes = 1;
-let telefoneCount = 1;
-let cursoCount = 0;
-let expCount = 0;
-let fotoBase64 = null;
-
-let editingAgendaId = null;
-let editingCartaoId = null;
-let lastSearchedCPF = '';
-
 // 🔥 INSIRA A URL DO SEU APPS SCRIPT AQUI
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzwhq71h6jVD1PM9eZ4IkTwxz4Kiv7krJt-vaIgO-0omSn6SdB44w7nXnuXfWczXcQI4A/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwI0tuvn5Bfhf0rMwpDht6-WJZsN8skLDaCTjeykuQeZy008lt-B1jNmAD_LTaOto05AA/exec"; 
 
 // ==========================================================
 // 🔥 COMUNICAÇÃO JSONP DO STAGE TELECOM (IGNORA CORS)
@@ -67,6 +54,22 @@ async function postParaGoogleSheets(acao, dados = {}) {
 }
 
 // ==========================================================
+// 🔥 ESTADO GLOBAL DO CRM (Elimina os erros de escopo do GitHub)
+// ==========================================================
+const state = {
+    dadosAgenda: [],
+    dadosCartoes: [],
+    telefoneCount: 1,
+    cursoCount: 0,
+    expCount: 0,
+    fotoBase64: null,
+    editingAgendaId: null,
+    editingCartaoId: null,
+    lastSearchedCPF: '',
+    tipoComprovanteAtual: 'assinatura'
+};
+
+// ==========================================================
 // LÓGICAS DO CRM (LOGIN E PAINEL)
 // ==========================================================
 function updateClock() {
@@ -119,14 +122,14 @@ async function renderizarTabelas() {
 
 async function renderizarAgenda() {
     const resp = await fetchFromGS('listarAgenda');
-    dadosAgenda = resp.itens || [];
+    state.dadosAgenda = resp.itens || [];
 
     const tbody = document.getElementById('agenda-list');
     const hoje = new Date();
     hoje.setHours(0,0,0,0);
     tbody.innerHTML = '';
 
-    const sorted = [...dadosAgenda].sort((a, b) => new Date(a.data) - new Date(b.data));
+    const sorted = [...state.dadosAgenda].sort((a, b) => new Date(a.data) - new Date(b.data));
     let hojeEncontrado = false;
     let amanhaEncontrado = false;
 
@@ -177,14 +180,14 @@ async function renderizarAgenda() {
 
 async function renderizarCartoes() {
     const resp = await fetchFromGS('listarCartoes');
-    dadosCartoes = resp.itens || [];
+    state.dadosCartoes = resp.itens || [];
 
     const tbody = document.getElementById('cards-list');
     tbody.innerHTML = '';
     let totalCezar = 0, totalWalter = 0;
     const agrupadoPorData = {};
 
-    dadosCartoes.forEach(item => {
+    state.dadosCartoes.forEach(item => {
         if(!agrupadoPorData[item.data]) agrupadoPorData[item.data] = { cezar: 0, walter: 0, ids: [] };
         if(item.responsavel === 'cezar') {
             agrupadoPorData[item.data].cezar += item.qtd;
@@ -281,8 +284,6 @@ async function excluirMesCartao(responsavel, dataExemplo) {
 // LÓGICA UNIFICADA DO COMPROVANTE (Com e Sem Assinatura)
 // ==========================================================
 
-let tipoComprovanteAtual = 'assinatura';
-
 function toggleComprovanteMenu() {
     const menu = document.getElementById('menu-comprovante');
     if (menu.style.display === 'none') {
@@ -316,17 +317,17 @@ function autoBuscarCEP(el) {
 function autoBuscarCPF(el) {
     const cpf = el.value.replace(/\D/g, '');
     if (cpf.length === 11) {
-        if (lastSearchedCPF !== cpf) {
-            lastSearchedCPF = cpf;
+        if (state.lastSearchedCPF !== cpf) {
+            state.lastSearchedCPF = cpf;
             buscarCPFPrint();
         }
     } else {
-        lastSearchedCPF = '';
+        state.lastSearchedCPF = '';
     }
 }
 
 async function abrirComprovantePrint(tipo) {
-    tipoComprovanteAtual = tipo;
+    state.tipoComprovanteAtual = tipo;
     document.getElementById('menu-comprovante').style.display = 'none';
 
     const bgImage = tipo === 'assinatura' 
@@ -711,253 +712,4 @@ function handlePhotoUpload(event) {
                 const targetHeight = 400;
                 canvas.width = targetWidth;
                 canvas.height = targetHeight;
-                const ctx = canvas.getContext('2d');
-                const aspectRatio = targetWidth / targetHeight;
-                let srcWidth = img.width;
-                let srcHeight = img.height;
-                let srcX = 0, srcY = 0;
-                const imgRatio = srcWidth / srcHeight;
-                if (imgRatio > aspectRatio) {
-                    srcWidth = srcHeight * aspectRatio;
-                    srcX = (img.width - srcWidth) / 2;
-                } else {
-                    srcHeight = srcWidth / aspectRatio;
-                    srcY = (img.height - srcHeight) / 2;
-                }
-                ctx.drawImage(img, srcX, srcY, srcWidth, srcHeight, 0, 0, targetWidth, targetHeight);
-                fotoBase64 = canvas.toDataURL('image/jpeg');
-                const preview = document.getElementById('cv-photo-preview');
-                preview.src = fotoBase64;
-                preview.style.display = 'block';
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    }
-}
-
-async function buscarCEP() {
-    let cep = document.getElementById('cv-cep').value.replace(/\D/g, '');
-    if (cep.length === 8) {
-        try {
-            const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-            const data = await response.json();
-            if (!data.erro) {
-                document.getElementById('cv-logradouro').value = data.logradouro;
-                document.getElementById('cv-bairro').value = data.bairro;
-                document.getElementById('cv-cidade').value = `${data.localidade} - ${data.uf}`;
-            } else {
-                alert("CEP não encontrado.");
-            }
-        } catch (error) {
-            console.error("Erro ao buscar CEP", error);
-        }
-    }
-}
-
-function adicionarTelefone() {
-    if (telefoneCount < 3) {
-        telefoneCount++;
-        document.getElementById(`cv-tel-container-${telefoneCount}`).style.display = 'block';
-        if (telefoneCount === 3) {
-            document.getElementById('btn-add-tel').style.display = 'none';
-        }
-    }
-}
-
-function adicionarCurso() {
-    if (cursoCount >= 3) {
-        alert("Você já atingiu o limite máximo de 3 cursos para caber em 1 única folha A4.");
-        return;
-    }
-    const container = document.getElementById('cursos-container');
-    const id = `curso-${Date.now()}`;
-    const html = `
-        <div class="dynamic-item" id="${id}">
-            <button class="remove-btn" onclick="removerItem('${id}')">×</button>
-            <div class="grid-cv">
-                <div><label style="font-size:12px;">Curso</label><input type="text" class="input-curso" placeholder="Ex: Administração"></div>
-                <div><label style="font-size:12px;">Instituição</label><input type="text" class="input-inst" placeholder="Ex: UNESP"></div>
-            </div>
-            <div class="grid-cv full">
-                <label style="font-size:12px;">Período</label>
-                <input type="text" class="input-periodo" placeholder="Ex: 2018 - 2022">
-            </div>
-        </div>
-    `;
-    container.insertAdjacentHTML('beforeend', html);
-    cursoCount++;
-}
-
-function adicionarExperiencia() {
-    if (expCount >= 6) {
-        alert("Você já atingiu o limite máximo de 6 experiências para caber em 1 única folha A4.");
-        return;
-    }
-    const container = document.getElementById('exp-container');
-    const id = `exp-${Date.now()}`;
-    const html = `
-        <div class="dynamic-item" id="${id}">
-            <button class="remove-btn" onclick="removerItem('${id}')">×</button>
-            <div class="grid-cv">
-                <div><label style="font-size:12px;">Empresa</label><input type="text" class="input-empresa" placeholder="Ex: Tech Solutions"></div>
-                <div><label style="font-size:12px;">Função</label><input type="text" class="input-funcao" placeholder="Ex: Assistente Administrativo"></div>
-            </div>
-            <div class="grid-cv full">
-                <label style="font-size:12px;">Período</label>
-                <input type="text" class="input-periodo-exp" placeholder="Ex: Jan/2020 - Dez/2022">
-            </div>
-        </div>
-    `;
-    container.insertAdjacentHTML('beforeend', html);
-    expCount++;
-}
-
-function removerItem(id) {
-    const el = document.getElementById(id);
-    if (el) {
-        if (id.startsWith('curso-')) cursoCount--;
-        if (id.startsWith('exp-')) expCount--;
-        el.remove();
-    }
-}
-
-async function gerarCurriculo() {
-    const nome = document.getElementById('cv-nome').value;
-    if (!nome) { alert("Por favor, preencha pelo menos o Nome Completo."); return; }
-
-    const templateSelecionado = document.getElementById('cv-template').value;
-    const tel1 = document.getElementById('cv-tel-1').value;
-    const tel2 = document.getElementById('cv-tel-2').value;
-    const tel3 = document.getElementById('cv-tel-3').value;
-    const email = document.getElementById('cv-email').value;
-    const logradouro = document.getElementById('cv-logradouro').value;
-    const numero = document.getElementById('cv-numero').value;
-    const bairro = document.getElementById('cv-bairro').value;
-    const cidade = document.getElementById('cv-cidade').value;
-    const objetivo = document.getElementById('cv-objetivo').value;
-    const habilidades = document.getElementById('cv-habilidades').value;
-
-    let endereco = `${logradouro}, ${numero}`;
-    if (bairro) endereco += ` - ${bairro}`;
-    if (cidade) endereco += ` - ${cidade}`;
-
-    let tels = [tel1, tel2, tel3].filter(t => t.trim() !== '');
-
-    const cursosNodes = document.querySelectorAll('#cursos-container .dynamic-item');
-    const cursos = [];
-    cursosNodes.forEach(node => {
-        const curso = node.querySelector('.input-curso').value || 'Curso não informado';
-        const inst = node.querySelector('.input-inst').value || 'Instituição não informada';
-        const periodo = node.querySelector('.input-periodo').value || 'Período não informado';
-        cursos.push({ curso, inst, periodo });
-    });
-
-    const expNodes = document.querySelectorAll('#exp-container .dynamic-item');
-    const experiencias = [];
-    expNodes.forEach(node => {
-        const empresa = node.querySelector('.input-empresa').value || 'Empresa não informada';
-        const funcao = node.querySelector('.input-funcao').value || 'Função não informada';
-        const periodo = node.querySelector('.input-periodo-exp').value || 'Período não informado';
-        experiencias.push({ empresa, funcao, periodo });
-    });
-
-    document.getElementById('pdf-nome').innerText = nome;
-    document.getElementById('pdf-tel').innerText = tels.length > 0 ? tels.join(' / ') : '(Não informado)';
-    document.getElementById('pdf-email').innerText = email || '(Não informado)';
-    document.getElementById('pdf-endereco').innerText = endereco || '(Não informado)';
-    document.getElementById('pdf-objetivo').innerText = objetivo || 'Não informado.';
-
-    const pdfPhoto = document.getElementById('pdf-photo');
-    if (fotoBase64) {
-        pdfPhoto.src = fotoBase64;
-        pdfPhoto.style.display = 'block';
-    } else {
-        pdfPhoto.style.display = 'none';
-    }
-
-    const pdfSkills = document.getElementById('pdf-habilidades');
-    pdfSkills.innerHTML = '';
-    if (habilidades.trim() !== '') {
-        const skillList = habilidades.split(',').map(s => s.trim()).filter(s => s !== '');
-        skillList.forEach(skill => {
-            const li = document.createElement('li');
-            li.innerText = skill;
-            pdfSkills.appendChild(li);
-        });
-    } else {
-        pdfSkills.innerHTML = '<li>Não informado.</li>';
-    }
-
-    const pdfCursos = document.getElementById('pdf-cursos');
-    pdfCursos.innerHTML = '';
-    if (cursos.length === 0) {
-        pdfCursos.innerHTML = '<p style="font-size:12px; color:#888;">Nenhum curso informado.</p>';
-    } else {
-        cursos.forEach(c => {
-            const div = document.createElement('div');
-            div.className = 'pdf-entry';
-            div.innerHTML = `
-                <div class="pdf-entry-title">${c.curso}</div>
-                <div class="pdf-entry-sub">${c.inst}</div>
-                <div class="pdf-entry-period">${c.periodo}</div>
-            `;
-            pdfCursos.appendChild(div);
-        });
-    }
-
-    const pdfExp = document.getElementById('pdf-experiencias');
-    pdfExp.innerHTML = '';
-    if (experiencias.length === 0) {
-        pdfExp.innerHTML = '<p style="font-size:12px; color:#888;">Nenhuma experiência informada.</p>';
-    } else {
-        experiencias.forEach(e => {
-            const div = document.createElement('div');
-            div.className = 'pdf-entry';
-            div.innerHTML = `
-                <div class="pdf-entry-title">${e.empresa}</div>
-                <div class="pdf-entry-sub">${e.funcao}</div>
-                <div class="pdf-entry-period">${e.periodo}</div>
-            `;
-            pdfExp.appendChild(div);
-        });
-    }
-
-    const pdfLayout = document.getElementById('cv-pdf-layout');
-    pdfLayout.className = `template-${templateSelecionado}`;
-    pdfLayout.style.display = 'block';
-
-    try {
-        const canvas = await html2canvas(pdfLayout, { scale: 2, useCORS: true, logging: false });
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const imgProps = pdf.getImageProperties(imgData);
-        const imgW = imgProps.width;
-        const imgH = imgProps.height;
-        const scaleX = pdfWidth / imgW;
-        const scaleY = pdfHeight / imgH;
-        let finalScale = Math.min(scaleX, scaleY);
-        pdf.addImage(imgData, 'JPEG', 0, 0, imgW * finalScale, imgH * finalScale);
-
-        const pdfBlob = pdf.output('blob');
-        window.open(URL.createObjectURL(pdfBlob), '_blank');
-
-        pdfLayout.style.display = 'none';
-        fecharModal('modal-curriculo');
-
-    } catch (error) {
-        console.error("Erro ao gerar PDF:", error);
-        alert("Ocorreu um erro ao gerar o currículo.");
-        pdfLayout.style.display = 'none';
-    }
-}
-
-// ==========================================================
-// UTILITÁRIOS
-// ==========================================================
-function abrirModal(id) { document.getElementById(id).classList.add('active'); }
-function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
-function fecharComprovantePrint() { document.getElementById('modal-comprovante-print').style.display = 'none'; }
+               
