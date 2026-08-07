@@ -1,8 +1,5 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbxrDkKHcAbQ6ac_1uctc-xLT2X79SLQRzOTH3hQpsT6MFhVW_0rKVpmU8VBmeTUN7oIbg/exec"; 
+const URL_API_GS = "COLE_AQUI_A_SUA_URL_DO_APPS_SCRIPT"; 
 
-// ==========================================================
-// 🔥 COMUNICAÇÃO JSONP DO STAGE TELECOM
-// ==========================================================
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
         const callbackName = 'cb' + Date.now() + Math.random().toString(36).substr(2, 8);
@@ -51,9 +48,6 @@ async function postParaGoogleSheets(acao, dados = {}) {
     await fetch(URL_API_GS, { method: 'POST', body: formData, mode: 'no-cors' });
 }
 
-// ==========================================================
-// 🔥 ESTADO GLOBAL
-// ==========================================================
 const state = {
     dadosAgenda: [],
     dadosCartoes: [],
@@ -66,9 +60,6 @@ const state = {
     tipoComprovanteAtual: 'assinatura'
 };
 
-// ==========================================================
-// LOGIN PERSISTENTE
-// ==========================================================
 document.addEventListener('DOMContentLoaded', () => {
     const savedUser = localStorage.getItem('crm_user');
     if (savedUser === 'admin') {
@@ -105,9 +96,6 @@ function logout() {
     document.getElementById('password').value = '';
 }
 
-// ==========================================================
-// LÓGICAS GERAIS
-// ==========================================================
 function updateClock() {
     const now = new Date();
     const timeString = now.toLocaleTimeString('pt-BR', { hour12: false });
@@ -124,9 +112,7 @@ updateClock();
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         const activeModal = document.querySelector('.modal-overlay.active');
-        if (activeModal) {
-            activeModal.classList.remove('active');
-        }
+        if (activeModal) activeModal.classList.remove('active');
         const comprovante = document.getElementById('modal-comprovante-print');
         if (comprovante && comprovante.style.display === 'flex') {
             fecharComprovantePrint();
@@ -155,9 +141,6 @@ async function renderizarTabelas() {
     await renderizarCartoes(); 
 }
 
-// ==========================================================
-// AGENDA QUADRA
-// ==========================================================
 async function renderizarAgenda() {
     const resp = await fetchFromGS('listarAgenda');
     state.dadosAgenda = resp.itens || [];
@@ -177,15 +160,9 @@ async function renderizarAgenda() {
         const dataFormatada = dataItem.toLocaleDateString('pt-BR');
         const diffDays = Math.ceil((dataItem - hoje) / (1000 * 60 * 60 * 24));
 
-        if (diffDays === 0) { 
-            tr.className = 'highlight-row pulse-row'; 
-            hojeEncontrado = true; 
-        } else if (diffDays === 1) { 
-            tr.className = 'highlight-row pulse-row'; 
-            amanhaEncontrado = true; 
-        } else if (diffDays < 0) {
-            return;
-        }
+        if (diffDays === 0) { tr.className = 'highlight-row pulse-row'; hojeEncontrado = true; }
+        else if (diffDays === 1) { tr.className = 'highlight-row pulse-row'; amanhaEncontrado = true; }
+        else if (diffDays < 0) return;
 
         tr.innerHTML = `
             <td>${dataFormatada}</td>
@@ -230,9 +207,6 @@ async function deletarItemAgenda(id) {
     await renderizarAgenda();
 }
 
-// ==========================================================
-// CARTÕES DINÂMICOS E RESPONSÁVEIS
-// ==========================================================
 async function renderizarCartoes() {
     const resp = await fetchFromGS('listarCartoes');
     state.dadosCartoes = resp.itens || [];
@@ -257,9 +231,20 @@ async function renderizarCartoes() {
 
     const agrupado = {};
     state.dadosCartoes.forEach(item => {
-        if(!agrupado[item.data]) agrupado[item.data] = {};
-        if(!agrupado[item.data][item.responsavel]) agrupado[item.data][item.responsavel] = 0;
-        agrupado[item.data][item.responsavel] += item.qtd;
+        // CORREÇÃO DA DATA: Garante que o 'Invalid Date' não apareça
+        let dataObj = new Date(item.data + 'T00:00:00');
+        if (isNaN(dataObj.getTime())) {
+            // Tenta parsear formato dd/mm/yyyy
+            const partes = item.data.split('/');
+            if (partes.length === 3) {
+                dataObj = new Date(partes[2], partes[1] - 1, partes[0]);
+            }
+        }
+        const dataStr = dataObj.toISOString().split('T')[0];
+
+        if(!agrupado[dataStr]) agrupado[dataStr] = {};
+        if(!agrupado[dataStr][item.responsavel]) agrupado[dataStr][item.responsavel] = 0;
+        agrupado[dataStr][item.responsavel] += item.qtd;
     });
 
     const nomesOrdenados = state.responsaveis;
@@ -314,8 +299,23 @@ async function renderizarCartoes() {
 }
 
 async function excluirMesCartao(data) {
-    const partes = data.split('/');
-    const confirmGeral = confirm(`Isso excluirá os dados de TODOS os responsáveis neste mês (${partes[1]}/${partes[2]}). Confirmar?`);
+    const partes = data.split('-'); // data está no formato YYYY-MM-DD vindo da correção
+    if (partes.length !== 3) {
+        // Fallback caso ainda esteja no formato antigo
+        const fallback = data.split('/');
+        if (fallback.length === 3) {
+            const confirmGeral = confirm(`Isso excluirá os dados de TODOS os responsáveis neste mês (${fallback[1]}/${fallback[2]}). Confirmar?`);
+            if (!confirmGeral) return;
+            await postParaGoogleSheets('deletarCartoesMes', { responsavel: '', mes: parseInt(fallback[1]), ano: parseInt(fallback[2]) });
+            await renderizarCartoes();
+            return;
+        }
+        return;
+    }
+    const mes = parseInt(partes[1]);
+    const ano = parseInt(partes[2]);
+
+    const confirmGeral = confirm(`Isso excluirá os dados de TODOS os responsáveis neste mês (${mes}/${ano}). Confirmar?`);
     if (!confirmGeral) return;
     
     const resp = await fetchFromGS('listarCartoes');
@@ -323,8 +323,8 @@ async function excluirMesCartao(data) {
     
     for (let item of itens) {
         const d = new Date(item.data + 'T00:00:00');
-        if (d.getMonth() + 1 === parseInt(partes[1]) && d.getFullYear() === parseInt(partes[2])) {
-            await postParaGoogleSheets('deletarCartoesMes', { responsavel: item.responsavel, mes: parseInt(partes[1]), ano: parseInt(partes[2]) });
+        if (d.getMonth() + 1 === mes && d.getFullYear() === ano) {
+            await postParaGoogleSheets('deletarCartoesMes', { responsavel: item.responsavel, mes: mes, ano: ano });
         }
     }
     await renderizarCartoes();
@@ -348,11 +348,13 @@ async function salvarCartoes() {
 
 async function adicionarResponsavel() {
     const input = document.getElementById('novo-responsavel-input');
-    const nome = input.value.trim();
+    let nome = input.value.trim();
     if (!nome) { 
         alert("Digite um nome."); 
         return; 
     }
+    // 🔥 Remove aspas duplas caso o usuário tenha digitado sem querer
+    nome = nome.replace(/^"|"$/g, '');
     await postParaGoogleSheets('salvarResponsavel', nome);
     input.value = '';
     await renderizarCartoes();
@@ -641,9 +643,6 @@ async function gerarCurriculo() {
     }
 }
 
-// ==========================================================
-// COMPROVANTE E BUSCA DE ENDEREÇO
-// ==========================================================
 function toggleComprovanteMenu() {
     const menu = document.getElementById('menu-comprovante');
     if (menu.style.display === 'none') {
@@ -825,9 +824,6 @@ function detectarGeneroENacionalidadeComprovante() {
     }
 }
 
-// ==========================================================
-// BUSCA DE ENDEREÇOS
-// ==========================================================
 let debounceTimerEndereco;
 let enderecoCache = {};
 let searchController = null;
@@ -926,9 +922,6 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// ==========================================================
-// SALVAMENTO E IMPRESSÃO DO COMPROVANTE
-// ==========================================================
 function obterValoresComprovante() {
     return {
         numero: document.getElementById('print-numero').value,
