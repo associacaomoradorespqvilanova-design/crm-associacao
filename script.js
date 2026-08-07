@@ -1,4 +1,4 @@
-const URL_API_GS = "COLE_AQUI_A_SUA_URL_DO_APPS_SCRIPT"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwzaC6K7YhbXM1Ezioo8nrOGgtmSvIC_Z55cX5_qu3rdZT8aNJJ6tC-P8f2eQ4Hl1mQgw/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
