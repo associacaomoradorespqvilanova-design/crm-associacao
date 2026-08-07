@@ -208,7 +208,7 @@ async function deletarItemAgenda(id) {
 }
 
 // ==========================================================
-// CARTÕES E RESPONSÁVEIS (COM EXCLUSÃO GERAL CORRIGIDA)
+// CARTÕES
 // ==========================================================
 async function renderizarCartoes() {
     const resp = await fetchFromGS('listarCartoes');
@@ -234,7 +234,6 @@ async function renderizarCartoes() {
 
     const agrupado = {};
     state.dadosCartoes.forEach(item => {
-        // Corrige a data para evitar Invalid Date
         let dataObj = new Date(item.data + 'T00:00:00');
         if (isNaN(dataObj.getTime())) {
             const partes = item.data.split('/');
@@ -300,9 +299,7 @@ async function renderizarCartoes() {
     }
 }
 
-// 🔥 NOVA LÓGICA DE EXCLUSÃO (Simplificada e 100% funcional)
 async function excluirMesCartao(data) {
-    // Converte para o formato yyyy-mm-dd se vier dd/mm/yyyy
     let dataStr = data;
     if (data.includes('/')) {
         const partes = data.split('/');
@@ -310,20 +307,15 @@ async function excluirMesCartao(data) {
             dataStr = `${partes[2]}-${partes[1]}-${partes[0]}`;
         }
     }
-    
     const dataObj = new Date(dataStr + 'T00:00:00');
     if (isNaN(dataObj.getTime())) {
         alert("Data inválida para exclusão.");
         return;
     }
-
     const mes = dataObj.getMonth() + 1;
     const ano = dataObj.getFullYear();
-
     const confirmGeral = confirm(`Excluir TODOS os cartões do mês ${mes}/${ano}?`);
     if (!confirmGeral) return;
-
-    // Envia o pedido para deletar o mês inteiro, independente do responsável
     await postParaGoogleSheets('deletarMesGeral', { mes, ano });
     await renderizarCartoes();
 }
@@ -336,7 +328,6 @@ async function salvarCartoes() {
         alert("Preencha o Responsável, Quantidade e Data."); 
         return; 
     }
-
     await postParaGoogleSheets('salvarCartao', { id: Date.now(), responsavel, qtd, data });
     fecharModal('modal-cartoes');
     await renderizarCartoes();
@@ -378,9 +369,6 @@ async function deletarResponsavel(nome) {
     await carregarListaResponsaveisNoModal();
 }
 
-// ==========================================================
-// CURRÍCULO E COMPROVANTE (Mantidos intactos)
-// ==========================================================
 function handlePhotoUpload(event) {
     const file = event.target.files[0];
     if (file) {
@@ -685,8 +673,12 @@ function autoBuscarCPF(el) {
 async function abrirComprovantePrint(tipo) {
     state.tipoComprovanteAtual = tipo;
     document.getElementById('menu-comprovante').style.display = 'none';
+
     const bgImage = tipo === 'assinatura' ? "https://i.imgur.com/lFhk0Hq.png" : "https://i.imgur.com/l47wlMJ.png";
-    document.getElementById('modal-comprovante-print').querySelector('div[style*="background-image"]').style.backgroundImage = `url('${bgImage}')`;
+    
+    // 🔥 CORREÇÃO DO ERRO DE NULL: AGORA USA O ID ESPECÍFICO
+    document.getElementById('comprovante-bg').style.backgroundImage = `url('${bgImage}')`;
+
     document.getElementById('modal-comprovante-print').style.display = 'flex';
     
     document.getElementById('print-nome').value = '';
