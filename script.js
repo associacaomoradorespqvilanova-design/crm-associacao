@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwDlcThiZxRzUP6ruvYUWCzkrof6WC9N_4HpmmcEVNA3VJqkvOE6kDBs57X5EVW8iSdDw/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzpPRt9U1AS-H8XFiGZpguaRw3pyxM-fvuFYkpmM7eGZDagzH3GHV6XRB325iQWtCSBPw/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -219,8 +219,11 @@ async function renderizarCartoes() {
 
     const select = document.getElementById('card-responsavel');
     select.innerHTML = '<option value="">Selecione um responsável</option>';
+    
+    // 🔥 CORREÇÃO: Remove aspas antes de exibir no dropdown
     state.responsaveis.forEach(nome => {
-        select.innerHTML += `<option value="${nome}">${nome}</option>`;
+        const nomeLimpo = String(nome).replace(/^"|"$/g, '').replace(/^'|'$/g, '');
+        select.innerHTML += `<option value="${nomeLimpo}">${nomeLimpo}</option>`;
     });
 
     const tbody = document.getElementById('cards-list');
@@ -248,7 +251,7 @@ async function renderizarCartoes() {
         agrupado[dataStr][item.responsavel] += item.qtd;
     });
 
-    const nomesOrdenados = state.responsaveis;
+    const nomesOrdenados = state.responsaveis.map(n => n.replace(/^"|"$/g, '').replace(/^'|'$/g, ''));
 
     for (const [data, valores] of Object.entries(agrupado).sort((a,b) => new Date(a[0]) - new Date(b[0]))) {
         const tr = document.createElement('tr');
@@ -335,14 +338,20 @@ async function salvarCartoes() {
     document.getElementById('card-data').value = '';
 }
 
+// 🔥 CORREÇÃO: Remove aspas antes de salvar no backend
 async function adicionarResponsavel() {
     const input = document.getElementById('novo-responsavel-input');
     let nome = input.value.trim();
+    
+    // Remove aspas duplas e simples do início e fim do nome
+    nome = nome.replace(/^"|"$/g, ''); 
+    nome = nome.replace(/^'|'$/g, '');
+
     if (!nome) { 
         alert("Digite um nome."); 
         return; 
     }
-    nome = nome.replace(/^"|"$/g, '');
+    
     await postParaGoogleSheets('salvarResponsavel', nome);
     input.value = '';
     await renderizarCartoes();
@@ -355,9 +364,11 @@ async function carregarListaResponsaveisNoModal() {
     const container = document.getElementById('lista-responsaveis-cadastrados');
     container.innerHTML = '';
     state.responsaveis.forEach(nome => {
+        // 🔥 Limpa as aspas também na lista de chips
+        const nomeLimpo = String(nome).replace(/^"|"$/g, '').replace(/^'|'$/g, '');
         const span = document.createElement('span');
         span.style.cssText = 'background:#eafde8; padding:3px 10px; border-radius:12px; font-size:12px; display:flex; align-items:center; gap:5px;';
-        span.innerHTML = `${nome} <button onclick="deletarResponsavel('${nome}')" style="border:none; background:transparent; color:#ff4757; font-weight:bold; cursor:pointer;">×</button>`;
+        span.innerHTML = `${nomeLimpo} <button onclick="deletarResponsavel('${nomeLimpo}')" style="border:none; background:transparent; color:#ff4757; font-weight:bold; cursor:pointer;">×</button>`;
         container.appendChild(span);
     });
 }
@@ -676,7 +687,6 @@ async function abrirComprovantePrint(tipo) {
 
     const bgImage = tipo === 'assinatura' ? "https://i.imgur.com/lFhk0Hq.png" : "https://i.imgur.com/l47wlMJ.png";
     
-    // 🔥 CORREÇÃO DO ERRO DE NULL: AGORA USA O ID ESPECÍFICO
     document.getElementById('comprovante-bg').style.backgroundImage = `url('${bgImage}')`;
 
     document.getElementById('modal-comprovante-print').style.display = 'flex';
