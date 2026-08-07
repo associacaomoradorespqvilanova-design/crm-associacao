@@ -243,18 +243,6 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 #modal-comprovante-print::-webkit-scrollbar-thumb { background: #7baa48; border-radius: 6px; border: 2px solid rgba(255, 255, 255, 0.3); background-clip: padding-box; }
 #modal-comprovante-print::-webkit-scrollbar-thumb:hover { background: #4a7c2e; }
 
-/* 🔥 ESTILOS NOVOS PARA O MODAL DE CARTÕES ENTREGAS */
-.search-container input#search-cartoes-entrega:focus { border-color: #4a7c2e; outline: none; box-shadow: 0 0 0 3px rgba(74, 124, 46, 0.1); }
-#suggestions-cartoes-entrega div { padding: 6px 10px; cursor: pointer; display:flex; justify-content:space-between; font-size:13px; border-bottom:1px solid #eee; }
-#suggestions-cartoes-entrega div:hover { background:#eafde8; }
-.status-tag { font-weight:700; padding:2px 6px; border-radius:4px; font-size:11px; }
-.status-entregue { background:#16a34a; color:#fff; }
-.status-pendente { background:#dc2626; color:#fff; }
-#cartoes-container-entrega .cartao { border:1px solid #ccc; border-radius:6px; padding:8px; margin-bottom:8px; background:#fff; display:flex; flex-wrap:wrap; gap:6px; font-size:13px; }
-#cartoes-container-entrega .cartao label { width:100%; font-weight:700; color:#196E3A; margin-bottom:2px; font-size:12px; }
-#cartoes-container-entrega .cartao input { flex:1; padding:4px 6px; border-radius:4px; border:1px solid #aaa; font-size:13px; margin-bottom:4px; }
-#cartoes-container-entrega .cartao .numero { font-size:16px; font-weight:900; flex-basis:100%; margin-bottom:4px; color:#0f5132; }
-
 @media (max-width: 900px) {
     .grid-container { grid-template-columns: 1fr; }
     .col-center { order: -1; }
