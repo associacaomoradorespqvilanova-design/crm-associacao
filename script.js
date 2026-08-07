@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwAMCC5SM-7aadkbDHeOA4QE9Fk022_oWzR64ab2qVjLX4YSG0fUnJTcPShSHscVToreQ/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbyJL6EbJIxgof0F9EwNUb0SWX1c1a-Me0bBQQjS3GBfdM1OXRwnam6I5OaoazpQICqy/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -57,9 +57,7 @@ const state = {
     expCount: 0,
     fotoBase64: null,
     lastSearchedCPF: '',
-    tipoComprovanteAtual: 'assinatura',
-    // 🔥 NOVO STATE DO MODAL DE CARTÕES ENTREGA
-    cartoesEntregaAtuais: []
+    tipoComprovanteAtual: 'assinatura'
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -210,7 +208,7 @@ async function deletarItemAgenda(id) {
 }
 
 // ==========================================================
-// CARTÕES (ANTIGO)
+// CARTÕES (ORIGINAL CORRIGIDO)
 // ==========================================================
 async function renderizarCartoes() {
     const resp = await fetchFromGS('listarCartoes');
@@ -222,6 +220,7 @@ async function renderizarCartoes() {
     const select = document.getElementById('card-responsavel');
     select.innerHTML = '<option value="">Selecione um responsável</option>';
     
+    // 🔥 CORREÇÃO: Remove aspas antes de exibir no dropdown
     state.responsaveis.forEach(nome => {
         const nomeLimpo = String(nome).replace(/^"|"$/g, '').replace(/^'|'$/g, '');
         select.innerHTML += `<option value="${nomeLimpo}">${nomeLimpo}</option>`;
@@ -348,15 +347,20 @@ async function salvarCartoes() {
     document.getElementById('card-data').value = '';
 }
 
+// 🔥 CORREÇÃO: Remove aspas antes de salvar
 async function adicionarResponsavel() {
     const input = document.getElementById('novo-responsavel-input');
     let nome = input.value.trim();
+    
+    // Remove aspas duplas e simples do início e fim do nome
     nome = nome.replace(/^"|"$/g, ''); 
     nome = nome.replace(/^'|'$/g, '');
+
     if (!nome) { 
         alert("Digite um nome."); 
         return; 
     }
+    
     await postParaGoogleSheets('salvarResponsavel', nome);
     input.value = '';
     await renderizarCartoes();
@@ -384,6 +388,9 @@ async function deletarResponsavel(nome) {
     await carregarListaResponsaveisNoModal();
 }
 
+// ==========================================================
+// CURRÍCULO E DEMAIS FUNÇÕES
+// ==========================================================
 function handlePhotoUpload(event) {
     const file = event.target.files[0];
     if (file) {
@@ -986,152 +993,3 @@ async function salvarEImprimir() {
 function abrirModal(id) { document.getElementById(id).classList.add('active'); }
 function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
 function fecharComprovantePrint() { document.getElementById('modal-comprovante-print').style.display = 'none'; }
-
-// ==========================================================
-// 🔥 NOVO MÓDULO DE CARTÕES (ABA ENTREGAS) - FUNÇÕES JS
-// ==========================================================
-
-// 1. Buscar nomes para autocomplete (via fetchFromGS)
-async function buscarNomesPorTermo(termo) {
-    const sugestoesDiv = document.getElementById('suggestions-cartoes-entrega');
-    sugestoesDiv.innerHTML = '';
-    if (!termo || termo.length < 2) { 
-        sugestoesDiv.style.display = 'none'; 
-        return; 
-    }
-
-    try {
-        const resultado = await fetchFromGS('buscarNomesPorTermo', { termo: termo });
-        if (!resultado || resultado.length === 0) {
-            sugestoesDiv.style.display = 'none';
-            return;
-        }
-
-        resultado.forEach(r => {
-            const div = document.createElement('div');
-            const statusClass = r.status === 'ENTREGUE' ? 'status-entregue' : 'status-pendente';
-            div.innerHTML = `
-                <span>${r.nome} — ${r.endereco}</span>
-                <span class="status-tag ${statusClass}">${r.status}</span>
-            `;
-            div.onclick = () => {
-                document.getElementById('search-cartoes-entrega').value = r.nome;
-                sugestoesDiv.style.display = 'none';
-                buscarCartoesPorNome(r.nome); // Chama a função de busca de cartões
-            };
-            sugestoesDiv.appendChild(div);
-        });
-        sugestoesDiv.style.display = 'block';
-    } catch (e) {
-        console.error(e);
-        sugestoesDiv.style.display = 'none';
-    }
-}
-
-// 2. Buscar cartões de um nome específico (via fetchFromGS)
-async function buscarCartoesPorNome(nome) {
-    const container = document.getElementById('cartoes-container-entrega');
-    container.innerHTML = '<div style="text-align:center; padding:20px;">🔍 Buscando dados...</div>';
-
-    try {
-        const cartoes = await fetchFromGS('buscarCartoesPorNome', { nome: nome });
-        renderCartoesEntrega(cartoes);
-    } catch (e) {
-        console.error(e);
-        container.innerHTML = '<div style="text-align:center; padding:20px; color:#d9534f;">❌ Erro ao buscar cartões.</div>';
-    }
-}
-
-// 3. Renderizar cartões no modal
-function renderCartoesEntrega(cartoes) {
-    const container = document.getElementById('cartoes-container-entrega');
-    container.innerHTML = '';
-    state.cartoesEntregaAtuais = cartoes || [];
-
-    if (!cartoes || cartoes.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding:20px; color:#888;">Nenhum cartão encontrado para este nome.</div>';
-        return;
-    }
-
-    cartoes.forEach(c => {
-        const div = document.createElement('div');
-        div.className = 'cartao';
-        div.dataset.linha = c.linha;
-
-        div.innerHTML = `
-            <div class="numero">N° ${c.numero || ''}</div>
-            <label>Nome</label><input value="${c.nome}" data-field="nome">
-            <label>Data</label><input value="${c.data}" data-field="data">
-            <label>Quantidade</label><input value="${c.quantidade}" data-field="quantidade">
-            <label>OBS</label><input value="${c.obs}" data-field="obs">
-            <label>Tipo</label><input value="${c.tipo}" data-field="tipo">
-            <label>Status</label><input value="${c.status || 'A ENTREGAR'}" data-field="status">
-            <label>Endereço</label><input value="${c.endereco}" data-field="endereco">
-            <label>CPF</label><input value="${c.cpf}" data-field="cpf">
-            <label>Entregue A</label><input value="${c.entregueA}" data-field="entregueA">
-            <label>Data Retirada</label><input value="${c.dataRetirada}" data-field="dataRetirada">
-        `;
-        container.appendChild(div);
-    });
-}
-
-// 4. Salvar alterações dos cartões (via postParaGoogleSheets)
-async function salvarCartaoEntrega() {
-    const btnSave = document.getElementById('btnSaveCartaoEntrega');
-    btnSave.innerText = 'Salvando...';
-    btnSave.disabled = true;
-
-    if (!state.cartoesEntregaAtuais || state.cartoesEntregaAtuais.length === 0) {
-        alert("Nenhum cartão aberto para salvar.");
-        btnSave.innerText = '💾 Salvar alterações';
-        btnSave.disabled = false;
-        return;
-    }
-
-    try {
-        // Para cada cartão, montamos o payload
-        for (const c of state.cartoesEntregaAtuais) {
-            const div = document.querySelector(`#cartoes-container-entrega .cartao[data-linha='${c.linha}']`);
-            if (!div) continue;
-            
-            const inputs = div.querySelectorAll('input[data-field]');
-            const payload = {};
-            inputs.forEach(inp => {
-                payload[inp.dataset.field] = inp.value;
-            });
-
-            // Envia via POST para o backend (renomeado para não conflitar com o antigo)
-            await postParaGoogleSheets('salvarCartaoEntrega', { linha: c.linha, payload: payload });
-        }
-
-        alert("✅ Alterações salvas com sucesso!");
-        fecharModal('modal-cartoes-entrega');
-    } catch (e) {
-        console.error(e);
-        alert("❌ Erro ao salvar: " + e.message);
-    } finally {
-        btnSave.innerText = '💾 Salvar alterações';
-        btnSave.disabled = false;
-    }
-}
-
-// 5. Event listeners específicos para o modal de entregas
-document.addEventListener('DOMContentLoaded', () => {
-    // Listener para o campo de busca de cartões (debounce)
-    const searchInput = document.getElementById('search-cartoes-entrega');
-    if (searchInput) {
-        let debounceTimer;
-        searchInput.addEventListener('input', () => {
-            clearTimeout(debounceTimer);
-            const term = searchInput.value.trim();
-            if (term.length >= 2) {
-                debounceTimer = setTimeout(() => buscarNomesPorTermo(term), 300);
-            } else {
-                document.getElementById('suggestions-cartoes-entrega').style.display = 'none';
-            }
-        });
-    }
-
-    // Listener para o botão salvar do modal
-    document.getElementById('btnSaveCartaoEntrega').addEventListener('click', salvarCartaoEntrega);
-});
