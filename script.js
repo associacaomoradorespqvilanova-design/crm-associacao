@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzpPRt9U1AS-H8XFiGZpguaRw3pyxM-fvuFYkpmM7eGZDagzH3GHV6XRB325iQWtCSBPw/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwvM6nkaoixkEe2fxk3V62BlQsxoJk2BAk48bOCNa21R6W7ha2_aBY_qaiRvz-MrdetcQ/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -220,11 +220,22 @@ async function renderizarCartoes() {
     const select = document.getElementById('card-responsavel');
     select.innerHTML = '<option value="">Selecione um responsável</option>';
     
-    // 🔥 CORREÇÃO: Remove aspas antes de exibir no dropdown
     state.responsaveis.forEach(nome => {
         const nomeLimpo = String(nome).replace(/^"|"$/g, '').replace(/^'|'$/g, '');
         select.innerHTML += `<option value="${nomeLimpo}">${nomeLimpo}</option>`;
     });
+
+    // 🔥 CORREÇÃO DO CABEÇALHO DOS CARTÕES (AGORA APARECE O NOME)
+    const thResponsaveis = document.getElementById('th-responsaveis');
+    const nomesOrdenados = state.responsaveis.map(n => n.replace(/^"|"$/g, '').replace(/^'|'$/g, ''));
+    
+    if (nomesOrdenados.length > 0) {
+        thResponsaveis.colSpan = nomesOrdenados.length;
+        thResponsaveis.innerText = nomesOrdenados.join(' / ');
+    } else {
+        thResponsaveis.colSpan = 1;
+        thResponsaveis.innerText = 'Responsáveis';
+    }
 
     const tbody = document.getElementById('cards-list');
     tbody.innerHTML = '';
@@ -250,8 +261,6 @@ async function renderizarCartoes() {
         if(!agrupado[dataStr][item.responsavel]) agrupado[dataStr][item.responsavel] = 0;
         agrupado[dataStr][item.responsavel] += item.qtd;
     });
-
-    const nomesOrdenados = state.responsaveis.map(n => n.replace(/^"|"$/g, '').replace(/^'|'$/g, ''));
 
     for (const [data, valores] of Object.entries(agrupado).sort((a,b) => new Date(a[0]) - new Date(b[0]))) {
         const tr = document.createElement('tr');
@@ -338,20 +347,15 @@ async function salvarCartoes() {
     document.getElementById('card-data').value = '';
 }
 
-// 🔥 CORREÇÃO: Remove aspas antes de salvar no backend
 async function adicionarResponsavel() {
     const input = document.getElementById('novo-responsavel-input');
     let nome = input.value.trim();
-    
-    // Remove aspas duplas e simples do início e fim do nome
     nome = nome.replace(/^"|"$/g, ''); 
     nome = nome.replace(/^'|'$/g, '');
-
     if (!nome) { 
         alert("Digite um nome."); 
         return; 
     }
-    
     await postParaGoogleSheets('salvarResponsavel', nome);
     input.value = '';
     await renderizarCartoes();
@@ -364,7 +368,6 @@ async function carregarListaResponsaveisNoModal() {
     const container = document.getElementById('lista-responsaveis-cadastrados');
     container.innerHTML = '';
     state.responsaveis.forEach(nome => {
-        // 🔥 Limpa as aspas também na lista de chips
         const nomeLimpo = String(nome).replace(/^"|"$/g, '').replace(/^'|'$/g, '');
         const span = document.createElement('span');
         span.style.cssText = 'background:#eafde8; padding:3px 10px; border-radius:12px; font-size:12px; display:flex; align-items:center; gap:5px;';
@@ -686,7 +689,6 @@ async function abrirComprovantePrint(tipo) {
     document.getElementById('menu-comprovante').style.display = 'none';
 
     const bgImage = tipo === 'assinatura' ? "https://i.imgur.com/lFhk0Hq.png" : "https://i.imgur.com/l47wlMJ.png";
-    
     document.getElementById('comprovante-bg').style.backgroundImage = `url('${bgImage}')`;
 
     document.getElementById('modal-comprovante-print').style.display = 'flex';
