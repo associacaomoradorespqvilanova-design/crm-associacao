@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbyDVOmviXx4mrQlfctryQaGAdml49EInDxWTNQeTUUgHLUjogkuDIRfmzKB6b3inZr6aw/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwDlcThiZxRzUP6ruvYUWCzkrof6WC9N_4HpmmcEVNA3VJqkvOE6kDBs57X5EVW8iSdDw/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -355,6 +355,15 @@ function adicionarLinhaCartao() {
     `;
     container.appendChild(div);
     
+    // 🔥 CORREÇÃO DO ENTER: Adiciona o leitor de teclado no campo endereço
+    const enderecoInput = div.querySelector('.lote-endereco');
+    enderecoInput.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault(); // Impede que o formulário dê Enter na página
+            adicionarLinhaCartao();  // Adiciona uma nova linha
+        }
+    });
+
     // Foca no nome da nova linha
     div.querySelector('.lote-nome').focus();
 }
@@ -457,6 +466,105 @@ function abrirModal(id) {
         }
     }
 }
+
+
+// ==========================================================
+// 🔥 ATIVAÇÃO DO LEITOR DE CÓDIGO DE BARRAS / QR CODE
+// ==========================================================
+
+let scanBuffer = ""; // Guarda temporariamente o que o leitor está digitando
+
+document.addEventListener('DOMContentLoaded', () => {
+    const scannerInput = document.getElementById('scanner-input');
+    if (!scannerInput) return;
+
+    // Evento de teclado no campo invisível
+    scannerInput.addEventListener('keydown', (event) => {
+        // Se a tecla pressionada for 'Enter', significa que a leitura terminou
+        if (event.key === 'Enter') {
+            event.preventDefault(); // Impede que o Enter saia do campo
+            
+            // Pega a string completa que foi lida
+            const rawData = scanBuffer.trim();
+            scanBuffer = ""; // Limpa o buffer
+
+            // Processa os dados
+            processarLeituraScanner(rawData);
+            return;
+        }
+
+        // Se não for Enter, guarda o caractere digitado no buffer
+        scanBuffer += event.key;
+    });
+
+    // Toda vez que o modal de cartões abrir, foca automaticamente no scanner
+    const modalObserver = new MutationObserver(() => {
+        const modal = document.getElementById('modal-digitar-cartoes');
+        if (modal && modal.classList.contains('active')) {
+            setTimeout(() => { scannerInput.focus(); }, 100);
+        }
+    });
+    
+    const modal = document.getElementById('modal-digitar-cartoes');
+    if (modal) {
+        modalObserver.observe(modal, { attributes: true, attributeFilter: ['class'] });
+    }
+});
+
+function processarLeituraScanner(dados) {
+    if (!dados) return;
+
+    // 🔥 AQUI VOCÊ DEFINE COMO OS DADOS DO CÓDIGO DE BARRAS ESTÃO SEPARADOS
+    // Exemplo: "João Silva;Rua A, 123;11999999999;123456"
+    // Se for com vírgula, troque ';' por ','
+    const separador = ';'; 
+    const partes = dados.split(separador);
+
+    if (partes.length < 2) {
+        alert("Formato do código de barras inválido. Use o separador ';'.");
+        return;
+    }
+
+    // Preenchendo os campos do modal baseado na posição dos dados no array
+    // Exemplo: 0 = Nome, 1 = Endereço, 2 = Telefone, 3 = Numero do cartão
+    const nome = partes[0] || "";
+    const endereco = partes[1] || "";
+    const telefone = partes[2] || "";
+    const numeroCartao = partes[3] || "";
+
+    // Verifica se já existe uma linha no modal
+    const container = document.getElementById('container-lote-nomes');
+    const linhas = container.querySelectorAll('div[id^="linha-cartao-"]');
+
+    if (linhas.length === 0) {
+        // Se não tiver nenhuma linha, cria a primeira automaticamente
+        adicionarLinhaCartao();
+    }
+
+    // Pega a última linha criada para preencher os dados
+    const ultimaLinha = container.lastElementChild;
+    if (ultimaLinha) {
+        // Preenche nome e endereço
+        const inputNome = ultimaLinha.querySelector('.lote-nome');
+        const inputEnd = ultimaLinha.querySelector('.lote-endereco');
+        
+        if (inputNome) inputNome.value = nome.toUpperCase();
+        if (inputEnd) inputEnd.value = endereco.toUpperCase();
+    }
+
+    // Preenche o telefone e o número nos "Dados Comuns"
+    document.getElementById('lote-tel').value = telefone;
+    document.getElementById('lote-numero').value = numeroCartao;
+    
+    // (Opcional) Preenche a data automaticamente com hoje
+    if (!document.getElementById('lote-data').value) {
+        const hoje = new Date().toISOString().split('T')[0];
+        document.getElementById('lote-data').value = hoje;
+    }
+
+    alert("✅ Dados lidos e preenchidos com sucesso!");
+}
+
 
 // ==========================================================
 // CURRÍCULO E OUTRAS FUNÇÕES
