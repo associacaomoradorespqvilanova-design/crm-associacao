@@ -90,17 +90,17 @@
                     </div>
                     <button class="btn-action">ENTREGAS</button>
                     <button class="btn-action">CARTEIRINHAS</button>
-                    <!-- 🔥 BOTÃO CORRETO PARA O MODAL DA IMAGEM -->
-                    <button class="btn-action" onclick="abrirModal('modal-cartoes')">CARTÕES</button>
+                    <!-- 🔥 BOTÃO CORRIGIDO ABRE O NOVO MODAL -->
+                    <button class="btn-action" onclick="abrirModal('modal-digitar-cartoes')">CARTÕES</button>
                     <button class="btn-action">CESTAS</button>
                 </div>
             </div>
 
-            <!-- CARTÕES -->
+            <!-- CARTÕES (Tabela de resumo) -->
             <div class="panel">
                 <div class="panel-header">
                     <h3>CARTÕES</h3>
-                    <button class="btn-sm" onclick="abrirModal('modal-cartoes')">+ Adicionar</button>
+                    <button class="btn-sm" onclick="abrirModal('modal-digitar-cartoes')">+ Adicionar</button>
                 </div>
                 <div id="cards-container">
                     <table class="table-cards">
@@ -206,30 +206,79 @@
         </div>
     </div>
 
-    <!-- 🔥 MODAL CARTÕES (ORIGINAL DA IMAGEM) -->
-    <div id="modal-cartoes" class="modal-overlay">
-        <div class="modal-box" style="max-width: 600px;">
-            <span class="close-btn" onclick="fecharModal('modal-cartoes')">×</span>
-            <h3 id="cartao-modal-title">Adicionar Lote de Cartões</h3>
-            <div style="border-bottom:1px solid #ddd; padding-bottom:10px; margin-bottom:15px;">
-                <label style="display:block; font-weight:600; color:#4a7c2e; margin-bottom:5px;">Gerenciar Responsáveis</label>
-                <div style="display:flex; gap:10px;">
-                    <input type="text" id="novo-responsavel-input" placeholder="Nome do novo responsável" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:6px;">
-                    <button class="btn-sm" onclick="adicionarResponsavel()" style="background:#4a7c2e; color:#fff; border-radius:6px;">+ Adicionar</button>
-                </div>
-                <div id="lista-responsaveis-cadastrados" style="margin-top:8px; display:flex; flex-wrap:wrap; gap:5px;"></div>
+    <!-- 🔥 NOVO MODAL: DIGITAR CARTÕES (IGUAL À IMAGEM) -->
+    <div id="modal-digitar-cartoes" class="modal-overlay">
+        <div class="modal-box" style="max-width: 750px; background: #f2f9f4; padding: 0; overflow: hidden;">
+            
+            <!-- CABEÇALHO -->
+            <div style="padding: 20px; background: #fff; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin:0; color:#2c3e50; display:flex; align-items:center; gap:8px; font-size:20px;">
+                    <span style="font-size: 24px;">✏️</span> Digitar Cartões
+                </h3>
+                <span class="close-btn" onclick="fecharModal('modal-digitar-cartoes')" style="position:static; color:#888; font-size:28px; cursor:pointer;">×</span>
             </div>
-            <label>Selecionar Responsável</label>
-            <select id="card-responsavel" style="width:100%; padding:10px; margin-bottom:10px;">
-                <option value="">Selecione um responsável</option>
-            </select>
-            <label>Quantidade</label>
-            <input type="number" id="card-qtd" placeholder="0" min="1" style="width:100%; padding:10px; margin-bottom:10px;">
-            <label>Data de Entrega</label>
-            <input type="date" id="card-data" style="width:100%; padding:10px; margin-bottom:10px;">
-            <div class="modal-actions">
-                <button class="btn-cancel" onclick="fecharModal('modal-cartoes')">Cancelar</button>
-                <button class="btn-primary" onclick="salvarCartoes()">Salvar</button>
+
+            <!-- CORPO -->
+            <div style="padding: 20px; max-height: 70vh; overflow-y: auto;">
+                <p style="font-size:13px; color:#555; margin-bottom: 15px;">Preencha os dados e pressione ENTER no endereço para adicionar outro</p>
+
+                <!-- Dados Comuns -->
+                <div style="background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 15px 0; color: #196E3A; display: flex; align-items: center; gap: 8px; font-size:16px;">
+                        <span style="font-size:20px;">🌿</span> Dados comuns
+                    </h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:3px;">📅 DATA</label>
+                            <input type="date" id="lote-data" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff;">
+                        </div>
+                        <div>
+                            <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:3px;">📦 QUANTIDADE</label>
+                            <input type="number" id="lote-qtd" value="1" min="1" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff;">
+                        </div>
+                        <div>
+                            <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:3px;">📁 TIPO</label>
+                            <select id="lote-tipo" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff;">
+                                <option value="SHOPEE">SHOPEE</option>
+                                <option value="MERCADO LIVRE">MERCADO LIVRE</option>
+                                <option value="OUTROS">OUTROS</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:3px;">📟 N°</label>
+                            <input type="text" id="lote-numero" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff;">
+                        </div>
+                        <div>
+                            <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:3px;">📝 OBSERVAÇÃO</label>
+                            <input type="text" id="lote-obs" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff;">
+                        </div>
+                        <div>
+                            <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:3px;">📞 TELEFONE</label>
+                            <input type="text" id="lote-tel" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista de Nomes -->
+                <div style="background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.03);">
+                    <h4 style="margin: 0 0 15px 0; color: #196E3A; display: flex; align-items: center; gap: 8px; font-size:16px;">
+                        <span style="font-size:20px;">📋</span> Lista de Nomes e Endereços
+                    </h4>
+                    <div id="container-lote-nomes">
+                        <!-- As linhas são geradas pelo JS -->
+                    </div>
+                    <div style="margin-top:10px; font-size:11px; color:#888;">ℹ️ As letras são automaticamente maiúsculas</div>
+                </div>
+            </div>
+
+            <!-- RODAPÉ -->
+            <div style="padding: 15px 20px; border-top: 1px solid #e0e0e0; background: #fff; display: flex; gap: 10px; justify-content: flex-start;">
+                <button onclick="adicionarLinhaCartao()" style="background:#1a73e8; color:#fff; border:none; padding:10px 20px; border-radius:30px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; box-shadow:0 4px 8px rgba(26,115,232,0.3);">
+                    + Adicionar outro
+                </button>
+                <button onclick="enviarLoteCartoes()" style="background:#4a7c2e; color:#fff; border:none; padding:10px 25px; border-radius:30px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; box-shadow:0 4px 8px rgba(74,124,46,0.3);">
+                    🚀 Enviar tudo
+                </button>
             </div>
         </div>
     </div>
