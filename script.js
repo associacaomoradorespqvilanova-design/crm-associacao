@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwDlcThiZxRzUP6ruvYUWCzkrof6WC9N_4HpmmcEVNA3VJqkvOE6kDBs57X5EVW8iSdDw/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbz5tZLT3esNdxdTyUV2ugJXOpCvc7DAs1ZdQtprpyTqwmVYSYbw4pQQUoVWeWSEeXof/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
