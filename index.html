@@ -88,18 +88,17 @@
                             <div onclick="abrirComprovantePrint('sem_assinatura')" class="menu-option" style="padding:12px 0; text-align:center; cursor:pointer; color:#333; font-weight:600; transition:0.2s;">📋 Sem Assinatura</div>
                         </div>
                     </div>
-                    <button class="btn-action">ENTREGAS</button>
-                    <button class="btn-action">CARTEIRINHAS</button>
-                    <!-- 🔥 BOTÃO CORRIGIDO ABRE O NOVO MODAL -->
+                    <!-- 🔥 Botão CARTÕES abre o modal de digitar -->
                     <button class="btn-action" onclick="abrirModal('modal-digitar-cartoes')">CARTÕES</button>
                     <button class="btn-action">CESTAS</button>
                 </div>
             </div>
 
-            <!-- CARTÕES (Tabela de resumo) -->
+            <!-- 🔥 COLUNA DIREITA DO JEITO QUE JÁ ESTAVA! -->
             <div class="panel">
                 <div class="panel-header">
                     <h3>CARTÕES</h3>
+                    <!-- Botão + Adicionar agora abre o NOVO modal -->
                     <button class="btn-sm" onclick="abrirModal('modal-digitar-cartoes')">+ Adicionar</button>
                 </div>
                 <div id="cards-container">
@@ -107,7 +106,7 @@
                         <thead id="cards-header">
                             <tr>
                                 <th>DATA</th>
-                                <th id="th-responsaveis" colspan="1">Responsáveis</th>
+                                <th id="th-responsaveis" colspan="1">RESPONSÁVEIS</th>
                                 <th>TOTAL DIA</th>
                                 <th>AÇÕES</th>
                             </tr>
@@ -206,14 +205,11 @@
         </div>
     </div>
 
-    <!-- 🔥 NOVO MODAL: DIGITAR CARTÕES (IGUAL À IMAGEM) -->
+    <!-- 🔥 NOVO MODAL: DIGITAR CARTÕES -->
     <div id="modal-digitar-cartoes" class="modal-overlay">
-        <!-- 🔥 CAMPO INVISÍVEL PARA O LEITOR DE CÓDIGO DE BARRAS/QR CODE -->
         <input type="text" id="scanner-input" style="position:absolute; opacity:0; width:1px; height:1px; pointer-events:none;" autofocus>
         
         <div class="modal-box" style="max-width: 750px; background: #f2f9f4; padding: 0; overflow: hidden;">
-            
-            <!-- CABEÇALHO -->
             <div style="padding: 20px; background: #fff; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
                 <h3 style="margin:0; color:#2c3e50; display:flex; align-items:center; gap:8px; font-size:20px;">
                     <span style="font-size: 24px;">✏️</span> Digitar Cartões
@@ -221,11 +217,9 @@
                 <span class="close-btn" onclick="fecharModal('modal-digitar-cartoes')" style="position:static; color:#888; font-size:28px; cursor:pointer;">×</span>
             </div>
 
-            <!-- CORPO -->
             <div style="padding: 20px; max-height: 70vh; overflow-y: auto;">
                 <p style="font-size:13px; color:#555; margin-bottom: 15px;">Preencha os dados e pressione ENTER no endereço para adicionar outro</p>
 
-                <!-- Dados Comuns -->
                 <div style="background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); margin-bottom: 20px;">
                     <h4 style="margin: 0 0 15px 0; color: #196E3A; display: flex; align-items: center; gap: 8px; font-size:16px;">
                         <span style="font-size:20px;">🌿</span> Dados comuns
@@ -262,7 +256,6 @@
                     </div>
                 </div>
 
-                <!-- Lista de Nomes -->
                 <div style="background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.03);">
                     <h4 style="margin: 0 0 15px 0; color: #196E3A; display: flex; align-items: center; gap: 8px; font-size:16px;">
                         <span style="font-size:20px;">📋</span> Lista de Nomes e Endereços
@@ -274,7 +267,6 @@
                 </div>
             </div>
 
-            <!-- RODAPÉ -->
             <div style="padding: 15px 20px; border-top: 1px solid #e0e0e0; background: #fff; display: flex; gap: 10px; justify-content: flex-start;">
                 <button onclick="adicionarLinhaCartao()" style="background:#1a73e8; color:#fff; border:none; padding:10px 20px; border-radius:30px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; box-shadow:0 4px 8px rgba(26,115,232,0.3);">
                     + Adicionar outro
@@ -282,18 +274,6 @@
                 <button onclick="enviarLoteCartoes()" style="background:#4a7c2e; color:#fff; border:none; padding:10px 25px; border-radius:30px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; box-shadow:0 4px 8px rgba(74,124,46,0.3);">
                     🚀 Enviar tudo
                 </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL POPUP -->
-    <div id="modal-popup-login" class="modal-overlay">
-        <div class="modal-box">
-            <span class="close-btn" onclick="fecharModal('modal-popup-login')">×</span>
-            <h3>📅 Lembrete de Agenda</h3>
-            <div id="popup-login-content" style="font-size: 14px; line-height: 1.6;"></div>
-            <div class="modal-actions" style="justify-content: center;">
-                <button class="btn-primary" onclick="fecharModal('modal-popup-login')">Ok, entendi</button>
             </div>
         </div>
     </div>
