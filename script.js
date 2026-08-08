@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzUFLIii3X2mVZ2BYTsJhFWC95VfBzVZRYFVHS8__jgegjSC9rXnsBuuCu-KANqnnoXKw/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwDlcThiZxRzUP6ruvYUWCzkrof6WC9N_4HpmmcEVNA3VJqkvOE6kDBs57X5EVW8iSdDw/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -208,7 +208,7 @@ async function deletarItemAgenda(id) {
 }
 
 // ==========================================================
-// CARTÕES (TABELA DE RESUMO DO PAINEL DIREITO)
+// 🔥 COLUNA DIREITA (JEITO ORIGINAL - ABA CARTÕES)
 // ==========================================================
 async function renderizarCartoes() {
     const resp = await fetchFromGS('listarCartoes');
@@ -233,7 +233,7 @@ async function renderizarCartoes() {
         thResponsaveis.innerText = nomesOrdenados.join(' / ');
     } else {
         thResponsaveis.colSpan = 1;
-        thResponsaveis.innerText = 'Responsáveis';
+        thResponsaveis.innerText = 'RESPONSÁVEIS';
     }
 
     const tbody = document.getElementById('cards-list');
@@ -331,15 +331,50 @@ async function excluirMesCartao(data) {
     await renderizarCartoes();
 }
 
+// 🔥 Gerenciamento de Responsáveis (antigo, mantido!)
+async function adicionarResponsavel() {
+    const input = document.getElementById('novo-responsavel-input');
+    let nome = input.value.trim();
+    nome = nome.replace(/^"|"$/g, ''); 
+    nome = nome.replace(/^'|'$/g, '');
+    if (!nome) { 
+        alert("Digite um nome."); 
+        return; 
+    }
+    await postParaGoogleSheets('salvarResponsavel', nome);
+    input.value = '';
+    await renderizarCartoes();
+    await carregarListaResponsaveisNoModal();
+}
+
+async function carregarListaResponsaveisNoModal() {
+    const resp = await fetchFromGS('listarResponsaveis');
+    state.responsaveis = resp.nomes || [];
+    const container = document.getElementById('lista-responsaveis-cadastrados');
+    container.innerHTML = '';
+    state.responsaveis.forEach(nome => {
+        const nomeLimpo = String(nome).replace(/^"|"$/g, '').replace(/^'|'$/g, '');
+        const span = document.createElement('span');
+        span.style.cssText = 'background:#eafde8; padding:3px 10px; border-radius:12px; font-size:12px; display:flex; align-items:center; gap:5px;';
+        span.innerHTML = `${nomeLimpo} <button onclick="deletarResponsavel('${nomeLimpo}')" style="border:none; background:transparent; color:#ff4757; font-weight:bold; cursor:pointer;">×</button>`;
+        container.appendChild(span);
+    });
+}
+
+async function deletarResponsavel(nome) {
+    if (!confirm(`Remover o responsável "${nome}" da lista?`)) return;
+    await postParaGoogleSheets('deletarResponsavel', nome);
+    await renderizarCartoes();
+    await carregarListaResponsaveisNoModal();
+}
+
 
 // ==========================================================
-// 🔥 NOVO MÓDULO: DIGITAR CARTÕES (DINÂMICO)
+// 🔥 NOVO MÓDULO: DIGITAR CARTÕES (SALVA NA ABA ENTREGAS)
 // ==========================================================
 
-// Controla a contagem de linhas para o modal
 let linhaCartaoCount = 0;
 
-// Adiciona uma nova linha de Nome e Endereço
 function adicionarLinhaCartao() {
     linhaCartaoCount++;
     const container = document.getElementById('container-lote-nomes');
@@ -355,24 +390,20 @@ function adicionarLinhaCartao() {
     `;
     container.appendChild(div);
     
-    // 🔥 CORREÇÃO DO ENTER: Adiciona o leitor de teclado no campo endereço
     const enderecoInput = div.querySelector('.lote-endereco');
     enderecoInput.addEventListener('keydown', function(event) {
         if (event.key === 'Enter') {
-            event.preventDefault(); // Impede que o formulário dê Enter na página
-            adicionarLinhaCartao();  // Adiciona uma nova linha
+            event.preventDefault();
+            adicionarLinhaCartao();
         }
     });
 
-    // Foca no nome da nova linha
     div.querySelector('.lote-nome').focus();
 }
 
-// Remove uma linha específica
 function removerLinhaCartao(id) {
     const div = document.getElementById(`linha-cartao-${id}`);
     if (div) div.remove();
-    // Reordena os índices visuais (1, 2, 3...)
     const linhas = document.querySelectorAll('#container-lote-nomes > div');
     linhas.forEach((linha, index) => {
         const numDiv = linha.querySelector('div:first-child');
@@ -380,7 +411,6 @@ function removerLinhaCartao(id) {
     });
 }
 
-// Envia todos os dados para o Backend
 async function enviarLoteCartoes() {
     const data = document.getElementById('lote-data').value;
     const qtd = document.getElementById('lote-qtd').value;
@@ -408,7 +438,7 @@ async function enviarLoteCartoes() {
         
         if (!nome || !endereco) {
             valid = false;
-            linha.style.border = '2px solid #d9534f'; // Marca erro em vermelho
+            linha.style.border = '2px solid #d9534f';
         } else {
             linha.style.border = 'none';
             linha.style.background = '#eafde8';
@@ -430,7 +460,6 @@ async function enviarLoteCartoes() {
         return; 
     }
 
-    // Envia para o backend
     const btn = document.querySelector('#modal-digitar-cartoes .modal-box button:last-child');
     const originalText = btn.innerText;
     btn.innerText = 'Enviando...';
@@ -440,7 +469,6 @@ async function enviarLoteCartoes() {
         await postParaGoogleSheets('salvarLoteCartoesEntrega', loteData);
         alert(`✅ ${loteData.length} registro(s) salvos com sucesso!`);
         fecharModal('modal-digitar-cartoes');
-        // Limpar campos
         document.getElementById('container-lote-nomes').innerHTML = '';
         linhaCartaoCount = 0;
         document.getElementById('lote-data').value = '';
@@ -456,7 +484,6 @@ async function enviarLoteCartoes() {
     }
 }
 
-// Sobrescreve a função abrirModal para iniciar com 1 linha
 function abrirModal(id) {
     document.getElementById(id).classList.add('active');
     if (id === 'modal-digitar-cartoes') {
@@ -472,32 +499,23 @@ function abrirModal(id) {
 // 🔥 ATIVAÇÃO DO LEITOR DE CÓDIGO DE BARRAS / QR CODE
 // ==========================================================
 
-let scanBuffer = ""; // Guarda temporariamente o que o leitor está digitando
+let scanBuffer = "";
 
 document.addEventListener('DOMContentLoaded', () => {
     const scannerInput = document.getElementById('scanner-input');
     if (!scannerInput) return;
 
-    // Evento de teclado no campo invisível
     scannerInput.addEventListener('keydown', (event) => {
-        // Se a tecla pressionada for 'Enter', significa que a leitura terminou
         if (event.key === 'Enter') {
-            event.preventDefault(); // Impede que o Enter saia do campo
-            
-            // Pega a string completa que foi lida
+            event.preventDefault();
             const rawData = scanBuffer.trim();
-            scanBuffer = ""; // Limpa o buffer
-
-            // Processa os dados
+            scanBuffer = "";
             processarLeituraScanner(rawData);
             return;
         }
-
-        // Se não for Enter, guarda o caractere digitado no buffer
         scanBuffer += event.key;
     });
 
-    // Toda vez que o modal de cartões abrir, foca automaticamente no scanner
     const modalObserver = new MutationObserver(() => {
         const modal = document.getElementById('modal-digitar-cartoes');
         if (modal && modal.classList.contains('active')) {
@@ -514,9 +532,6 @@ document.addEventListener('DOMContentLoaded', () => {
 function processarLeituraScanner(dados) {
     if (!dados) return;
 
-    // 🔥 AQUI VOCÊ DEFINE COMO OS DADOS DO CÓDIGO DE BARRAS ESTÃO SEPARADOS
-    // Exemplo: "João Silva;Rua A, 123;11999999999;123456"
-    // Se for com vírgula, troque ';' por ','
     const separador = ';'; 
     const partes = dados.split(separador);
 
@@ -525,38 +540,29 @@ function processarLeituraScanner(dados) {
         return;
     }
 
-    // Preenchendo os campos do modal baseado na posição dos dados no array
-    // Exemplo: 0 = Nome, 1 = Endereço, 2 = Telefone, 3 = Numero do cartão
     const nome = partes[0] || "";
     const endereco = partes[1] || "";
     const telefone = partes[2] || "";
     const numeroCartao = partes[3] || "";
 
-    // Verifica se já existe uma linha no modal
     const container = document.getElementById('container-lote-nomes');
     const linhas = container.querySelectorAll('div[id^="linha-cartao-"]');
 
     if (linhas.length === 0) {
-        // Se não tiver nenhuma linha, cria a primeira automaticamente
         adicionarLinhaCartao();
     }
 
-    // Pega a última linha criada para preencher os dados
     const ultimaLinha = container.lastElementChild;
     if (ultimaLinha) {
-        // Preenche nome e endereço
         const inputNome = ultimaLinha.querySelector('.lote-nome');
         const inputEnd = ultimaLinha.querySelector('.lote-endereco');
-        
         if (inputNome) inputNome.value = nome.toUpperCase();
         if (inputEnd) inputEnd.value = endereco.toUpperCase();
     }
 
-    // Preenche o telefone e o número nos "Dados Comuns"
     document.getElementById('lote-tel').value = telefone;
     document.getElementById('lote-numero').value = numeroCartao;
     
-    // (Opcional) Preenche a data automaticamente com hoje
     if (!document.getElementById('lote-data').value) {
         const hoje = new Date().toISOString().split('T')[0];
         document.getElementById('lote-data').value = hoje;
