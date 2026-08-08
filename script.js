@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbyJL6EbJIxgof0F9EwNUb0SWX1c1a-Me0bBQQjS3GBfdM1OXRwnam6I5OaoazpQICqy/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbyDVOmviXx4mrQlfctryQaGAdml49EInDxWTNQeTUUgHLUjogkuDIRfmzKB6b3inZr6aw/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -208,7 +208,7 @@ async function deletarItemAgenda(id) {
 }
 
 // ==========================================================
-// CARTÕES (ORIGINAL CORRIGIDO)
+// CARTÕES (TABELA DE RESUMO DO PAINEL DIREITO)
 // ==========================================================
 async function renderizarCartoes() {
     const resp = await fetchFromGS('listarCartoes');
@@ -220,7 +220,6 @@ async function renderizarCartoes() {
     const select = document.getElementById('card-responsavel');
     select.innerHTML = '<option value="">Selecione um responsável</option>';
     
-    // 🔥 CORREÇÃO: Remove aspas antes de exibir no dropdown
     state.responsaveis.forEach(nome => {
         const nomeLimpo = String(nome).replace(/^"|"$/g, '').replace(/^'|'$/g, '');
         select.innerHTML += `<option value="${nomeLimpo}">${nomeLimpo}</option>`;
@@ -332,64 +331,135 @@ async function excluirMesCartao(data) {
     await renderizarCartoes();
 }
 
-async function salvarCartoes() {
-    const responsavel = document.getElementById('card-responsavel').value;
-    const qtd = parseInt(document.getElementById('card-qtd').value);
-    const data = document.getElementById('card-data').value;
-    if(!responsavel || !qtd || !data) { 
-        alert("Preencha o Responsável, Quantidade e Data."); 
-        return; 
-    }
-    await postParaGoogleSheets('salvarCartao', { id: Date.now(), responsavel, qtd, data });
-    fecharModal('modal-cartoes');
-    await renderizarCartoes();
-    document.getElementById('card-qtd').value = ''; 
-    document.getElementById('card-data').value = '';
+
+// ==========================================================
+// 🔥 NOVO MÓDULO: DIGITAR CARTÕES (DINÂMICO)
+// ==========================================================
+
+// Controla a contagem de linhas para o modal
+let linhaCartaoCount = 0;
+
+// Adiciona uma nova linha de Nome e Endereço
+function adicionarLinhaCartao() {
+    linhaCartaoCount++;
+    const container = document.getElementById('container-lote-nomes');
+    const div = document.createElement('div');
+    div.id = `linha-cartao-${linhaCartaoCount}`;
+    div.style.cssText = 'display:flex; gap:10px; align-items:center; background:#eafde8; padding:10px; border-radius:8px; margin-bottom:10px;';
+    
+    div.innerHTML = `
+        <div style="background:#4a7c2e; color:#fff; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold; flex-shrink:0;">${linhaCartaoCount}</div>
+        <input type="text" class="lote-nome" placeholder="Nome completo" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px; text-transform:uppercase;">
+        <input type="text" class="lote-endereco" placeholder="Endereço (Rua, número)" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px; text-transform:uppercase;">
+        <button onclick="removerLinhaCartao(${linhaCartaoCount})" style="background:#ffebee; border:none; color:#d9534f; border-radius:50%; width:30px; height:30px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:bold;">🗑️</button>
+    `;
+    container.appendChild(div);
+    
+    // Foca no nome da nova linha
+    div.querySelector('.lote-nome').focus();
 }
 
-// 🔥 CORREÇÃO: Remove aspas antes de salvar
-async function adicionarResponsavel() {
-    const input = document.getElementById('novo-responsavel-input');
-    let nome = input.value.trim();
-    
-    // Remove aspas duplas e simples do início e fim do nome
-    nome = nome.replace(/^"|"$/g, ''); 
-    nome = nome.replace(/^'|'$/g, '');
-
-    if (!nome) { 
-        alert("Digite um nome."); 
-        return; 
-    }
-    
-    await postParaGoogleSheets('salvarResponsavel', nome);
-    input.value = '';
-    await renderizarCartoes();
-    await carregarListaResponsaveisNoModal();
-}
-
-async function carregarListaResponsaveisNoModal() {
-    const resp = await fetchFromGS('listarResponsaveis');
-    state.responsaveis = resp.nomes || [];
-    const container = document.getElementById('lista-responsaveis-cadastrados');
-    container.innerHTML = '';
-    state.responsaveis.forEach(nome => {
-        const nomeLimpo = String(nome).replace(/^"|"$/g, '').replace(/^'|'$/g, '');
-        const span = document.createElement('span');
-        span.style.cssText = 'background:#eafde8; padding:3px 10px; border-radius:12px; font-size:12px; display:flex; align-items:center; gap:5px;';
-        span.innerHTML = `${nomeLimpo} <button onclick="deletarResponsavel('${nomeLimpo}')" style="border:none; background:transparent; color:#ff4757; font-weight:bold; cursor:pointer;">×</button>`;
-        container.appendChild(span);
+// Remove uma linha específica
+function removerLinhaCartao(id) {
+    const div = document.getElementById(`linha-cartao-${id}`);
+    if (div) div.remove();
+    // Reordena os índices visuais (1, 2, 3...)
+    const linhas = document.querySelectorAll('#container-lote-nomes > div');
+    linhas.forEach((linha, index) => {
+        const numDiv = linha.querySelector('div:first-child');
+        if(numDiv) numDiv.innerText = index + 1;
     });
 }
 
-async function deletarResponsavel(nome) {
-    if (!confirm(`Remover o responsável "${nome}" da lista?`)) return;
-    await postParaGoogleSheets('deletarResponsavel', nome);
-    await renderizarCartoes();
-    await carregarListaResponsaveisNoModal();
+// Envia todos os dados para o Backend
+async function enviarLoteCartoes() {
+    const data = document.getElementById('lote-data').value;
+    const qtd = document.getElementById('lote-qtd').value;
+    const tipo = document.getElementById('lote-tipo').value;
+    const numero = document.getElementById('lote-numero').value;
+    const obs = document.getElementById('lote-obs').value;
+    const tel = document.getElementById('lote-tel').value;
+
+    if (!data) { 
+        alert("Por favor, selecione uma DATA."); 
+        return; 
+    }
+
+    const linhas = document.querySelectorAll('#container-lote-nomes > div');
+    if (linhas.length === 0) { 
+        alert("Adicione pelo menos um nome e endereço."); 
+        return; 
+    }
+
+    const loteData = [];
+    let valid = true;
+    linhas.forEach(linha => {
+        const nome = linha.querySelector('.lote-nome').value.trim().toUpperCase();
+        const endereco = linha.querySelector('.lote-endereco').value.trim().toUpperCase();
+        
+        if (!nome || !endereco) {
+            valid = false;
+            linha.style.border = '2px solid #d9534f'; // Marca erro em vermelho
+        } else {
+            linha.style.border = 'none';
+            linha.style.background = '#eafde8';
+            loteData.push({
+                nome: nome,
+                endereco: endereco,
+                data: data,
+                quantidade: qtd,
+                tipo: tipo,
+                numero: numero,
+                obs: obs,
+                tel: tel
+            });
+        }
+    });
+
+    if (!valid) { 
+        alert("Preencha o Nome e o Endereço de todas as linhas destacadas em vermelho."); 
+        return; 
+    }
+
+    // Envia para o backend
+    const btn = document.querySelector('#modal-digitar-cartoes .modal-box button:last-child');
+    const originalText = btn.innerText;
+    btn.innerText = 'Enviando...';
+    btn.disabled = true;
+
+    try {
+        await postParaGoogleSheets('salvarLoteCartoesEntrega', loteData);
+        alert(`✅ ${loteData.length} registro(s) salvos com sucesso!`);
+        fecharModal('modal-digitar-cartoes');
+        // Limpar campos
+        document.getElementById('container-lote-nomes').innerHTML = '';
+        linhaCartaoCount = 0;
+        document.getElementById('lote-data').value = '';
+        document.getElementById('lote-qtd').value = '1';
+        document.getElementById('lote-obs').value = '';
+        document.getElementById('lote-tel').value = '';
+        document.getElementById('lote-numero').value = '';
+    } catch (e) {
+        alert("❌ Erro ao salvar: " + e.message);
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+}
+
+// Sobrescreve a função abrirModal para iniciar com 1 linha
+function abrirModal(id) {
+    document.getElementById(id).classList.add('active');
+    if (id === 'modal-digitar-cartoes') {
+        const container = document.getElementById('container-lote-nomes');
+        if (container.children.length === 0) {
+            adicionarLinhaCartao();
+        }
+    }
 }
 
 // ==========================================================
-// CURRÍCULO E DEMAIS FUNÇÕES
+// CURRÍCULO E OUTRAS FUNÇÕES
 // ==========================================================
 function handlePhotoUpload(event) {
     const file = event.target.files[0];
@@ -990,6 +1060,5 @@ async function salvarEImprimir() {
     finally { btn.innerText = '🖨️ Imprimir'; btn.disabled = false; }
 }
 
-function abrirModal(id) { document.getElementById(id).classList.add('active'); }
 function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
 function fecharComprovantePrint() { document.getElementById('modal-comprovante-print').style.display = 'none'; }
