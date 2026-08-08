@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzUFLIii3X2mVZ2BYTsJhFWC95VfBzVZRYFVHS8__jgegjSC9rXnsBuuCu-KANqnnoXKw/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwDlcThiZxRzUP6ruvYUWCzkrof6WC9N_4HpmmcEVNA3VJqkvOE6kDBs57X5EVW8iSdDw/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -331,7 +331,22 @@ async function excluirMesCartao(data) {
     await renderizarCartoes();
 }
 
-// 🔥 Gerenciamento de Responsáveis (antigo, mantido!)
+// 🔥 AÇÕES DO MODAL ANTIGO (Adicionar Lote de Cartões)
+async function salvarCartoes() {
+    const responsavel = document.getElementById('card-responsavel').value;
+    const qtd = parseInt(document.getElementById('card-qtd').value);
+    const data = document.getElementById('card-data').value;
+    if(!responsavel || !qtd || !data) { 
+        alert("Preencha o Responsável, Quantidade e Data."); 
+        return; 
+    }
+    await postParaGoogleSheets('salvarCartao', { id: Date.now(), responsavel, qtd, data });
+    fecharModal('modal-cartoes');
+    await renderizarCartoes();
+    document.getElementById('card-qtd').value = ''; 
+    document.getElementById('card-data').value = '';
+}
+
 async function adicionarResponsavel() {
     const input = document.getElementById('novo-responsavel-input');
     let nome = input.value.trim();
