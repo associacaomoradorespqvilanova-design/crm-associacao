@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbz5tZLT3esNdxdTyUV2ugJXOpCvc7DAs1ZdQtprpyTqwmVYSYbw4pQQUoVWeWSEeXof/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwvqrpyK2qeSUDum2T_zGcA8Fh4nEgg6n-9TPJNIm8maJDFz5qAaQ9TdWCLtjxdL6FZ/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -385,7 +385,7 @@ async function deletarResponsavel(nome) {
 
 
 // ==========================================================
-// 🔥 NOVO MÓDULO: DIGITAR CARTÕES (SALVA NA ABA ENTREGAS)
+// 🔥 NOVO MÓDULO: DIGITAR CARTÕES (SALVA NA ABA ENTREGAS) + CÂMERA
 // ==========================================================
 
 let linhaCartaoCount = 0;
@@ -511,79 +511,151 @@ function abrirModal(id) {
 
 
 // ==========================================================
-// 🔥 ATIVAÇÃO DO LEITOR DE CÓDIGO DE BARRAS / QR CODE
+// 🔥 LEITOR DE CÂMERA (QR Code e CÓDIGO DE BARRAS)
 // ==========================================================
 
-let scanBuffer = "";
+let html5QrCode = null;
 
-document.addEventListener('DOMContentLoaded', () => {
-    const scannerInput = document.getElementById('scanner-input');
-    if (!scannerInput) return;
+async function abrirCameraScanner() {
+    const container = document.getElementById('camera-scanner-container');
+    const btn = document.getElementById('btn-abrir-camera');
 
-    scannerInput.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            const rawData = scanBuffer.trim();
-            scanBuffer = "";
-            processarLeituraScanner(rawData);
-            return;
+    // Se a câmera já estiver aberta, fecha
+    if (container.style.display === 'block') {
+        if (html5QrCode) {
+            await html5QrCode.stop();
+            html5QrCode.clear();
+            html5QrCode = null;
         }
-        scanBuffer += event.key;
-    });
-
-    const modalObserver = new MutationObserver(() => {
-        const modal = document.getElementById('modal-digitar-cartoes');
-        if (modal && modal.classList.contains('active')) {
-            setTimeout(() => { scannerInput.focus(); }, 100);
-        }
-    });
-    
-    const modal = document.getElementById('modal-digitar-cartoes');
-    if (modal) {
-        modalObserver.observe(modal, { attributes: true, attributeFilter: ['class'] });
+        container.style.display = 'none';
+        btn.innerText = '📷 Ler código com a Câmera';
+        return;
     }
-});
+
+    container.style.display = 'block';
+    btn.innerText = '⏹ Fechar Câmera';
+
+    html5QrCode = new Html5Qrcode("camera-scanner-container");
+
+    const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 }
+    };
+
+    try {
+        await html5QrCode.start(
+            { facingMode: "environment" }, // usa a câmera traseira
+            config,
+            onScanSuccess
+        );
+    } catch (err) {
+        alert("Erro ao abrir a câmera. Verifique as permissões do navegador.");
+        container.style.display = 'none';
+        btn.innerText = '📷 Ler código com a Câmera';
+        console.error(err);
+    }
+}
+
+function onScanSuccess(decodedText, decodedResult) {
+    // Quando o código é lido, para a câmera e preenche os dados
+    if (html5QrCode) {
+        html5QrCode.stop();
+        html5QrCode.clear();
+        html5QrCode = null;
+    }
+    document.getElementById('camera-scanner-container').style.display = 'none';
+    document.getElementById('btn-abrir-camera').innerText = '📷 Ler código com a Câmera';
+
+    // 🔥 AQUI TRATAMOS O CÓDIGO LIDO (Divide em dados completos ou busca pelo rastreio)
+    processarLeituraScanner(decodedText);
+}
 
 function processarLeituraScanner(dados) {
     if (!dados) return;
 
-    const separador = ';'; 
-    const partes = dados.split(separador);
+    // Verifica se o código tem o separador (ex: Nome;Endereço;Tel;Nº)
+    if (dados.includes(';')) {
+        // 🔥 Caso 1: Código contém os dados completos prontos para preencher
+        const separador = ';'; 
+        const partes = dados.split(separador);
 
-    if (partes.length < 2) {
-        alert("Formato do código de barras inválido. Use o separador ';'.");
+        const nome = partes[0] || "";
+        const endereco = partes[1] || "";
+        const telefone = partes[2] || "";
+        const numeroCartao = partes[3] || "";
+
+        const container = document.getElementById('container-lote-nomes');
+        const linhas = container.querySelectorAll('div[id^="linha-cartao-"]');
+
+        if (linhas.length === 0) {
+            adicionarLinhaCartao();
+        }
+
+        const ultimaLinha = container.lastElementChild;
+        if (ultimaLinha) {
+            const inputNome = ultimaLinha.querySelector('.lote-nome');
+            const inputEnd = ultimaLinha.querySelector('.lote-endereco');
+            if (inputNome) inputNome.value = nome.toUpperCase();
+            if (inputEnd) inputEnd.value = endereco.toUpperCase();
+        }
+
+        document.getElementById('lote-tel').value = telefone;
+        document.getElementById('lote-numero').value = numeroCartao;
+        
+        if (!document.getElementById('lote-data').value) {
+            const hoje = new Date().toISOString().split('T')[0];
+            document.getElementById('lote-data').value = hoje;
+        }
+        alert("✅ Dados lidos e preenchidos com sucesso!");
         return;
     }
 
-    const nome = partes[0] || "";
-    const endereco = partes[1] || "";
-    const telefone = partes[2] || "";
-    const numeroCartao = partes[3] || "";
+    // 🔥 Caso 2: É apenas um código de rastreio (sem separadores). Vamos buscar na planilha!
+    buscarDadosPorRastreio(dados);
+}
 
-    const container = document.getElementById('container-lote-nomes');
-    const linhas = container.querySelectorAll('div[id^="linha-cartao-"]');
+async function buscarDadosPorRastreio(numeroRastreio) {
+    try {
+        const resultado = await fetchFromGS('buscarDadosPorRastreio', { numero: numeroRastreio });
+        
+        if (resultado && resultado.encontrado) {
+            const d = resultado.dados;
 
-    if (linhas.length === 0) {
-        adicionarLinhaCartao();
+            // Preenche a primeira linha dinâmica
+            const container = document.getElementById('container-lote-nomes');
+            const linhas = container.querySelectorAll('div[id^="linha-cartao-"]');
+            if (linhas.length === 0) {
+                adicionarLinhaCartao();
+            }
+            const ultimaLinha = container.lastElementChild;
+            if (ultimaLinha) {
+                const inputNome = ultimaLinha.querySelector('.lote-nome');
+                const inputEnd = ultimaLinha.querySelector('.lote-endereco');
+                if (inputNome) inputNome.value = (d.nome || "").toUpperCase();
+                if (inputEnd) inputEnd.value = (d.endereco || "").toUpperCase();
+            }
+
+            // Preenche o número do cartão e data (opcional)
+            document.getElementById('lote-numero').value = numeroRastreio;
+            if (!document.getElementById('lote-data').value) {
+                const hoje = new Date().toISOString().split('T')[0];
+                document.getElementById('lote-data').value = hoje;
+            }
+
+            alert(`✅ Rastreio ${numeroRastreio} encontrado! Nome e Endereço preenchidos.`);
+        } else {
+            alert(`⚠️ Rastreio ${numeroRastreio} não encontrado na planilha. Preencha os dados manualmente.`);
+            // Preenche o número e a data, mas deixa o nome e endereço vazios para digitar
+            document.getElementById('lote-numero').value = numeroRastreio;
+            if (!document.getElementById('lote-data').value) {
+                const hoje = new Date().toISOString().split('T')[0];
+                document.getElementById('lote-data').value = hoje;
+            }
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Erro ao buscar o rastreio no banco de dados.");
     }
-
-    const ultimaLinha = container.lastElementChild;
-    if (ultimaLinha) {
-        const inputNome = ultimaLinha.querySelector('.lote-nome');
-        const inputEnd = ultimaLinha.querySelector('.lote-endereco');
-        if (inputNome) inputNome.value = nome.toUpperCase();
-        if (inputEnd) inputEnd.value = endereco.toUpperCase();
-    }
-
-    document.getElementById('lote-tel').value = telefone;
-    document.getElementById('lote-numero').value = numeroCartao;
-    
-    if (!document.getElementById('lote-data').value) {
-        const hoje = new Date().toISOString().split('T')[0];
-        document.getElementById('lote-data').value = hoje;
-    }
-
-    alert("✅ Dados lidos e preenchidos com sucesso!");
 }
 
 
