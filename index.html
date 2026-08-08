@@ -7,6 +7,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- 🔥 BIBLIOTECA DA CÂMERA (Lê QR Code e Código de Barras) -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -236,10 +238,8 @@
         </div>
     </div>
 
-    <!-- 🔥 NOVO MODAL: DIGITAR CARTÕES (NÃO TEM RELAÇÃO COM RESPONSÁVEL, ABRE PELO BOTÃO ENTREGAS) -->
+    <!-- 🔥 NOVO MODAL: DIGITAR CARTÕES (COM LEITOR DE CÂMERA) -->
     <div id="modal-digitar-cartoes" class="modal-overlay">
-        <input type="text" id="scanner-input" style="position:absolute; opacity:0; width:1px; height:1px; pointer-events:none;" autofocus>
-        
         <div class="modal-box" style="max-width: 750px; background: #f2f9f4; padding: 0; overflow: hidden;">
             <div style="padding: 20px; background: #fff; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
                 <h3 style="margin:0; color:#2c3e50; display:flex; align-items:center; gap:8px; font-size:20px;">
@@ -273,7 +273,7 @@
                             </select>
                         </div>
                         <div>
-                            <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:3px;">📟 N°</label>
+                            <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:3px;">📟 N° (Código de Rastreio)</label>
                             <input type="text" id="lote-numero" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff;">
                         </div>
                         <div>
@@ -284,6 +284,14 @@
                             <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:3px;">📞 TELEFONE</label>
                             <input type="text" id="lote-tel" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff;">
                         </div>
+                    </div>
+                    
+                    <!-- 🔥 BOTÃO DA CÂMERA E CONTAINER -->
+                    <div style="margin-top: 15px; text-align:center;">
+                        <button type="button" id="btn-abrir-camera" onclick="abrirCameraScanner()" style="background:#2196F3; color:#fff; border:none; padding:10px 20px; border-radius:12px; cursor:pointer; font-weight:600; font-size:14px; display:inline-flex; align-items:center; gap:8px; box-shadow:0 4px 8px rgba(33,150,243,0.3);">
+                            📷 Ler código com a Câmera
+                        </button>
+                        <div id="camera-scanner-container" style="display:none; width:100%; max-width:400px; margin:15px auto 0 auto; border:2px dashed #4a7c2e; border-radius:12px; overflow:hidden; background:#000;"></div>
                     </div>
                 </div>
 
