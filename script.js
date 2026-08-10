@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbxeckEgCNOwts7XwCPmRuziLk6OZQb5LDZmKEkwqmoNOp9GqN4D9n8CGdUxco3ZD0aMUA/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbytjXvNNm9ZMDRYEz-2wLa33fZ1gcEcobRtdbYuNzK-aC2vspt6qKbPAQ3PNIp55_JqYA/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -65,7 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedUser === 'admin') {
         loginSuccess();
     }
-    // 🔥 Atualiza os pendentes da cesta a cada 20 segundos automaticamente
     setInterval(() => {
         if (document.getElementById('dashboard-screen').style.display !== 'none') {
             renderizarPendentesCestaHome();
@@ -91,7 +90,7 @@ function loginSuccess() {
     document.getElementById('dashboard-screen').style.display = 'block';
     updateClock();
     renderizarTabelas();
-    renderizarPendentesCestaHome(); // 🔥 Carrega pendentes imediatamente
+    renderizarPendentesCestaHome();
     verificarProximaAgendaPopup();
 }
 
@@ -635,9 +634,8 @@ async function abrirModalCesta() {
     document.getElementById('modal-cesta').classList.add('active');
     await carregarNomesCesta();
     await carregarTiposCesta();
-    await renderizarPendentesCestaHome(); // Recarrega pendentes na Home
+    await renderizarPendentesCestaHome();
 
-    // Prepara o foco para o scanner
     const scannerInput = document.getElementById('cesta-scanner-input');
     setTimeout(() => { scannerInput.focus(); }, 300);
 }
@@ -705,7 +703,8 @@ async function renderizarPendentesCestaHome() {
         }
         let html = '';
         list.forEach(item => {
-            html += `<span style="background:#ffe6e6; color:#9b2c2c; padding:5px 12px; border-radius:20px; font-weight:600; font-size:13px;">${item.nome} (${item.tipo || 'Sem tipo'})</span>`;
+            let nomeLimpo = item.nome || '';
+            html += `<span style="background:#ffe6e6; color:#9b2c2c; padding:5px 12px; border-radius:20px; font-weight:600; font-size:13px;">${nomeLimpo} (${item.tipo || 'Sem tipo'})</span>`;
         });
         container.innerHTML = html;
     } catch (e) {
@@ -790,7 +789,7 @@ function renderFormCesta(dadosArray) {
                 if (confirmar) {
                     inputMonth.value = `${diaStr}/${mesStr}`;
                     atualizarMesesUICesta();
-                    salvarCestaAutomatico(); // Salva automático após marcar
+                    salvarCestaAutomatico(); 
                 }
             });
 
@@ -879,7 +878,7 @@ async function salvarCestaAutomatico() {
 
     try {
         await postParaGoogleSheets('salvarMoradorCesta', { linha: cestaState.currentLine, payload: payload });
-        renderizarPendentesCestaHome(); // Atualiza Home
+        renderizarPendentesCestaHome();
     } catch (err) {
         console.error("Erro auto salvar:", err);
     }
@@ -951,7 +950,7 @@ function onScanSuccessCesta(decodedText) {
 
 
 // ==========================================================
-// 🔥 GERAR CARTEIRINHA
+// 🔥 GERAR CARTEIRINHA (CORRIGIDO - AJUSTE DE TAMANHO E DESIGN)
 // ==========================================================
 async function gerarCarteirinha() {
     const nome = document.getElementById('cesta-search').value.trim();
@@ -978,15 +977,21 @@ async function gerarCarteirinha() {
     setTimeout(async () => {
         try {
             const cardDiv = document.getElementById('carteirinha-print-area');
-            const canvas = await html2canvas(cardDiv, { scale: 3 });
+            const canvas = await html2canvas(cardDiv, { scale: 2 });
+
             const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('p', 'mm', 'a6');
-            const imgData = canvas.toDataURL('image/jpeg');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
+            // 🔥 FORMATO PAISAGEM (l) E TAMANHO A6 PARA NÃO FICAR ACHATADO
+            const pdf = new jsPDF('l', 'mm', 'a6'); 
+            
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            const pdfWidth = 148; // Largura A6 paisagem em mm
+            const pdfHeight = 105; // Altura A6 paisagem em mm
+            
             pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+            
             const pdfBlob = pdf.output('blob');
             window.open(URL.createObjectURL(pdfBlob), '_blank');
+
         } catch (error) {
             console.error(error);
             alert("Erro ao gerar a imagem da carteirinha.");
