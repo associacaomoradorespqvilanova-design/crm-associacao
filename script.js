@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwAG2T60sWhscuEyhaVkK3klAQWUfWTDdNufBFEbhkQU9pJJThrkg-0tL2Dku6Pthjk/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbxP8M5IFXDRmDKg_kACvJCYeYZCCqzVIv6sWTDAE1UgszqChvaLFAC7wetfWubAPRt2jg/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -384,7 +384,7 @@ async function deletarResponsavel(nome) {
 
 
 // ==========================================================
-// 🔥 NOVO MÓDULO: ADC CARTÕES (MÚLTIPLAS ENTREGAS)
+// 🔥 NOVO MÓDULO: ADC CARTÕES (MÚLTIPLAS ENTREGAS) COM LIXEIRA
 // ==========================================================
 
 let contadorEntregas = 0;
@@ -417,11 +417,12 @@ function adicionarEntrega() {
     novaEntrega.dataset.index = contadorEntregas - 1;
     novaEntrega.style.cssText = 'background: white; padding: 12px; border-radius: 8px; border: 1px solid #e0e0e0; margin-bottom: 10px;';
     
+    // 🔥 BOTÃO DE EXCLUIR (LIXEIRA VERMELHA) ADICIONADO ABAIXO
     novaEntrega.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <div style="background: #4a7c2e; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">${contadorEntregas}</div>
-            <button type="button" style="background: #ffebee; color: #e53935; border: none; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; font-size: 14px;" onclick="removerEntrega(this)">
-                <i class="fas fa-times"></i>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; background: #fafafa; padding: 5px 8px; border-radius: 6px;">
+            <div style="background: #4a7c2e; color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold;">${contadorEntregas}</div>
+            <button type="button" style="background: #ffebee; color: #d32f2f; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; transition: 0.2s;" onclick="removerEntrega(this)" title="Remover esta linha">
+                <i class="fas fa-trash-alt"></i>
             </button>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
