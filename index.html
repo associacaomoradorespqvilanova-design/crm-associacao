@@ -89,13 +89,16 @@
                             <div onclick="abrirComprovantePrint('sem_assinatura')" class="menu-option" style="padding:12px 0; text-align:center; cursor:pointer; color:#333; font-weight:600; transition:0.2s;">📋 Sem Assinatura</div>
                         </div>
                     </div>
-                    <!-- 🔥 BOTÃO CENTRAL RENOMEADO -->
+                    
+                    <!-- 🔥 BOTÃO ADC CARTÕES -->
                     <button class="btn-action" onclick="abrirModal('modal-multiplas-entregas')">ADC CARTÕES</button>
-                    <button class="btn-action">CESTAS</button>
+                    
+                    <!-- 🔥 BOTÃO CESTAS (ABRE O NOVO MODAL) -->
+                    <button class="btn-action" onclick="abrirModal('modal-cesta')">CESTAS</button>
                 </div>
             </div>
 
-            <!-- 🔥 COLUNA DA DIREITA (ORIGINAL) -->
+            <!-- 🔥 COLUNA DA DIREITA -->
             <div class="panel">
                 <div class="panel-header">
                     <h3>CARTÕES</h3>
@@ -233,14 +236,12 @@
         </div>
     </div>
 
-    <!-- 🔥 NOVO MODAL (CENTRAL - ADC CARTÕES COM LIXEIRA) -->
+    <!-- 🔥 MODAL ADC CARTÕES (CENTRAL) -->
     <div id="modal-multiplas-entregas" class="modal-overlay">
         <div class="modal-box" style="max-width: 700px; padding: 25px;">
             <span class="close-btn" onclick="fecharModal('modal-multiplas-entregas')">×</span>
             <h3><i class="fas fa-truck"></i> Múltiplas Entregas</h3>
             <p style="font-size: 13px; color: #555; margin-bottom: 15px;">Pressione <strong>TAB</strong> ou <strong>ENTER</strong> no campo de endereço para adicionar automaticamente o próximo.</p>
-
-            <!-- DADOS GERAIS -->
             <div style="background: #f9fffb; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e0f2e0;">
                 <h4 style="margin: 0 0 12px 0; color: #196E3A; font-size: 15px;">Dados Gerais</h4>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
@@ -271,18 +272,11 @@
                     <input type="text" id="mult-obs" placeholder="Opcional" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; background:#fff;">
                 </div>
             </div>
-
-            <!-- LISTA DE ENTREGAS -->
             <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;">
                 <label style="font-weight:700; font-size:14px; color:#196E3A;"><i class="fas fa-list"></i> Lista de Entregas</label>
                 <span id="mult-contador" style="font-size:12px; color:#555;">1 entrega</span>
             </div>
-
-            <div id="mult-lista-entregas" style="max-height: 200px; overflow-y: auto; padding-right: 5px; margin-bottom: 15px;">
-                <!-- As linhas são geradas pelo JS com lixeira -->
-            </div>
-
-            <!-- BOTÕES DE AÇÃO -->
+            <div id="mult-lista-entregas" style="max-height: 200px; overflow-y: auto; padding-right: 5px; margin-bottom: 15px;"></div>
             <div style="display: flex; gap: 10px;">
                 <button type="button" onclick="adicionarEntrega()" style="background:#1a73e8; color:#fff; border:none; padding:10px 15px; border-radius:30px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; flex:1; justify-content:center;">
                     <i class="fas fa-plus"></i> Adicionar Outro
@@ -291,12 +285,55 @@
                     <i class="fas fa-paper-plane"></i> Enviar Tudo
                 </button>
             </div>
-
-            <!-- STATUS MESSAGE -->
             <div id="mult-status-message" style="display:none; padding:10px; border-radius:8px; margin-top:15px; font-weight:500; text-align:center;"></div>
-            
             <div style="margin-top: 15px;">
                 <button class="btn-cancel" onclick="fecharModal('modal-multiplas-entregas')" style="width:100%; padding:10px; text-align:center;">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔥 NOVO MODAL CESTAS (INTEGRADO) -->
+    <div id="modal-cesta" class="modal-overlay">
+        <div class="modal-box" style="max-width: 850px; padding: 20px; background: #e8f9ee;">
+            <span class="close-btn" onclick="fecharModal('modal-cesta')">×</span>
+            <h2 style="text-align:center; color:#196E3A; margin:0 0 10px 0;">📋 Controle - CESTA</h2>
+            <div class="ano" style="text-align:center; color:#196E3A; font-weight:700; margin-bottom:10px;">Ano: <span id="cesta-ano"></span></div>
+
+            <div style="display:flex; gap:10px; align-items:center; position:relative; max-width:100%;">
+                <input id="cesta-search" placeholder="Digite o nome do morador..." autocomplete="off" style="flex:1; padding:10px; border-radius:8px; border:1px solid #cfcfcf; font-size:15px; background:#fff;">
+                <button id="cesta-btnSearch" style="padding:10px 14px; border-radius:8px; background:#196E3A; color:#fff; border:none; cursor:pointer; font-weight:700;">Buscar</button>
+                <div id="cesta-suggestions" class="suggestions-box" style="display:none; position:absolute; top:50px; left:0; width:75%; background:#fff; border:1px solid #ddd; border-radius:8px; max-height:220px; overflow:auto; z-index:99;"></div>
+            </div>
+
+            <div id="cesta-stock-summary" class="stockBox" style="display:none; margin:10px 0;"></div>
+
+            <div class="addStock" style="display:flex; gap:8px; align-items:center; margin:10px 0 12px;">
+                <input type="number" id="cesta-quantAdd" min="1" placeholder="Quantidade" style="width:100px; padding:8px; border-radius:6px; border:1px solid #ccc; background:#fff;">
+                <select id="cesta-tipoAdd" style="padding:8px; border-radius:6px; border:1px solid #ccc; background:#fff;">
+                    <option value="VINAGRE">VINAGRE</option>
+                    <option value="TUBARÃO">TUBARÃO</option>
+                    <option value="MOTO TÁXI">MOTO TÁXI</option>
+                    <option value="OBRA">OBRA</option>
+                </select>
+                <button id="cesta-btnAddStock" style="padding:8px 12px; border-radius:6px; background:#196E3A; color:#fff; border:none; cursor:pointer; font-weight:700;">➕ Adicionar Cestas</button>
+                <div style="flex:1;"></div>
+                <button id="cesta-btnListaPendentes" style="padding:8px 12px; border-radius:6px; background:#196E3A; color:#fff; border:none; cursor:pointer; font-weight:700;">📋 Lista Pendente</button>
+            </div>
+
+            <div id="cesta-formArea" style="display:none;">
+                <div id="cesta-fields" class="grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:12px; margin-top:10px;"></div>
+                <div style="margin-top:12px;">
+                    <label style="font-weight:700; color:#1f6f35; display:block; margin-bottom:6px;">Mensalidades</label>
+                    <div class="months" id="cesta-monthsContainer" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;"></div>
+                </div>
+                <div class="stamp" id="cesta-stamp" style="display:none; text-align:center; font-size:32px; color:rgba(25,110,58,0.3); font-weight:900; margin-top:10px;">CONCLUÍDO</div>
+                <button id="cesta-btnSave" style="margin-top:14px; background:#196E3A; color:#fff; padding:10px; border-radius:8px; border:none; width:100%; font-weight:700; cursor:pointer;">💾 Salvar alterações</button>
+            </div>
+
+            <div id="cesta-panelPendentes" style="display:none; margin-top:12px; padding:12px; border-radius:8px; border:1px solid #eee; background:#fff;">
+                <h3 style="margin:0 0 10px 0; color:#196E3A;">Lista de Pendentes (mês atual)</h3>
+                <div id="cesta-listaPendentesContainer"></div>
+                <button id="cesta-btnVoltar" style="margin-top:10px; padding:8px 12px; border-radius:6px; background:#f0f0f0; border:none; cursor:pointer;">🔙 Voltar</button>
             </div>
         </div>
     </div>
