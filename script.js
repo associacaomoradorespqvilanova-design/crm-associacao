@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwvqrpyK2qeSUDum2T_zGcA8Fh4nEgg6n-9TPJNIm8maJDFz5qAaQ9TdWCLtjxdL6FZ/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbxdnZAQ9NIth8veB4Kj-VZxP3GDbl9CxnsEGtTi-c1s4eydbNc1s8dPcPueyOmtowsk_Q/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -208,7 +208,7 @@ async function deletarItemAgenda(id) {
 }
 
 // ==========================================================
-// 🔥 COLUNA DIREITA (JEITO ORIGINAL - ABA CARTÕES)
+// COLUNA DIREITA (JEITO ORIGINAL - ABA CARTÕES)
 // ==========================================================
 async function renderizarCartoes() {
     const resp = await fetchFromGS('listarCartoes');
@@ -331,331 +331,241 @@ async function excluirMesCartao(data) {
     await renderizarCartoes();
 }
 
-// 🔥 AÇÕES DO MODAL ANTIGO (Adicionar Lote de Cartões)
-async function salvarCartoes() {
-    const responsavel = document.getElementById('card-responsavel').value;
-    const qtd = parseInt(document.getElementById('card-qtd').value);
-    const data = document.getElementById('card-data').value;
-    if(!responsavel || !qtd || !data) { 
-        alert("Preencha o Responsável, Quantidade e Data."); 
-        return; 
-    }
-    await postParaGoogleSheets('salvarCartao', { id: Date.now(), responsavel, qtd, data });
-    fecharModal('modal-cartoes');
-    await renderizarCartoes();
-    document.getElementById('card-qtd').value = ''; 
-    document.getElementById('card-data').value = '';
-}
-
-async function adicionarResponsavel() {
-    const input = document.getElementById('novo-responsavel-input');
-    let nome = input.value.trim();
-    nome = nome.replace(/^"|"$/g, ''); 
-    nome = nome.replace(/^'|'$/g, '');
-    if (!nome) { 
-        alert("Digite um nome."); 
-        return; 
-    }
-    await postParaGoogleSheets('salvarResponsavel', nome);
-    input.value = '';
-    await renderizarCartoes();
-    await carregarListaResponsaveisNoModal();
-}
-
-async function carregarListaResponsaveisNoModal() {
-    const resp = await fetchFromGS('listarResponsaveis');
-    state.responsaveis = resp.nomes || [];
-    const container = document.getElementById('lista-responsaveis-cadastrados');
-    container.innerHTML = '';
-    state.responsaveis.forEach(nome => {
-        const nomeLimpo = String(nome).replace(/^"|"$/g, '').replace(/^'|'$/g, '');
-        const span = document.createElement('span');
-        span.style.cssText = 'background:#eafde8; padding:3px 10px; border-radius:12px; font-size:12px; display:flex; align-items:center; gap:5px;';
-        span.innerHTML = `${nomeLimpo} <button onclick="deletarResponsavel('${nomeLimpo}')" style="border:none; background:transparent; color:#ff4757; font-weight:bold; cursor:pointer;">×</button>`;
-        container.appendChild(span);
-    });
-}
-
-async function deletarResponsavel(nome) {
-    if (!confirm(`Remover o responsável "${nome}" da lista?`)) return;
-    await postParaGoogleSheets('deletarResponsavel', nome);
-    await renderizarCartoes();
-    await carregarListaResponsaveisNoModal();
-}
-
 
 // ==========================================================
-// 🔥 NOVO MÓDULO: DIGITAR CARTÕES (SALVA NA ABA ENTREGAS) + CÂMERA
+// 🔥 NOVO MÓDULO: MÚLTIPLAS ENTREGAS (ADAPTADO DO SEU CÓDIGO)
 // ==========================================================
 
-let linhaCartaoCount = 0;
-
-function adicionarLinhaCartao() {
-    linhaCartaoCount++;
-    const container = document.getElementById('container-lote-nomes');
-    const div = document.createElement('div');
-    div.id = `linha-cartao-${linhaCartaoCount}`;
-    div.style.cssText = 'display:flex; gap:10px; align-items:center; background:#eafde8; padding:10px; border-radius:8px; margin-bottom:10px;';
-    
-    div.innerHTML = `
-        <div style="background:#4a7c2e; color:#fff; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold; flex-shrink:0;">${linhaCartaoCount}</div>
-        <input type="text" class="lote-nome" placeholder="Nome completo" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px; text-transform:uppercase;">
-        <input type="text" class="lote-endereco" placeholder="Endereço (Rua, número)" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px; text-transform:uppercase;">
-        <button onclick="removerLinhaCartao(${linhaCartaoCount})" style="background:#ffebee; border:none; color:#d9534f; border-radius:50%; width:30px; height:30px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:bold;">🗑️</button>
-    `;
-    container.appendChild(div);
-    
-    const enderecoInput = div.querySelector('.lote-endereco');
-    enderecoInput.addEventListener('keydown', function(event) {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            adicionarLinhaCartao();
-        }
-    });
-
-    div.querySelector('.lote-nome').focus();
-}
-
-function removerLinhaCartao(id) {
-    const div = document.getElementById(`linha-cartao-${id}`);
-    if (div) div.remove();
-    const linhas = document.querySelectorAll('#container-lote-nomes > div');
-    linhas.forEach((linha, index) => {
-        const numDiv = linha.querySelector('div:first-child');
-        if(numDiv) numDiv.innerText = index + 1;
-    });
-}
-
-async function enviarLoteCartoes() {
-    const data = document.getElementById('lote-data').value;
-    const qtd = document.getElementById('lote-qtd').value;
-    const tipo = document.getElementById('lote-tipo').value;
-    const numero = document.getElementById('lote-numero').value;
-    const obs = document.getElementById('lote-obs').value;
-    const tel = document.getElementById('lote-tel').value;
-
-    if (!data) { 
-        alert("Por favor, selecione uma DATA."); 
-        return; 
-    }
-
-    const linhas = document.querySelectorAll('#container-lote-nomes > div');
-    if (linhas.length === 0) { 
-        alert("Adicione pelo menos um nome e endereço."); 
-        return; 
-    }
-
-    const loteData = [];
-    let valid = true;
-    linhas.forEach(linha => {
-        const nome = linha.querySelector('.lote-nome').value.trim().toUpperCase();
-        const endereco = linha.querySelector('.lote-endereco').value.trim().toUpperCase();
-        
-        if (!nome || !endereco) {
-            valid = false;
-            linha.style.border = '2px solid #d9534f';
-        } else {
-            linha.style.border = 'none';
-            linha.style.background = '#eafde8';
-            loteData.push({
-                nome: nome,
-                endereco: endereco,
-                data: data,
-                quantidade: qtd,
-                tipo: tipo,
-                numero: numero,
-                obs: obs,
-                tel: tel
-            });
-        }
-    });
-
-    if (!valid) { 
-        alert("Preencha o Nome e o Endereço de todas as linhas destacadas em vermelho."); 
-        return; 
-    }
-
-    const btn = document.querySelector('#modal-digitar-cartoes .modal-box button:last-child');
-    const originalText = btn.innerText;
-    btn.innerText = 'Enviando...';
-    btn.disabled = true;
-
-    try {
-        await postParaGoogleSheets('salvarLoteCartoesEntrega', loteData);
-        alert(`✅ ${loteData.length} registro(s) salvos com sucesso!`);
-        fecharModal('modal-digitar-cartoes');
-        document.getElementById('container-lote-nomes').innerHTML = '';
-        linhaCartaoCount = 0;
-        document.getElementById('lote-data').value = '';
-        document.getElementById('lote-qtd').value = '1';
-        document.getElementById('lote-obs').value = '';
-        document.getElementById('lote-tel').value = '';
-        document.getElementById('lote-numero').value = '';
-    } catch (e) {
-        alert("❌ Erro ao salvar: " + e.message);
-    } finally {
-        btn.innerText = originalText;
-        btn.disabled = false;
-    }
-}
+// Inicialização das funções do modal
+let contadorEntregas = 0;
 
 function abrirModal(id) {
     document.getElementById(id).classList.add('active');
-    if (id === 'modal-digitar-cartoes') {
-        const container = document.getElementById('container-lote-nomes');
-        if (container.children.length === 0) {
-            adicionarLinhaCartao();
-        }
+    if (id === 'modal-multiplas-entregas') {
+        // Inicializa o modal
+        const lista = document.getElementById('mult-lista-entregas');
+        lista.innerHTML = ''; // Limpa
+        contadorEntregas = 0;
+        adicionarEntrega(); // Adiciona a primeira linha
+        
+        // Preenche a data automaticamente
+        const hoje = new Date();
+        const formatada = hoje.toLocaleDateString('pt-BR');
+        document.getElementById('mult-data').value = formatada;
+        
+        // Foca no primeiro nome
+        setTimeout(() => {
+            const primeiroNome = document.querySelector('#mult-lista-entregas .nome-input');
+            if (primeiroNome) primeiroNome.focus();
+        }, 200);
     }
 }
 
+function adicionarEntrega() {
+    contadorEntregas++;
+    const lista = document.getElementById('mult-lista-entregas');
+    
+    const novaEntrega = document.createElement('div');
+    novaEntrega.className = 'entrega-item';
+    novaEntrega.dataset.index = contadorEntregas - 1;
+    novaEntrega.style.cssText = 'background: white; padding: 12px; border-radius: 8px; border: 1px solid #e0e0e0; margin-bottom: 10px;';
+    
+    novaEntrega.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="background: #4a7c2e; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">${contadorEntregas}</div>
+            <button type="button" style="background: #ffebee; color: #e53935; border: none; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; font-size: 14px;" onclick="removerEntrega(this)">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div>
+                <label style="display:block; font-weight:600; font-size:11px; color:#444;">Nome</label>
+                <input type="text" class="nome-input" placeholder="Nome completo" style="width:100%; padding:6px; border:1px solid #ddd; border-radius:4px; font-size:13px; text-transform:uppercase;">
+            </div>
+            <div>
+                <label style="display:block; font-weight:600; font-size:11px; color:#444;">Endereço</label>
+                <input type="text" class="endereco-input" placeholder="Endereço completo" style="width:100%; padding:6px; border:1px solid #ddd; border-radius:4px; font-size:13px; text-transform:uppercase;">
+            </div>
+        </div>
+    `;
+    
+    lista.appendChild(novaEntrega);
+    atualizarContador();
+    
+    const novoNome = novaEntrega.querySelector('.nome-input');
+    const novoEndereco = novaEntrega.querySelector('.endereco-input');
 
-// ==========================================================
-// 🔥 LEITOR DE CÂMERA (QR Code e CÓDIGO DE BARRAS)
-// ==========================================================
-
-let html5QrCode = null;
-
-async function abrirCameraScanner() {
-    const container = document.getElementById('camera-scanner-container');
-    const btn = document.getElementById('btn-abrir-camera');
-
-    // Se a câmera já estiver aberta, fecha
-    if (container.style.display === 'block') {
-        if (html5QrCode) {
-            await html5QrCode.stop();
-            html5QrCode.clear();
-            html5QrCode = null;
+    // Configurar o foco: TAB ou ENTER no Endereço adiciona novo
+    novoNome.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            this.closest('.entrega-item').querySelector('.endereco-input').focus();
         }
-        container.style.display = 'none';
-        btn.innerText = '📷 Ler código com a Câmera';
+    });
+
+    novoEndereco.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            // Verifica se é o último campo de endereço
+            const enderecos = document.querySelectorAll('#mult-lista-entregas .endereco-input');
+            if (this === enderecos[enderecos.length - 1]) {
+                adicionarEntrega();
+            } else {
+                // Se não for o último, foca no próximo nome
+                const index = Array.from(enderecos).indexOf(this);
+                const proximoNome = document.querySelectorAll('#mult-lista-entregas .nome-input')[index + 1];
+                if (proximoNome) proximoNome.focus();
+            }
+        }
+    });
+
+    // Se for a primeira linha, foca no nome
+    if (contadorEntregas === 1) novoNome.focus();
+}
+
+function removerEntrega(botao) {
+    const entregaItem = botao.closest('.entrega-item');
+    if (contadorEntregas <= 1) {
+        alert('É necessário pelo menos uma entrega!');
         return;
     }
-
-    container.style.display = 'block';
-    btn.innerText = '⏹ Fechar Câmera';
-
-    html5QrCode = new Html5Qrcode("camera-scanner-container");
-
-    const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 }
-    };
-
-    try {
-        await html5QrCode.start(
-            { facingMode: "environment" }, // usa a câmera traseira
-            config,
-            onScanSuccess
-        );
-    } catch (err) {
-        alert("Erro ao abrir a câmera. Verifique as permissões do navegador.");
-        container.style.display = 'none';
-        btn.innerText = '📷 Ler código com a Câmera';
-        console.error(err);
-    }
+    entregaItem.remove();
+    contadorEntregas--;
+    
+    // Reindexar visualmente
+    const itens = document.querySelectorAll('#mult-lista-entregas .entrega-item');
+    itens.forEach((item, idx) => {
+        item.dataset.index = idx;
+        item.querySelector('div:first-child div:first-child').textContent = idx + 1;
+    });
+    atualizarContador();
 }
 
-function onScanSuccess(decodedText, decodedResult) {
-    // Quando o código é lido, para a câmera e preenche os dados
-    if (html5QrCode) {
-        html5QrCode.stop();
-        html5QrCode.clear();
-        html5QrCode = null;
-    }
-    document.getElementById('camera-scanner-container').style.display = 'none';
-    document.getElementById('btn-abrir-camera').innerText = '📷 Ler código com a Câmera';
-
-    // 🔥 AQUI TRATAMOS O CÓDIGO LIDO (Divide em dados completos ou busca pelo rastreio)
-    processarLeituraScanner(decodedText);
+function atualizarContador() {
+    document.getElementById('mult-contador').textContent = 
+        `${contadorEntregas} ${contadorEntregas === 1 ? 'entrega' : 'entregas'}`;
 }
 
-function processarLeituraScanner(dados) {
-    if (!dados) return;
-
-    // Verifica se o código tem o separador (ex: Nome;Endereço;Tel;Nº)
-    if (dados.includes(';')) {
-        // 🔥 Caso 1: Código contém os dados completos prontos para preencher
-        const separador = ';'; 
-        const partes = dados.split(separador);
-
-        const nome = partes[0] || "";
-        const endereco = partes[1] || "";
-        const telefone = partes[2] || "";
-        const numeroCartao = partes[3] || "";
-
-        const container = document.getElementById('container-lote-nomes');
-        const linhas = container.querySelectorAll('div[id^="linha-cartao-"]');
-
-        if (linhas.length === 0) {
-            adicionarLinhaCartao();
-        }
-
-        const ultimaLinha = container.lastElementChild;
-        if (ultimaLinha) {
-            const inputNome = ultimaLinha.querySelector('.lote-nome');
-            const inputEnd = ultimaLinha.querySelector('.lote-endereco');
-            if (inputNome) inputNome.value = nome.toUpperCase();
-            if (inputEnd) inputEnd.value = endereco.toUpperCase();
-        }
-
-        document.getElementById('lote-tel').value = telefone;
-        document.getElementById('lote-numero').value = numeroCartao;
-        
-        if (!document.getElementById('lote-data').value) {
-            const hoje = new Date().toISOString().split('T')[0];
-            document.getElementById('lote-data').value = hoje;
-        }
-        alert("✅ Dados lidos e preenchidos com sucesso!");
-        return;
+function validarCampos() {
+    let valido = true;
+    
+    // Validar campos comuns
+    const qtd = document.getElementById('mult-qtd').value;
+    const tipo = document.getElementById('mult-tipo').value;
+    const numero = document.getElementById('mult-numero').value;
+    
+    if (!qtd || !tipo || !numero) {
+        alert("Preencha todos os campos: Quantidade, Tipo e N°.");
+        valido = false;
     }
-
-    // 🔥 Caso 2: É apenas um código de rastreio (sem separadores). Vamos buscar na planilha!
-    buscarDadosPorRastreio(dados);
-}
-
-async function buscarDadosPorRastreio(numeroRastreio) {
-    try {
-        const resultado = await fetchFromGS('buscarDadosPorRastreio', { numero: numeroRastreio });
-        
-        if (resultado && resultado.encontrado) {
-            const d = resultado.dados;
-
-            // Preenche a primeira linha dinâmica
-            const container = document.getElementById('container-lote-nomes');
-            const linhas = container.querySelectorAll('div[id^="linha-cartao-"]');
-            if (linhas.length === 0) {
-                adicionarLinhaCartao();
-            }
-            const ultimaLinha = container.lastElementChild;
-            if (ultimaLinha) {
-                const inputNome = ultimaLinha.querySelector('.lote-nome');
-                const inputEnd = ultimaLinha.querySelector('.lote-endereco');
-                if (inputNome) inputNome.value = (d.nome || "").toUpperCase();
-                if (inputEnd) inputEnd.value = (d.endereco || "").toUpperCase();
-            }
-
-            // Preenche o número do cartão e data (opcional)
-            document.getElementById('lote-numero').value = numeroRastreio;
-            if (!document.getElementById('lote-data').value) {
-                const hoje = new Date().toISOString().split('T')[0];
-                document.getElementById('lote-data').value = hoje;
-            }
-
-            alert(`✅ Rastreio ${numeroRastreio} encontrado! Nome e Endereço preenchidos.`);
+    
+    // Validar nomes e endereços
+    const nomes = document.querySelectorAll('#mult-lista-entregas .nome-input');
+    const enderecos = document.querySelectorAll('#mult-lista-entregas .endereco-input');
+    
+    nomes.forEach((nome, index) => {
+        if (!nome.value.trim() || !enderecos[index].value.trim()) {
+            nome.style.borderColor = '#e53935';
+            enderecos[index].style.borderColor = '#e53935';
+            valido = false;
         } else {
-            alert(`⚠️ Rastreio ${numeroRastreio} não encontrado na planilha. Preencha os dados manualmente.`);
-            // Preenche o número e a data, mas deixa o nome e endereço vazios para digitar
-            document.getElementById('lote-numero').value = numeroRastreio;
-            if (!document.getElementById('lote-data').value) {
-                const hoje = new Date().toISOString().split('T')[0];
-                document.getElementById('lote-data').value = hoje;
-            }
+            nome.style.borderColor = '#ddd';
+            enderecos[index].style.borderColor = '#ddd';
         }
-    } catch (e) {
-        console.error(e);
-        alert("Erro ao buscar o rastreio no banco de dados.");
+    });
+    
+    return valido;
+}
+
+function coletarDadosParaEnvio() {
+    const dadosComuns = {
+        quantidade: document.getElementById('mult-qtd').value,
+        data: document.getElementById('mult-data').value,
+        tipo: document.getElementById('mult-tipo').value,
+        obs: document.getElementById('mult-obs').value.toUpperCase(),
+        numero: document.getElementById('mult-numero').value
+    };
+    
+    const entregas = [];
+    const nomes = document.querySelectorAll('#mult-lista-entregas .nome-input');
+    const enderecos = document.querySelectorAll('#mult-lista-entregas .endereco-input');
+    
+    nomes.forEach((nome, index) => {
+        const nomeValor = nome.value.trim().toUpperCase();
+        const enderecoValor = enderecos[index].value.trim().toUpperCase();
+        
+        if (nomeValor && enderecoValor) {
+            entregas.push({
+                nome: nomeValor,
+                endereco: enderecoValor,
+                quantidade: dadosComuns.quantidade,
+                data: dadosComuns.data,
+                tipo: dadosComuns.tipo,
+                obs: dadosComuns.obs,
+                numero: dadosComuns.numero
+            });
+        }
+    });
+    
+    return entregas;
+}
+
+function limparCamposNomeEndereco() {
+    const nomes = document.querySelectorAll('#mult-lista-entregas .nome-input');
+    const enderecos = document.querySelectorAll('#mult-lista-entregas .endereco-input');
+    
+    nomes.forEach(nome => {
+        nome.value = '';
+        nome.style.borderColor = '#ddd';
+    });
+    
+    enderecos.forEach(endereco => {
+        endereco.value = '';
+        endereco.style.borderColor = '#ddd';
+    });
+}
+
+function enviarTodasEntregas() {
+    if (!validarCampos()) return;
+    
+    const entregas = coletarDadosParaEnvio();
+    
+    if (entregas.length === 0) {
+        alert('Adicione pelo menos uma entrega válida!');
+        return;
     }
+    
+    const btnEnviar = document.getElementById('btnEnviarMulti');
+    btnEnviar.innerText = 'Enviando...';
+    btnEnviar.disabled = true;
+    
+    const statusDiv = document.getElementById('mult-status-message');
+    statusDiv.style.display = 'none';
+    
+    // Envia para o backend
+    postParaGoogleSheets('salvarLoteCartoesEntrega', entregas)
+        .then(() => {
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = '#e8f5e9';
+            statusDiv.style.color = '#2e7d32';
+            statusDiv.style.border = '2px solid #a5d6a7';
+            statusDiv.innerText = `✅ ${entregas.length} registro(s) salvos com sucesso!`;
+            
+            limparCamposNomeEndereco();
+            const nomes = document.querySelectorAll('#mult-lista-entregas .nome-input');
+            if (nomes.length > 0) nomes[0].focus();
+        })
+        .catch((err) => {
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = '#ffebee';
+            statusDiv.style.color = '#c62828';
+            statusDiv.style.border = '2px solid #ef9a9a';
+            statusDiv.innerText = `❌ Erro ao salvar: ${err.message}`;
+        })
+        .finally(() => {
+            btnEnviar.innerText = 'Enviar Tudo';
+            btnEnviar.disabled = false;
+        });
 }
 
 
