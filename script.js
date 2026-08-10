@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbydnRdZS9rF8XgqBca4FbwIESPdxp72Pt4QdnsZAYMtG4XIG3yFyIW6cqmWTkS1cWFchA/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwDlcThiZxRzUP6ruvYUWCzkrof6WC9N_4HpmmcEVNA3VJqkvOE6kDBs57X5EVW8iSdDw/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -85,6 +85,7 @@ function loginSuccess() {
     document.getElementById('dashboard-screen').style.display = 'block';
     updateClock();
     renderizarTabelas();
+    renderizarPendentesCestaHome(); // 🔥 Carrega pendentes
     verificarProximaAgendaPopup();
 }
 
@@ -208,7 +209,7 @@ async function deletarItemAgenda(id) {
 }
 
 // ==========================================================
-// 🔥 COLUNA DA DIREITA
+// CARTÕES (COLUNA DIREITA)
 // ==========================================================
 async function renderizarCartoes() {
     const resp = await fetchFromGS('listarCartoes');
@@ -384,7 +385,7 @@ async function deletarResponsavel(nome) {
 
 
 // ==========================================================
-// 🔥 NOVO MÓDULO: ADC CARTÕES (MÚLTIPLAS ENTREGAS)
+// ADC CARTÕES
 // ==========================================================
 let contadorEntregas = 0;
 
@@ -608,7 +609,7 @@ function enviarTodasEntregas() {
 
 
 // ==========================================================
-// 🔥 NOVO MÓDULO: CESTA (CONTROLE MENSAL E ESTOQUE)
+// 🔥 CESTA (NOVO MÓDULO COMPLETO)
 // ==========================================================
 
 // Utilitários de normalização
@@ -618,19 +619,25 @@ function headerToId(lbl) { if (!lbl && lbl !== 0) lbl = ""; return lbl.toString(
 // Estado da Cesta
 const cestaState = {
     names: [],
+    types: [],
     currentLine: null,
-    currentDados: []
+    currentDados: [],
+    qrCodeInstance: null
 };
 
-// Função para inicializar o modal da Cesta
+// 🔥 FUNÇÃO ABRIR MODAL CESTA
 function abrirModalCesta() {
     document.getElementById('modal-cesta').classList.add('active');
-    // Carrega nomes e estoque
     carregarNomesCesta();
-    atualizarEstoqueCesta();
+    carregarTiposCesta();
+    renderizarPendentesCestaHome();
+
+    // Prepara o foco para o scanner
+    const scannerInput = document.getElementById('cesta-scanner-input');
+    setTimeout(() => { scannerInput.focus(); }, 300);
 }
 
-// Sobrescreve a função abrirModal para chamar a função específica da cesta
+// Sobrescreve a função abrirModal
 const abrirModalOriginal = abrirModal;
 abrirModal = function(id) {
     if (id === 'modal-cesta') {
@@ -640,39 +647,57 @@ abrirModal = function(id) {
     abrirModalOriginal(id);
 };
 
+// 🔥 CARREGAR NOMES E TIPOS
 async function carregarNomesCesta() {
     try {
         const res = await fetchFromGS('buscarTodosNomesCesta');
         cestaState.names = res || [];
-    } catch (e) {
-        console.error("Erro ao carregar nomes da cesta:", e);
-        cestaState.names = [];
-    }
+    } catch (e) { console.error(e); cestaState.names = []; }
 }
 
-async function atualizarEstoqueCesta() {
+async function carregarTiposCesta() {
     try {
-        const summary = await fetchFromGS('getStockSummary');
-        popularStockCesta(summary);
+        const res = await fetchFromGS('listarTiposCesta');
+        cestaState.types = res || [];
+        document.getElementById('cesta-tipos-input').value = cestaState.types.join(', ');
+    } catch (e) { console.error(e); cestaState.types = []; }
+}
+
+// 🔥 SALVAR TIPOS DE CESTA
+async function salvarTiposCesta() {
+    const tiposStr = document.getElementById('cesta-tipos-input').value.trim();
+    const tipos = tiposStr.split(',').map(t => t.trim().toUpperCase()).filter(t => t);
+    try {
+        await postParaGoogleSheets('salvarTiposCesta', { tipos: tipos });
+        alert("✅ Tipos de cesta atualizados!");
+        await carregarTiposCesta();
+        renderizarPendentesCestaHome();
     } catch (e) {
-        console.error("Erro ao carregar estoque:", e);
+        alert("❌ Erro ao salvar tipos: " + e.message);
     }
 }
 
-function popularStockCesta(summary) {
-    const box = document.getElementById('cesta-stock-summary');
-    box.innerHTML = '';
-    box.style.display = 'flex';
-    const tipos = ["VINAGRE","TUBARÃO","MOTO TÁXI","OBRA"];
-    tipos.forEach(t => {
-        const num = Math.max(0, Math.round(summary[t] || 0));
-        const div = document.createElement('div'); div.className = 'stockItem';
-        div.innerHTML = `<span style="font-size:12px;color:#666">${t}</span><span class="num">${num}</span>`;
-        box.appendChild(div);
-    });
+// 🔥 HOME PENDENTES
+async function renderizarPendentesCestaHome() {
+    try {
+        const list = await fetchFromGS('listarPendentesMesAtual');
+        const container = document.getElementById('cesta-pendentes-home');
+        if (!list || list.length === 0) {
+            container.innerHTML = '<span style="color:#4a7c2e; font-weight:600;">✅ Todos os cadastros do mês atual estão em dia!</span>';
+            return;
+        }
+        let html = '';
+        list.forEach(item => {
+            html += `<span style="background:#ffe6e6; color:#9b2c2c; padding:5px 12px; border-radius:20px; font-weight:600; font-size:13px;">${item.nome} (${item.tipo || 'Sem tipo'})</span>`;
+        });
+        container.innerHTML = html;
+    } catch (e) {
+        console.error(e);
+        document.getElementById('cesta-pendentes-home').innerHTML = '<span style="color:#888;">Erro ao carregar pendentes.</span>';
+    }
 }
 
-// Search / Autocomplete
+// 🔥 SEARCH / AUTOCOMPLETE
 const inputCesta = document.getElementById('cesta-search');
 const suggCesta = document.getElementById('cesta-suggestions');
 
@@ -700,28 +725,31 @@ document.addEventListener('click', e=> {
 document.getElementById('cesta-btnSearch').addEventListener('click', async ()=>{
     const nome = inputCesta.value.trim();
     if(!nome) return alert("Digite um nome para buscar.");
-    
+    await buscarEPreencherCesta(nome);
+});
+
+async function buscarEPreencherCesta(nome) {
     try {
         const resp = await fetchFromGS('buscarMoradorCesta', { nome: nome });
         if(!resp || !resp.dados) { alert("❌ Morador não encontrado."); return; }
         cestaState.currentLine = resp.linha;
         cestaState.currentDados = resp.dados;
         renderFormCesta(resp.dados);
-        atualizarEstoqueCesta();
     } catch (e) {
-        console.error("Erro ao buscar morador:", e);
+        console.error(e);
         alert("Erro ao buscar os dados.");
     }
-});
+}
 
+// 🔥 RENDERIZAR FORMULÁRIO
 function renderFormCesta(dadosArray) {
     document.getElementById('cesta-formArea').style.display='block';
     document.getElementById('cesta-panelPendentes').style.display='none';
     const fields = document.getElementById('cesta-fields'); fields.innerHTML='';
     const monthsContainer = document.getElementById('cesta-monthsContainer'); monthsContainer.innerHTML='';
 
-    const anoAtual = new Date().getFullYear();
-    document.getElementById('cesta-ano').innerText = anoAtual;
+    // Prepara tipos para dropdown
+    const tiposOptions = cestaState.types.map(t => `<option value="${t}">${t}</option>`).join('');
 
     const monthLabels = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
 
@@ -740,18 +768,32 @@ function renderFormCesta(dadosArray) {
             inputMonth.readOnly = true;
 
             inputMonth.addEventListener('click', function(){
-                const novo = prompt(`Data para ${label} (${anoAtual}) (ex: 18/10):`, inputMonth.value || '');
-                if (novo === null) return;
-                inputMonth.value = novo.trim() || 'X';
-                atualizarMesesUICesta();
+                const hoje = new Date();
+                const diaStr = String(hoje.getDate()).padStart(2,'0');
+                const mesStr = String(hoje.getMonth()+1).padStart(2,'0');
+                // Ao clicar, pergunta se quer marcar com a data de hoje
+                const confirmar = confirm(`Marcar mês ${label} como entregue hoje (${diaStr}/${mesStr})?`);
+                if (confirmar) {
+                    inputMonth.value = `${diaStr}/${mesStr}`;
+                    atualizarMesesUICesta();
+                    // Salva automaticamente após marcar
+                    salvarCestaAutomatico();
+                }
             });
 
-            const lab = document.createElement('label'); lab.textContent = `${label} (${anoAtual})`;
+            const lab = document.createElement('label'); lab.textContent = `${label}`;
             div.appendChild(lab); div.appendChild(inputMonth);
             monthsContainer.appendChild(div);
         } else {
             const wrapper = document.createElement('div');
-            wrapper.innerHTML = `<label>${label}</label><input class="field" id="${id}" value="${value}">`;
+            if (label.trim().toUpperCase() === 'TIPO') {
+                // Se for TIPO, mostra um dropdown
+                wrapper.innerHTML = `<label>${label}</label><select class="field" id="${id}"><option value="">Selecione</option>${tiposOptions}</select>`;
+                const select = wrapper.querySelector('select');
+                select.value = value;
+            } else {
+                wrapper.innerHTML = `<label>${label}</label><input class="field" id="${id}" value="${value}">`;
+            }
             fields.appendChild(wrapper);
         }
     });
@@ -817,74 +859,147 @@ function atualizarMesesUICesta() {
     }
 }
 
-// Salvar Cesta
-document.getElementById('cesta-btnSave').addEventListener('click', async ()=>{
-    if(!cestaState.currentLine) return alert("Nenhum morador selecionado.");
+async function salvarCestaAutomatico() {
+    if(!cestaState.currentLine) return;
     
     const inputs = document.querySelectorAll('#cesta-fields .field, #cesta-monthsContainer input');
     const payload = {};
-    inputs.forEach(inp => {
-        payload[inp.id] = inp.value;
-    });
+    inputs.forEach(inp => { payload[inp.id] = inp.value; });
+
+    try {
+        await postParaGoogleSheets('salvarMoradorCesta', { linha: cestaState.currentLine, payload: payload });
+        renderizarPendentesCestaHome(); // Atualiza Home
+    } catch (err) {
+        console.error("Erro auto salvar:", err);
+    }
+}
+
+// 🔥 SALVAR MANUAL
+document.getElementById('cesta-btnSave').addEventListener('click', async ()=>{
+    if(!cestaState.currentLine) return alert("Nenhum morador selecionado.");
+    const inputs = document.querySelectorAll('#cesta-fields .field, #cesta-monthsContainer input');
+    const payload = {};
+    inputs.forEach(inp => { payload[inp.id] = inp.value; });
 
     try {
         await postParaGoogleSheets('salvarMoradorCesta', { linha: cestaState.currentLine, payload: payload });
         alert("✅ Dados salvos com sucesso!");
-        atualizarEstoqueCesta();
         atualizarMesesUICesta();
-    } catch (err) {
-        alert("❌ Erro ao salvar: " + err.message);
-    }
+        renderizarPendentesCestaHome();
+    } catch (err) { alert("❌ Erro ao salvar: " + err.message); }
 });
 
-// Adicionar Estoque
-document.getElementById('cesta-btnAddStock').addEventListener('click', async ()=>{
-    const quant = Number(document.getElementById('cesta-quantAdd').value) || 0;
-    const tipo = document.getElementById('cesta-tipoAdd').value || '';
-    if(!quant || quant <= 0) return alert("Digite uma quantidade válida.");
-    if(!tipo) return alert("Escolha o tipo da cesta.");
+
+// ==========================================================
+// 🔥 SCANNER DA CESTA (CÂMERA)
+// ==========================================================
+
+let cameraHtml5QrCesta = null;
+
+async function abrirCameraCesta() {
+    const container = document.getElementById('cesta-camera-container');
+    const btn = event.target;
+    
+    if (container.style.display === 'block') {
+        if (cameraHtml5QrCesta) { await cameraHtml5QrCesta.stop(); cameraHtml5QrCesta.clear(); cameraHtml5QrCesta = null; }
+        container.style.display = 'none';
+        btn.innerText = '📷 Escanear Carteirinha';
+        return;
+    }
+
+    container.style.display = 'block';
+    btn.innerText = '⏹ Fechar';
+
+    cameraHtml5QrCesta = new Html5Qrcode("cesta-camera-container");
 
     try {
-        await postParaGoogleSheets('registrarEntradaCesta', { tipo: tipo, quantidade: quant });
-        alert("✅ Entrada registrada!");
-        document.getElementById('cesta-quantAdd').value = '';
-        atualizarEstoqueCesta();
+        await cameraHtml5QrCesta.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 200, height: 200 } },
+            onScanSuccessCesta
+        );
     } catch (err) {
-        alert("❌ Erro: " + err.message);
+        alert("Erro ao abrir câmera.");
+        container.style.display = 'none';
+        btn.innerText = '📷 Escanear Carteirinha';
+        cameraHtml5QrCesta = null;
     }
-});
-
-// Lista Pendentes
-document.getElementById('cesta-btnListaPendentes').addEventListener('click', async ()=>{
-    try {
-        const list = await fetchFromGS('listarPendentesMesAtual');
-        renderListaPendentesCesta(list);
-    } catch (e) {
-        alert("Erro ao carregar lista pendente.");
-    }
-});
-
-function renderListaPendentesCesta(list){
-    document.getElementById('cesta-formArea').style.display = 'none';
-    const panel = document.getElementById('cesta-panelPendentes');
-    const container = document.getElementById('cesta-listaPendentesContainer');
-    container.innerHTML = '';
-    if(!list || list.length === 0) {
-        container.innerHTML = '<div style="padding:10px;">Nenhum pendente no mês atual.</div>';
-    } else {
-        list.forEach(item => {
-            const div = document.createElement('div'); div.className='listItem';
-            div.innerHTML = `<div><strong>${item.nome}</strong><br><small>${item.tipo||''}</small></div><div style="color:#b91c1c">${item.status}</div>`;
-            container.appendChild(div);
-        });
-    }
-    panel.style.display = 'block';
 }
 
-document.getElementById('cesta-btnVoltar').addEventListener('click', ()=>{
-    document.getElementById('cesta-panelPendentes').style.display = 'none';
-    document.getElementById('cesta-formArea').style.display = (cestaState.currentLine ? 'block' : 'none');
-});
+function onScanSuccessCesta(decodedText) {
+    // Para a câmera
+    if (cameraHtml5QrCesta) {
+        cameraHtml5QrCesta.stop().catch(()=>{});
+        cameraHtml5QrCesta.clear().catch(()=>{});
+        cameraHtml5QrCesta = null;
+    }
+    document.getElementById('cesta-camera-container').style.display = 'none';
+    document.querySelector('#modal-cesta button[onclick*="abrirCameraCesta"]').innerText = '📷 Escanear Carteirinha';
+
+    // O QR Code contém o Nome
+    const nome = decodedText.trim();
+    inputCesta.value = nome;
+    buscarEPreencherCesta(nome);
+}
+
+
+// ==========================================================
+// 🔥 GERAR CARTEIRINHA (QR CODE + PDF)
+// ==========================================================
+
+async function gerarCarteirinha() {
+    const nome = document.getElementById('cesta-search').value.trim();
+    if (!nome) { alert("Busque um morador antes de gerar a carteirinha."); return; }
+
+    // Limpa QRCode anterior se existir
+    const qrContainer = document.getElementById('card-qrcode');
+    qrContainer.innerHTML = '';
+
+    // Preenche o nome
+    document.getElementById('card-nome').innerText = nome;
+
+    // Gera QR Code com o nome da pessoa
+    // O QR Code terá o nome, que será lido pelo scanner
+    try {
+        cestaState.qrCodeInstance = new QRCode(qrContainer, {
+            text: nome,
+            width: 80,
+            height: 80,
+            colorDark: "#4a7c2e",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    } catch (e) {
+        alert("Erro ao gerar QR Code");
+        return;
+    }
+
+    // Aguarda geração do QR
+    setTimeout(async () => {
+        try {
+            // Captura a carteirinha com html2canvas
+            const cardDiv = document.getElementById('carteirinha-print-area');
+            const canvas = await html2canvas(cardDiv, { scale: 3 });
+
+            // Gera um PDF com jsPDF
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a6'); // A6 é o tamanho ideal para carteirinha
+            const imgData = canvas.toDataURL('image/jpeg');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+            const pdfBlob = pdf.output('blob');
+            
+            // Abre para impressão ou download
+            window.open(URL.createObjectURL(pdfBlob), '_blank');
+
+        } catch (error) {
+            console.error(error);
+            alert("Erro ao gerar a imagem da carteirinha.");
+        }
+    }, 300);
+}
 
 
 // ==========================================================
