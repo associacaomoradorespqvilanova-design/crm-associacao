@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Associação PQ Vila Nova - CRM</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="styles.css">
@@ -88,18 +89,16 @@
                             <div onclick="abrirComprovantePrint('sem_assinatura')" class="menu-option" style="padding:12px 0; text-align:center; cursor:pointer; color:#333; font-weight:600; transition:0.2s;">📋 Sem Assinatura</div>
                         </div>
                     </div>
-                    
                     <!-- 🔥 BOTÃO CENTRAL RENOMEADO -->
                     <button class="btn-action" onclick="abrirModal('modal-multiplas-entregas')">ADC CARTÕES</button>
                     <button class="btn-action">CESTAS</button>
                 </div>
             </div>
 
-            <!-- 🔥 COLUNA DA DIREITA (VOLTOU A SER ORIGINAL) -->
+            <!-- 🔥 COLUNA DA DIREITA (ORIGINAL) -->
             <div class="panel">
                 <div class="panel-header">
                     <h3>CARTÕES</h3>
-                    <!-- Botão + Adicionar abre o modal antigo de RESPONSÁVEIS -->
                     <button class="btn-sm" onclick="abrirModal('modal-cartoes')">+ Adicionar</button>
                 </div>
                 <div id="cards-container">
@@ -206,7 +205,7 @@
         </div>
     </div>
 
-    <!-- 🔥 MODAL ANTIGO (VOLTOU A SER O RESPONSÁVEL PELA COLUNA DIREITA) -->
+    <!-- 🔥 MODAL ANTIGO (COLUNA DIREITA) -->
     <div id="modal-cartoes" class="modal-overlay">
         <div class="modal-box" style="max-width: 600px;">
             <span class="close-btn" onclick="fecharModal('modal-cartoes')">×</span>
@@ -234,7 +233,7 @@
         </div>
     </div>
 
-    <!-- 🔥 NOVO MODAL (CENTRAL - ADC CARTÕES) -->
+    <!-- 🔥 NOVO MODAL (CENTRAL - ADC CARTÕES COM LIXEIRA) -->
     <div id="modal-multiplas-entregas" class="modal-overlay">
         <div class="modal-box" style="max-width: 700px; padding: 25px;">
             <span class="close-btn" onclick="fecharModal('modal-multiplas-entregas')">×</span>
@@ -280,7 +279,7 @@
             </div>
 
             <div id="mult-lista-entregas" style="max-height: 200px; overflow-y: auto; padding-right: 5px; margin-bottom: 15px;">
-                <!-- A primeira entrega é gerada pelo JS -->
+                <!-- As linhas são geradas pelo JS com lixeira -->
             </div>
 
             <!-- BOTÕES DE AÇÃO -->
