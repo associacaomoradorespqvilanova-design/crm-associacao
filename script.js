@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzi6DpaF-r_A4RKz_1AsLY9XYfKLJfRFmkg82crAZ2CxzjylhwMgmaT7EbtvhCQ9XUcXw/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbxeckEgCNOwts7XwCPmRuziLk6OZQb5LDZmKEkwqmoNOp9GqN4D9n8CGdUxco3ZD0aMUA/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -65,6 +65,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedUser === 'admin') {
         loginSuccess();
     }
+    // 🔥 Atualiza os pendentes da cesta a cada 20 segundos automaticamente
+    setInterval(() => {
+        if (document.getElementById('dashboard-screen').style.display !== 'none') {
+            renderizarPendentesCestaHome();
+        }
+    }, 20000);
 });
 
 function login() {
@@ -85,7 +91,7 @@ function loginSuccess() {
     document.getElementById('dashboard-screen').style.display = 'block';
     updateClock();
     renderizarTabelas();
-    renderizarPendentesCestaHome(); // 🔥 Carrega pendentes
+    renderizarPendentesCestaHome(); // 🔥 Carrega pendentes imediatamente
     verificarProximaAgendaPopup();
 }
 
@@ -209,7 +215,7 @@ async function deletarItemAgenda(id) {
 }
 
 // ==========================================================
-// CARTÕES (COLUNA DIREITA)
+// CARTÕES
 // ==========================================================
 async function renderizarCartoes() {
     const resp = await fetchFromGS('listarCartoes');
@@ -609,7 +615,7 @@ function enviarTodasEntregas() {
 
 
 // ==========================================================
-// 🔥 CESTA (NOVO MÓDULO COMPLETO)
+// 🔥 CESTA - MÓDULO REFINADO E FUNCIONAL
 // ==========================================================
 
 // Utilitários de normalização
@@ -625,12 +631,11 @@ const cestaState = {
     qrCodeInstance: null
 };
 
-// 🔥 FUNÇÃO ABRIR MODAL CESTA
-function abrirModalCesta() {
+async function abrirModalCesta() {
     document.getElementById('modal-cesta').classList.add('active');
-    carregarNomesCesta();
-    carregarTiposCesta();
-    renderizarPendentesCestaHome();
+    await carregarNomesCesta();
+    await carregarTiposCesta();
+    await renderizarPendentesCestaHome(); // Recarrega pendentes na Home
 
     // Prepara o foco para o scanner
     const scannerInput = document.getElementById('cesta-scanner-input');
@@ -647,7 +652,6 @@ abrirModal = function(id) {
     abrirModalOriginal(id);
 };
 
-// 🔥 CARREGAR NOMES E TIPOS
 async function carregarNomesCesta() {
     try {
         const res = await fetchFromGS('buscarTodosNomesCesta');
@@ -663,7 +667,19 @@ async function carregarTiposCesta() {
     } catch (e) { console.error(e); cestaState.types = []; }
 }
 
-// 🔥 SALVAR TIPOS DE CESTA
+// 🔥 EDITOR DE TIPOS
+function editarTiposCestaUI() {
+    const editor = document.getElementById('cesta-tipos-editor');
+    if (editor.style.display === 'none') {
+        editor.style.display = 'block';
+    } else {
+        editor.style.display = 'none';
+    }
+}
+function fecharEditorTipos() {
+    document.getElementById('cesta-tipos-editor').style.display = 'none';
+}
+
 async function salvarTiposCesta() {
     const tiposStr = document.getElementById('cesta-tipos-input').value.trim();
     const tipos = tiposStr.split(',').map(t => t.trim().toUpperCase()).filter(t => t);
@@ -671,6 +687,7 @@ async function salvarTiposCesta() {
         await postParaGoogleSheets('salvarTiposCesta', { tipos: tipos });
         alert("✅ Tipos de cesta atualizados!");
         await carregarTiposCesta();
+        fecharEditorTipos();
         renderizarPendentesCestaHome();
     } catch (e) {
         alert("❌ Erro ao salvar tipos: " + e.message);
@@ -697,7 +714,7 @@ async function renderizarPendentesCestaHome() {
     }
 }
 
-// 🔥 SEARCH / AUTOCOMPLETE
+// 🔥 SEARCH
 const inputCesta = document.getElementById('cesta-search');
 const suggCesta = document.getElementById('cesta-suggestions');
 
@@ -748,9 +765,7 @@ function renderFormCesta(dadosArray) {
     const fields = document.getElementById('cesta-fields'); fields.innerHTML='';
     const monthsContainer = document.getElementById('cesta-monthsContainer'); monthsContainer.innerHTML='';
 
-    // Prepara tipos para dropdown
     const tiposOptions = cestaState.types.map(t => `<option value="${t}">${t}</option>`).join('');
-
     const monthLabels = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
 
     dadosArray.forEach(item=>{
@@ -771,13 +786,11 @@ function renderFormCesta(dadosArray) {
                 const hoje = new Date();
                 const diaStr = String(hoje.getDate()).padStart(2,'0');
                 const mesStr = String(hoje.getMonth()+1).padStart(2,'0');
-                // Ao clicar, pergunta se quer marcar com a data de hoje
                 const confirmar = confirm(`Marcar mês ${label} como entregue hoje (${diaStr}/${mesStr})?`);
                 if (confirmar) {
                     inputMonth.value = `${diaStr}/${mesStr}`;
                     atualizarMesesUICesta();
-                    // Salva automaticamente após marcar
-                    salvarCestaAutomatico();
+                    salvarCestaAutomatico(); // Salva automático após marcar
                 }
             });
 
@@ -787,7 +800,6 @@ function renderFormCesta(dadosArray) {
         } else {
             const wrapper = document.createElement('div');
             if (label.trim().toUpperCase() === 'TIPO') {
-                // Se for TIPO, mostra um dropdown
                 wrapper.innerHTML = `<label>${label}</label><select class="field" id="${id}"><option value="">Selecione</option>${tiposOptions}</select>`;
                 const select = wrapper.querySelector('select');
                 select.value = value;
@@ -861,7 +873,6 @@ function atualizarMesesUICesta() {
 
 async function salvarCestaAutomatico() {
     if(!cestaState.currentLine) return;
-    
     const inputs = document.querySelectorAll('#cesta-fields .field, #cesta-monthsContainer input');
     const payload = {};
     inputs.forEach(inp => { payload[inp.id] = inp.value; });
@@ -874,7 +885,6 @@ async function salvarCestaAutomatico() {
     }
 }
 
-// 🔥 SALVAR MANUAL
 document.getElementById('cesta-btnSave').addEventListener('click', async ()=>{
     if(!cestaState.currentLine) return alert("Nenhum morador selecionado.");
     const inputs = document.querySelectorAll('#cesta-fields .field, #cesta-monthsContainer input');
@@ -893,7 +903,6 @@ document.getElementById('cesta-btnSave').addEventListener('click', async ()=>{
 // ==========================================================
 // 🔥 SCANNER DA CESTA (CÂMERA)
 // ==========================================================
-
 let cameraHtml5QrCesta = null;
 
 async function abrirCameraCesta() {
@@ -927,7 +936,6 @@ async function abrirCameraCesta() {
 }
 
 function onScanSuccessCesta(decodedText) {
-    // Para a câmera
     if (cameraHtml5QrCesta) {
         cameraHtml5QrCesta.stop().catch(()=>{});
         cameraHtml5QrCesta.clear().catch(()=>{});
@@ -936,7 +944,6 @@ function onScanSuccessCesta(decodedText) {
     document.getElementById('cesta-camera-container').style.display = 'none';
     document.querySelector('#modal-cesta button[onclick*="abrirCameraCesta"]').innerText = '📷 Escanear Carteirinha';
 
-    // O QR Code contém o Nome
     const nome = decodedText.trim();
     inputCesta.value = nome;
     buscarEPreencherCesta(nome);
@@ -944,22 +951,16 @@ function onScanSuccessCesta(decodedText) {
 
 
 // ==========================================================
-// 🔥 GERAR CARTEIRINHA (QR CODE + PDF)
+// 🔥 GERAR CARTEIRINHA
 // ==========================================================
-
 async function gerarCarteirinha() {
     const nome = document.getElementById('cesta-search').value.trim();
     if (!nome) { alert("Busque um morador antes de gerar a carteirinha."); return; }
 
-    // Limpa QRCode anterior se existir
     const qrContainer = document.getElementById('card-qrcode');
     qrContainer.innerHTML = '';
-
-    // Preenche o nome
     document.getElementById('card-nome').innerText = nome;
 
-    // Gera QR Code com o nome da pessoa
-    // O QR Code terá o nome, que será lido pelo scanner
     try {
         cestaState.qrCodeInstance = new QRCode(qrContainer, {
             text: nome,
@@ -974,26 +975,18 @@ async function gerarCarteirinha() {
         return;
     }
 
-    // Aguarda geração do QR
     setTimeout(async () => {
         try {
-            // Captura a carteirinha com html2canvas
             const cardDiv = document.getElementById('carteirinha-print-area');
             const canvas = await html2canvas(cardDiv, { scale: 3 });
-
-            // Gera um PDF com jsPDF
             const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('p', 'mm', 'a6'); // A6 é o tamanho ideal para carteirinha
+            const pdf = new jsPDF('p', 'mm', 'a6');
             const imgData = canvas.toDataURL('image/jpeg');
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = pdf.internal.pageSize.getHeight();
-            
             pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
             const pdfBlob = pdf.output('blob');
-            
-            // Abre para impressão ou download
             window.open(URL.createObjectURL(pdfBlob), '_blank');
-
         } catch (error) {
             console.error(error);
             alert("Erro ao gerar a imagem da carteirinha.");
