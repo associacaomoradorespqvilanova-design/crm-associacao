@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbxP8M5IFXDRmDKg_kACvJCYeYZCCqzVIv6sWTDAE1UgszqChvaLFAC7wetfWubAPRt2jg/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbydnRdZS9rF8XgqBca4FbwIESPdxp72Pt4QdnsZAYMtG4XIG3yFyIW6cqmWTkS1cWFchA/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -208,7 +208,7 @@ async function deletarItemAgenda(id) {
 }
 
 // ==========================================================
-// 🔥 COLUNA DA DIREITA (FUNCIONANDO COMO ORIGINAL)
+// 🔥 COLUNA DA DIREITA
 // ==========================================================
 async function renderizarCartoes() {
     const resp = await fetchFromGS('listarCartoes');
@@ -384,9 +384,8 @@ async function deletarResponsavel(nome) {
 
 
 // ==========================================================
-// 🔥 NOVO MÓDULO: ADC CARTÕES (MÚLTIPLAS ENTREGAS) COM LIXEIRA
+// 🔥 NOVO MÓDULO: ADC CARTÕES (MÚLTIPLAS ENTREGAS)
 // ==========================================================
-
 let contadorEntregas = 0;
 
 function abrirModal(id) {
@@ -417,7 +416,6 @@ function adicionarEntrega() {
     novaEntrega.dataset.index = contadorEntregas - 1;
     novaEntrega.style.cssText = 'background: white; padding: 12px; border-radius: 8px; border: 1px solid #e0e0e0; margin-bottom: 10px;';
     
-    // 🔥 BOTÃO DE EXCLUIR (LIXEIRA VERMELHA) ADICIONADO ABAIXO
     novaEntrega.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; background: #fafafa; padding: 5px 8px; border-radius: 6px;">
             <div style="background: #4a7c2e; color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold;">${contadorEntregas}</div>
@@ -607,6 +605,286 @@ function enviarTodasEntregas() {
             btnEnviar.disabled = false;
         });
 }
+
+
+// ==========================================================
+// 🔥 NOVO MÓDULO: CESTA (CONTROLE MENSAL E ESTOQUE)
+// ==========================================================
+
+// Utilitários de normalização
+function normalizeString(s) { if (!s && s !== 0) return ""; return s.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').toLowerCase().trim(); }
+function headerToId(lbl) { if (!lbl && lbl !== 0) lbl = ""; return lbl.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').replace(/_+/g, '_').toUpperCase(); }
+
+// Estado da Cesta
+const cestaState = {
+    names: [],
+    currentLine: null,
+    currentDados: []
+};
+
+// Função para inicializar o modal da Cesta
+function abrirModalCesta() {
+    document.getElementById('modal-cesta').classList.add('active');
+    // Carrega nomes e estoque
+    carregarNomesCesta();
+    atualizarEstoqueCesta();
+}
+
+// Sobrescreve a função abrirModal para chamar a função específica da cesta
+const abrirModalOriginal = abrirModal;
+abrirModal = function(id) {
+    if (id === 'modal-cesta') {
+        abrirModalCesta();
+        return;
+    }
+    abrirModalOriginal(id);
+};
+
+async function carregarNomesCesta() {
+    try {
+        const res = await fetchFromGS('buscarTodosNomesCesta');
+        cestaState.names = res || [];
+    } catch (e) {
+        console.error("Erro ao carregar nomes da cesta:", e);
+        cestaState.names = [];
+    }
+}
+
+async function atualizarEstoqueCesta() {
+    try {
+        const summary = await fetchFromGS('getStockSummary');
+        popularStockCesta(summary);
+    } catch (e) {
+        console.error("Erro ao carregar estoque:", e);
+    }
+}
+
+function popularStockCesta(summary) {
+    const box = document.getElementById('cesta-stock-summary');
+    box.innerHTML = '';
+    box.style.display = 'flex';
+    const tipos = ["VINAGRE","TUBARÃO","MOTO TÁXI","OBRA"];
+    tipos.forEach(t => {
+        const num = Math.max(0, Math.round(summary[t] || 0));
+        const div = document.createElement('div'); div.className = 'stockItem';
+        div.innerHTML = `<span style="font-size:12px;color:#666">${t}</span><span class="num">${num}</span>`;
+        box.appendChild(div);
+    });
+}
+
+// Search / Autocomplete
+const inputCesta = document.getElementById('cesta-search');
+const suggCesta = document.getElementById('cesta-suggestions');
+
+inputCesta.addEventListener('input', function(){
+    const v = this.value; suggCesta.innerHTML='';
+    if (!v || v.length < 2) { suggCesta.style.display='none'; return; }
+    const q = v.toLowerCase();
+    const filtered = cestaState.names.filter(n => n.toLowerCase().includes(q)).slice(0, 30);
+    if (filtered.length === 0) { suggCesta.style.display='none'; return; }
+    filtered.forEach(name=>{
+        const d=document.createElement('div'); d.textContent=name;
+        d.onclick=()=>{ inputCesta.value=name; suggCesta.style.display='none'; };
+        d.className = 'suggestion-item';
+        suggCesta.appendChild(d);
+    });
+    suggCesta.style.display='block';
+});
+
+document.addEventListener('click', e=> {
+    if (!document.getElementById('cesta-suggestions').contains(e.target) && e.target !== inputCesta) {
+        suggCesta.style.display='none';
+    }
+});
+
+document.getElementById('cesta-btnSearch').addEventListener('click', async ()=>{
+    const nome = inputCesta.value.trim();
+    if(!nome) return alert("Digite um nome para buscar.");
+    
+    try {
+        const resp = await fetchFromGS('buscarMoradorCesta', { nome: nome });
+        if(!resp || !resp.dados) { alert("❌ Morador não encontrado."); return; }
+        cestaState.currentLine = resp.linha;
+        cestaState.currentDados = resp.dados;
+        renderFormCesta(resp.dados);
+        atualizarEstoqueCesta();
+    } catch (e) {
+        console.error("Erro ao buscar morador:", e);
+        alert("Erro ao buscar os dados.");
+    }
+});
+
+function renderFormCesta(dadosArray) {
+    document.getElementById('cesta-formArea').style.display='block';
+    document.getElementById('cesta-panelPendentes').style.display='none';
+    const fields = document.getElementById('cesta-fields'); fields.innerHTML='';
+    const monthsContainer = document.getElementById('cesta-monthsContainer'); monthsContainer.innerHTML='';
+
+    const anoAtual = new Date().getFullYear();
+    document.getElementById('cesta-ano').innerText = anoAtual;
+
+    const monthLabels = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+
+    dadosArray.forEach(item=>{
+        const id = item.id; 
+        const label = item.label || id; 
+        const value = item.value || "";
+        const isMonth = monthLabels.map(m=>normalizeString(m)).indexOf(normalizeString(label)) !== -1;
+
+        if(isMonth){
+            const div = document.createElement('div'); div.className='month';
+            const inputMonth = document.createElement('input');
+            inputMonth.className = 'monthField';
+            inputMonth.id = id;
+            inputMonth.value = value || '';
+            inputMonth.readOnly = true;
+
+            inputMonth.addEventListener('click', function(){
+                const novo = prompt(`Data para ${label} (${anoAtual}) (ex: 18/10):`, inputMonth.value || '');
+                if (novo === null) return;
+                inputMonth.value = novo.trim() || 'X';
+                atualizarMesesUICesta();
+            });
+
+            const lab = document.createElement('label'); lab.textContent = `${label} (${anoAtual})`;
+            div.appendChild(lab); div.appendChild(inputMonth);
+            monthsContainer.appendChild(div);
+        } else {
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = `<label>${label}</label><input class="field" id="${id}" value="${value}">`;
+            fields.appendChild(wrapper);
+        }
+    });
+
+    atualizarMesesUICesta();
+}
+
+function atualizarMesesUICesta() {
+    const monthLabels = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+    const months = document.querySelectorAll('#cesta-monthsContainer .month');
+    let pagos = 0;
+
+    months.forEach((div) => {
+        const inputEl = div.querySelector('input');
+        if (!inputEl) return;
+        inputEl.classList.remove('pago','pendente');
+        let v = (inputEl.value || "").toString().trim();
+
+        if (v && !v.includes('/') && !v.toUpperCase().includes('X')) {
+            const d = new Date(v);
+            if (!isNaN(d.getTime())) {
+                const dia = String(d.getDate()).padStart(2,'0');
+                const mes = String(d.getMonth()+1).padStart(2,'0');
+                v = `${dia}/${mes}`;
+                inputEl.value = v;
+            }
+        }
+
+        if (!v) inputEl.value = 'X';
+
+        if (/\d/.test(v)) {
+            inputEl.classList.add('pago');
+            inputEl.style.background = '#e6ffed';
+            inputEl.style.color = '#166534';
+            pagos++;
+        } else {
+            inputEl.classList.add('pendente');
+            inputEl.style.background = '#fee2e2';
+            inputEl.style.color = '#9b2c2c';
+        }
+    });
+
+    document.getElementById('cesta-stamp').classList.toggle('show', pagos === 12);
+
+    const statusId = headerToId('STATUS');
+    const statusInput = document.getElementById(statusId);
+    if (statusInput) {
+        const todayIndex = new Date().getMonth();
+        const monthId = headerToId(monthLabels[todayIndex]);
+        const monthField = document.getElementById(monthId);
+        const isPago = monthField && monthField.classList.contains('pago');
+        if (isPago) {
+            statusInput.value = 'ENTREGUE';
+            statusInput.style.backgroundColor = '#16a34a';
+            statusInput.style.color = '#ffffff';
+            statusInput.style.fontWeight = 'bold';
+        } else {
+            statusInput.value = 'PENDENTE';
+            statusInput.style.backgroundColor = '#dc2626';
+            statusInput.style.color = '#ffffff';
+            statusInput.style.fontWeight = 'bold';
+        }
+    }
+}
+
+// Salvar Cesta
+document.getElementById('cesta-btnSave').addEventListener('click', async ()=>{
+    if(!cestaState.currentLine) return alert("Nenhum morador selecionado.");
+    
+    const inputs = document.querySelectorAll('#cesta-fields .field, #cesta-monthsContainer input');
+    const payload = {};
+    inputs.forEach(inp => {
+        payload[inp.id] = inp.value;
+    });
+
+    try {
+        await postParaGoogleSheets('salvarMoradorCesta', { linha: cestaState.currentLine, payload: payload });
+        alert("✅ Dados salvos com sucesso!");
+        atualizarEstoqueCesta();
+        atualizarMesesUICesta();
+    } catch (err) {
+        alert("❌ Erro ao salvar: " + err.message);
+    }
+});
+
+// Adicionar Estoque
+document.getElementById('cesta-btnAddStock').addEventListener('click', async ()=>{
+    const quant = Number(document.getElementById('cesta-quantAdd').value) || 0;
+    const tipo = document.getElementById('cesta-tipoAdd').value || '';
+    if(!quant || quant <= 0) return alert("Digite uma quantidade válida.");
+    if(!tipo) return alert("Escolha o tipo da cesta.");
+
+    try {
+        await postParaGoogleSheets('registrarEntradaCesta', { tipo: tipo, quantidade: quant });
+        alert("✅ Entrada registrada!");
+        document.getElementById('cesta-quantAdd').value = '';
+        atualizarEstoqueCesta();
+    } catch (err) {
+        alert("❌ Erro: " + err.message);
+    }
+});
+
+// Lista Pendentes
+document.getElementById('cesta-btnListaPendentes').addEventListener('click', async ()=>{
+    try {
+        const list = await fetchFromGS('listarPendentesMesAtual');
+        renderListaPendentesCesta(list);
+    } catch (e) {
+        alert("Erro ao carregar lista pendente.");
+    }
+});
+
+function renderListaPendentesCesta(list){
+    document.getElementById('cesta-formArea').style.display = 'none';
+    const panel = document.getElementById('cesta-panelPendentes');
+    const container = document.getElementById('cesta-listaPendentesContainer');
+    container.innerHTML = '';
+    if(!list || list.length === 0) {
+        container.innerHTML = '<div style="padding:10px;">Nenhum pendente no mês atual.</div>';
+    } else {
+        list.forEach(item => {
+            const div = document.createElement('div'); div.className='listItem';
+            div.innerHTML = `<div><strong>${item.nome}</strong><br><small>${item.tipo||''}</small></div><div style="color:#b91c1c">${item.status}</div>`;
+            container.appendChild(div);
+        });
+    }
+    panel.style.display = 'block';
+}
+
+document.getElementById('cesta-btnVoltar').addEventListener('click', ()=>{
+    document.getElementById('cesta-panelPendentes').style.display = 'none';
+    document.getElementById('cesta-formArea').style.display = (cestaState.currentLine ? 'block' : 'none');
+});
 
 
 // ==========================================================
