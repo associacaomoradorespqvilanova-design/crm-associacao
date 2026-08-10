@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbytjXvNNm9ZMDRYEz-2wLa33fZ1gcEcobRtdbYuNzK-aC2vspt6qKbPAQ3PNIp55_JqYA/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzHiXYuhbUloSaLYNVL3kJgLFIAQvoGH0Uh6wW65ocbRfMisIh6YaPItTU7HUmTEZqGgQ/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -665,7 +665,6 @@ async function carregarTiposCesta() {
     } catch (e) { console.error(e); cestaState.types = []; }
 }
 
-// 🔥 EDITOR DE TIPOS
 function editarTiposCestaUI() {
     const editor = document.getElementById('cesta-tipos-editor');
     if (editor.style.display === 'none') {
@@ -692,7 +691,6 @@ async function salvarTiposCesta() {
     }
 }
 
-// 🔥 HOME PENDENTES
 async function renderizarPendentesCestaHome() {
     try {
         const list = await fetchFromGS('listarPendentesMesAtual');
@@ -713,7 +711,6 @@ async function renderizarPendentesCestaHome() {
     }
 }
 
-// 🔥 SEARCH
 const inputCesta = document.getElementById('cesta-search');
 const suggCesta = document.getElementById('cesta-suggestions');
 
@@ -744,16 +741,46 @@ document.getElementById('cesta-btnSearch').addEventListener('click', async ()=>{
     await buscarEPreencherCesta(nome);
 });
 
-async function buscarEPreencherCesta(nome) {
+// 🔥 FUNÇÃO DE BUSCA E PREENCHIMENTO (USADA PELA BUSCA E QRCODE)
+async function buscarEPreencherCesta(nome, isQRCode = false) {
     try {
         const resp = await fetchFromGS('buscarMoradorCesta', { nome: nome });
-        if(!resp || !resp.dados) { alert("❌ Morador não encontrado."); return; }
+        if(!resp || !resp.dados) { 
+            if(isQRCode) alert("❌ Morador não encontrado na planilha.");
+            else alert("❌ Morador não encontrado."); 
+            return; 
+        }
         cestaState.currentLine = resp.linha;
         cestaState.currentDados = resp.dados;
         renderFormCesta(resp.dados);
+
+        // 🟢 FLUXO AUTOMÁTICO DO QR CODE
+        if (isQRCode) {
+            const confirmar = confirm(`Deseja marcar a cesta como ENTREGUE para ${nome} (com a data de hoje)?`);
+            if (confirmar) {
+                const monthLabels = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+                const todayIndex = new Date().getMonth();
+                const today = new Date();
+                const dia = String(today.getDate()).padStart(2,'0');
+                const mes = String(today.getMonth() + 1).padStart(2,'0');
+                const monthId = headerToId(monthLabels[todayIndex]);
+                const monthField = document.getElementById(monthId);
+                if (monthField) {
+                    monthField.value = `${dia}/${mes}`;
+                    atualizarMesesUICesta();
+                    await salvarCestaAutomatico();
+                    alert("✅ Cesta entregue com sucesso!");
+                } else {
+                    alert("Erro ao encontrar o mês atual para marcar.");
+                }
+            } else {
+                // Se cancelar, apenas mantém o formulário aberto para edição manual
+            }
+        }
     } catch (e) {
         console.error(e);
-        alert("Erro ao buscar os dados.");
+        if(isQRCode) alert("Erro ao buscar os dados via QR Code.");
+        else alert("Erro ao buscar os dados.");
     }
 }
 
@@ -934,6 +961,7 @@ async function abrirCameraCesta() {
     }
 }
 
+// 🔥 CORREÇÃO NO ON SCAN: CHAMA COM FLAG 'true' PARA ATIVAR O AUTOPREENCHIMENTO
 function onScanSuccessCesta(decodedText) {
     if (cameraHtml5QrCesta) {
         cameraHtml5QrCesta.stop().catch(()=>{});
@@ -945,12 +973,12 @@ function onScanSuccessCesta(decodedText) {
 
     const nome = decodedText.trim();
     inputCesta.value = nome;
-    buscarEPreencherCesta(nome);
+    buscarEPreencherCesta(nome, true); // 'true' ATIVA O FLUXO DE CONFIRMAÇÃO
 }
 
 
 // ==========================================================
-// 🔥 GERAR CARTEIRINHA (CORRIGIDO - AJUSTE DE TAMANHO E DESIGN)
+// 🔥 GERAR CARTEIRINHA (DESIGN PROFISSIONAL E A6 PAISAGEM)
 // ==========================================================
 async function gerarCarteirinha() {
     const nome = document.getElementById('cesta-search').value.trim();
@@ -963,8 +991,8 @@ async function gerarCarteirinha() {
     try {
         cestaState.qrCodeInstance = new QRCode(qrContainer, {
             text: nome,
-            width: 80,
-            height: 80,
+            width: 75,
+            height: 75,
             colorDark: "#4a7c2e",
             colorLight: "#ffffff",
             correctLevel: QRCode.CorrectLevel.H
@@ -980,15 +1008,11 @@ async function gerarCarteirinha() {
             const canvas = await html2canvas(cardDiv, { scale: 2 });
 
             const { jsPDF } = window.jspdf;
-            // 🔥 FORMATO PAISAGEM (l) E TAMANHO A6 PARA NÃO FICAR ACHATADO
             const pdf = new jsPDF('l', 'mm', 'a6'); 
-            
             const imgData = canvas.toDataURL('image/jpeg', 0.95);
-            const pdfWidth = 148; // Largura A6 paisagem em mm
-            const pdfHeight = 105; // Altura A6 paisagem em mm
-            
+            const pdfWidth = 148; 
+            const pdfHeight = 105; 
             pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-            
             const pdfBlob = pdf.output('blob');
             window.open(URL.createObjectURL(pdfBlob), '_blank');
 
