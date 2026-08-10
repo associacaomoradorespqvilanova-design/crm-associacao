@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbxdnZAQ9NIth8veB4Kj-VZxP3GDbl9CxnsEGtTi-c1s4eydbNc1s8dPcPueyOmtowsk_Q/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwAG2T60sWhscuEyhaVkK3klAQWUfWTDdNufBFEbhkQU9pJJThrkg-0tL2Dku6Pthjk/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -208,7 +208,7 @@ async function deletarItemAgenda(id) {
 }
 
 // ==========================================================
-// COLUNA DIREITA (JEITO ORIGINAL - ABA CARTÕES)
+// 🔥 COLUNA DA DIREITA (FUNCIONANDO COMO ORIGINAL)
 // ==========================================================
 async function renderizarCartoes() {
     const resp = await fetchFromGS('listarCartoes');
@@ -331,29 +331,76 @@ async function excluirMesCartao(data) {
     await renderizarCartoes();
 }
 
+async function salvarCartoes() {
+    const responsavel = document.getElementById('card-responsavel').value;
+    const qtd = parseInt(document.getElementById('card-qtd').value);
+    const data = document.getElementById('card-data').value;
+    if(!responsavel || !qtd || !data) { 
+        alert("Preencha o Responsável, Quantidade e Data."); 
+        return; 
+    }
+    await postParaGoogleSheets('salvarCartao', { id: Date.now(), responsavel, qtd, data });
+    fecharModal('modal-cartoes');
+    await renderizarCartoes();
+    document.getElementById('card-qtd').value = ''; 
+    document.getElementById('card-data').value = '';
+}
+
+async function adicionarResponsavel() {
+    const input = document.getElementById('novo-responsavel-input');
+    let nome = input.value.trim();
+    nome = nome.replace(/^"|"$/g, ''); 
+    nome = nome.replace(/^'|'$/g, '');
+    if (!nome) { 
+        alert("Digite um nome."); 
+        return; 
+    }
+    await postParaGoogleSheets('salvarResponsavel', nome);
+    input.value = '';
+    await renderizarCartoes();
+    await carregarListaResponsaveisNoModal();
+}
+
+async function carregarListaResponsaveisNoModal() {
+    const resp = await fetchFromGS('listarResponsaveis');
+    state.responsaveis = resp.nomes || [];
+    const container = document.getElementById('lista-responsaveis-cadastrados');
+    container.innerHTML = '';
+    state.responsaveis.forEach(nome => {
+        const nomeLimpo = String(nome).replace(/^"|"$/g, '').replace(/^'|'$/g, '');
+        const span = document.createElement('span');
+        span.style.cssText = 'background:#eafde8; padding:3px 10px; border-radius:12px; font-size:12px; display:flex; align-items:center; gap:5px;';
+        span.innerHTML = `${nomeLimpo} <button onclick="deletarResponsavel('${nomeLimpo}')" style="border:none; background:transparent; color:#ff4757; font-weight:bold; cursor:pointer;">×</button>`;
+        container.appendChild(span);
+    });
+}
+
+async function deletarResponsavel(nome) {
+    if (!confirm(`Remover o responsável "${nome}" da lista?`)) return;
+    await postParaGoogleSheets('deletarResponsavel', nome);
+    await renderizarCartoes();
+    await carregarListaResponsaveisNoModal();
+}
+
 
 // ==========================================================
-// 🔥 NOVO MÓDULO: MÚLTIPLAS ENTREGAS (ADAPTADO DO SEU CÓDIGO)
+// 🔥 NOVO MÓDULO: ADC CARTÕES (MÚLTIPLAS ENTREGAS)
 // ==========================================================
 
-// Inicialização das funções do modal
 let contadorEntregas = 0;
 
 function abrirModal(id) {
     document.getElementById(id).classList.add('active');
     if (id === 'modal-multiplas-entregas') {
-        // Inicializa o modal
         const lista = document.getElementById('mult-lista-entregas');
-        lista.innerHTML = ''; // Limpa
+        lista.innerHTML = '';
         contadorEntregas = 0;
-        adicionarEntrega(); // Adiciona a primeira linha
+        adicionarEntrega();
         
-        // Preenche a data automaticamente
         const hoje = new Date();
         const formatada = hoje.toLocaleDateString('pt-BR');
         document.getElementById('mult-data').value = formatada;
         
-        // Foca no primeiro nome
         setTimeout(() => {
             const primeiroNome = document.querySelector('#mult-lista-entregas .nome-input');
             if (primeiroNome) primeiroNome.focus();
@@ -395,7 +442,6 @@ function adicionarEntrega() {
     const novoNome = novaEntrega.querySelector('.nome-input');
     const novoEndereco = novaEntrega.querySelector('.endereco-input');
 
-    // Configurar o foco: TAB ou ENTER no Endereço adiciona novo
     novoNome.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' || e.key === 'Tab') {
             e.preventDefault();
@@ -406,12 +452,10 @@ function adicionarEntrega() {
     novoEndereco.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' || e.key === 'Tab') {
             e.preventDefault();
-            // Verifica se é o último campo de endereço
             const enderecos = document.querySelectorAll('#mult-lista-entregas .endereco-input');
             if (this === enderecos[enderecos.length - 1]) {
                 adicionarEntrega();
             } else {
-                // Se não for o último, foca no próximo nome
                 const index = Array.from(enderecos).indexOf(this);
                 const proximoNome = document.querySelectorAll('#mult-lista-entregas .nome-input')[index + 1];
                 if (proximoNome) proximoNome.focus();
@@ -419,7 +463,6 @@ function adicionarEntrega() {
         }
     });
 
-    // Se for a primeira linha, foca no nome
     if (contadorEntregas === 1) novoNome.focus();
 }
 
@@ -432,7 +475,6 @@ function removerEntrega(botao) {
     entregaItem.remove();
     contadorEntregas--;
     
-    // Reindexar visualmente
     const itens = document.querySelectorAll('#mult-lista-entregas .entrega-item');
     itens.forEach((item, idx) => {
         item.dataset.index = idx;
@@ -449,7 +491,6 @@ function atualizarContador() {
 function validarCampos() {
     let valido = true;
     
-    // Validar campos comuns
     const qtd = document.getElementById('mult-qtd').value;
     const tipo = document.getElementById('mult-tipo').value;
     const numero = document.getElementById('mult-numero').value;
@@ -459,7 +500,6 @@ function validarCampos() {
         valido = false;
     }
     
-    // Validar nomes e endereços
     const nomes = document.querySelectorAll('#mult-lista-entregas .nome-input');
     const enderecos = document.querySelectorAll('#mult-lista-entregas .endereco-input');
     
@@ -542,7 +582,6 @@ function enviarTodasEntregas() {
     const statusDiv = document.getElementById('mult-status-message');
     statusDiv.style.display = 'none';
     
-    // Envia para o backend
     postParaGoogleSheets('salvarLoteCartoesEntrega', entregas)
         .then(() => {
             statusDiv.style.display = 'block';
