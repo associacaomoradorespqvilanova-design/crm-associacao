@@ -262,4 +262,8 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     .modal-box { max-width: 95%; margin: 10px; }
     #cesta-fields { grid-template-columns: 1fr !important; }
     .month { width: 48%; }
+
+    /* 🔥 CORREÇÃO DE RESPONSIVIDADE NO CELULAR */
+    .modal-overlay { align-items: flex-start; padding: 15px 0; overflow-y: auto; }
+    #modal-cesta .modal-box { max-height: 85vh; padding: 15px; overflow-y: auto; }
 }
