@@ -7,8 +7,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- 🔥 BIBLIOTECA DA CÂMERA (Lê QR Code e Código de Barras) -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -90,21 +88,17 @@
                             <div onclick="abrirComprovantePrint('sem_assinatura')" class="menu-option" style="padding:12px 0; text-align:center; cursor:pointer; color:#333; font-weight:600; transition:0.2s;">📋 Sem Assinatura</div>
                         </div>
                     </div>
-                    <!-- 🔥 BOTÃO ENTREGAS ABRE O NOVO MODAL (Digitar Cartões) -->
-                    <button class="btn-action" onclick="abrirModal('modal-digitar-cartoes')">ENTREGAS</button>
-                    <button class="btn-action">CARTEIRINHAS</button>
-                    <!-- 🔥 BOTÃO CARTÕES ABRE O MODAL ANTIGO (Adicionar Lote) -->
-                    <button class="btn-action" onclick="abrirModal('modal-cartoes')">CARTÕES</button>
+                    <!-- 🔥 BOTÃO CARTÕES ABRE O SEU NOVO FORMULÁRIO -->
+                    <button class="btn-action" onclick="abrirModal('modal-multiplas-entregas')">CARTÕES</button>
                     <button class="btn-action">CESTAS</button>
                 </div>
             </div>
 
-            <!-- COLUNA DE CONTAGEM DE CARTÕES (ABA CARTÕES) -->
+            <!-- COLUNA DE CONTAGEM DE CARTÕES -->
             <div class="panel">
                 <div class="panel-header">
                     <h3>CARTÕES</h3>
-                    <!-- + Adicionar ABRE O MODAL ANTIGO -->
-                    <button class="btn-sm" onclick="abrirModal('modal-cartoes')">+ Adicionar</button>
+                    <button class="btn-sm" onclick="abrirModal('modal-multiplas-entregas')">+ Adicionar</button>
                 </div>
                 <div id="cards-container">
                     <table class="table-cards">
@@ -210,121 +204,70 @@
         </div>
     </div>
 
-    <!-- 🔥 MODAL CARTÕES ANTIGO (DE VOLTA, COM O CAMPO RESPONSÁVEL!) -->
-    <div id="modal-cartoes" class="modal-overlay">
-        <div class="modal-box" style="max-width: 600px;">
-            <span class="close-btn" onclick="fecharModal('modal-cartoes')">×</span>
-            <h3 id="cartao-modal-title">Adicionar Lote de Cartões</h3>
-            <div style="border-bottom:1px solid #ddd; padding-bottom:10px; margin-bottom:15px;">
-                <label style="display:block; font-weight:600; color:#4a7c2e; margin-bottom:5px;">Gerenciar Responsáveis</label>
-                <div style="display:flex; gap:10px;">
-                    <input type="text" id="novo-responsavel-input" placeholder="Nome do novo responsável" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:6px;">
-                    <button class="btn-sm" onclick="adicionarResponsavel()" style="background:#4a7c2e; color:#fff; border-radius:6px;">+ Adicionar</button>
-                </div>
-                <div id="lista-responsaveis-cadastrados" style="margin-top:8px; display:flex; flex-wrap:wrap; gap:5px;"></div>
-            </div>
-            <label>Selecionar Responsável</label>
-            <select id="card-responsavel" style="width:100%; padding:10px; margin-bottom:10px;">
-                <option value="">Selecione um responsável</option>
-            </select>
-            <label>Quantidade</label>
-            <input type="number" id="card-qtd" placeholder="0" min="1" style="width:100%; padding:10px; margin-bottom:10px;">
-            <label>Data de Entrega</label>
-            <input type="date" id="card-data" style="width:100%; padding:10px; margin-bottom:10px;">
-            <div class="modal-actions">
-                <button class="btn-cancel" onclick="fecharModal('modal-cartoes')">Cancelar</button>
-                <button class="btn-primary" onclick="salvarCartoes()">Salvar</button>
-            </div>
-        </div>
-    </div>
+    <!-- 🔥 NOVO MODAL: MÚLTIPLAS ENTREGAS (ADAPTADO DO SEU CÓDIGO) -->
+    <div id="modal-multiplas-entregas" class="modal-overlay">
+        <div class="modal-box" style="max-width: 700px; padding: 25px;">
+            <span class="close-btn" onclick="fecharModal('modal-multiplas-entregas')">×</span>
+            <h3><i class="fas fa-truck"></i> Múltiplas Entregas</h3>
+            <p style="font-size: 13px; color: #555; margin-bottom: 15px;">Pressione <strong>TAB</strong> ou <strong>ENTER</strong> no campo de endereço para adicionar automaticamente o próximo.</p>
 
-    <!-- 🔥 NOVO MODAL: DIGITAR CARTÕES (COM LEITOR DE CÂMERA) -->
-    <div id="modal-digitar-cartoes" class="modal-overlay">
-        <div class="modal-box" style="max-width: 750px; background: #f2f9f4; padding: 0; overflow: hidden;">
-            <div style="padding: 20px; background: #fff; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin:0; color:#2c3e50; display:flex; align-items:center; gap:8px; font-size:20px;">
-                    <span style="font-size: 24px;">✏️</span> Digitar Cartões
-                </h3>
-                <span class="close-btn" onclick="fecharModal('modal-digitar-cartoes')" style="position:static; color:#888; font-size:28px; cursor:pointer;">×</span>
-            </div>
-
-            <div style="padding: 20px; max-height: 70vh; overflow-y: auto;">
-                <p style="font-size:13px; color:#555; margin-bottom: 15px;">Preencha os dados e pressione ENTER no endereço para adicionar outro</p>
-
-                <div style="background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); margin-bottom: 20px;">
-                    <h4 style="margin: 0 0 15px 0; color: #196E3A; display: flex; align-items: center; gap: 8px; font-size:16px;">
-                        <span style="font-size:20px;">🌿</span> Dados comuns
-                    </h4>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <div>
-                            <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:3px;">📅 DATA</label>
-                            <input type="date" id="lote-data" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff;">
-                        </div>
-                        <div>
-                            <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:3px;">📦 QUANTIDADE</label>
-                            <input type="number" id="lote-qtd" value="1" min="1" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff;">
-                        </div>
-                        <div>
-                            <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:3px;">📁 TIPO</label>
-                            <select id="lote-tipo" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff;">
-                                <option value="SHOPEE">SHOPEE</option>
-                                <option value="MERCADO LIVRE">MERCADO LIVRE</option>
-                                <option value="OUTROS">OUTROS</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:3px;">📟 N° (Código de Rastreio)</label>
-                            <input type="text" id="lote-numero" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff;">
-                        </div>
-                        <div>
-                            <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:3px;">📝 OBSERVAÇÃO</label>
-                            <input type="text" id="lote-obs" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff;">
-                        </div>
-                        <div>
-                            <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:3px;">📞 TELEFONE</label>
-                            <input type="text" id="lote-tel" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff;">
-                        </div>
+            <!-- DADOS GERAIS -->
+            <div style="background: #f9fffb; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e0f2e0;">
+                <h4 style="margin: 0 0 12px 0; color: #196E3A; font-size: 15px;">Dados Gerais</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div>
+                        <label style="display:block; font-weight:600; font-size:12px; color:#444;">Quantidade</label>
+                        <input type="number" id="mult-qtd" min="1" value="1" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; background:#fff;">
                     </div>
-                    
-                    <!-- 🔥 BOTÃO DA CÂMERA E CONTAINER -->
-                    <div style="margin-top: 15px; text-align:center;">
-                        <button type="button" id="btn-abrir-camera" onclick="abrirCameraScanner()" style="background:#2196F3; color:#fff; border:none; padding:10px 20px; border-radius:12px; cursor:pointer; font-weight:600; font-size:14px; display:inline-flex; align-items:center; gap:8px; box-shadow:0 4px 8px rgba(33,150,243,0.3);">
-                            📷 Ler código com a Câmera
-                        </button>
-                        <div id="camera-scanner-container" style="display:none; width:100%; max-width:400px; margin:15px auto 0 auto; border:2px dashed #4a7c2e; border-radius:12px; overflow:hidden; background:#000;"></div>
+                    <div>
+                        <label style="display:block; font-weight:600; font-size:12px; color:#444;">Data</label>
+                        <input type="text" id="mult-data" readonly style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; background:#f5f5f5; color:#666;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-weight:600; font-size:12px; color:#444;">Tipo</label>
+                        <select id="mult-tipo" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; background:#fff;">
+                            <option value="">Selecione...</option>
+                            <option value="SHOPEE">SHOPEE</option>
+                            <option value="CARTÃO">CARTÃO</option>
+                            <option value="CARTA">CARTA</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-weight:600; font-size:12px; color:#444;">N°</label>
+                        <input type="text" id="mult-numero" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; background:#fff;">
                     </div>
                 </div>
-
-                <div style="background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.03);">
-                    <h4 style="margin: 0 0 15px 0; color: #196E3A; display: flex; align-items: center; gap: 8px; font-size:16px;">
-                        <span style="font-size:20px;">📋</span> Lista de Nomes e Endereços
-                    </h4>
-                    <div id="container-lote-nomes">
-                        <!-- As linhas são geradas pelo JS -->
-                    </div>
-                    <div style="margin-top:10px; font-size:11px; color:#888;">ℹ️ As letras são automaticamente maiúsculas</div>
+                <div style="margin-top: 10px;">
+                    <label style="display:block; font-weight:600; font-size:12px; color:#444;">Observação</label>
+                    <input type="text" id="mult-obs" placeholder="Opcional" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; background:#fff;">
                 </div>
             </div>
 
-            <div style="padding: 15px 20px; border-top: 1px solid #e0e0e0; background: #fff; display: flex; gap: 10px; justify-content: flex-start;">
-                <button onclick="adicionarLinhaCartao()" style="background:#1a73e8; color:#fff; border:none; padding:10px 20px; border-radius:30px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; box-shadow:0 4px 8px rgba(26,115,232,0.3);">
-                    + Adicionar outro
+            <!-- LISTA DE ENTREGAS -->
+            <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;">
+                <label style="font-weight:700; font-size:14px; color:#196E3A;"><i class="fas fa-list"></i> Lista de Entregas</label>
+                <span id="mult-contador" style="font-size:12px; color:#555;">1 entrega</span>
+            </div>
+
+            <div id="mult-lista-entregas" style="max-height: 200px; overflow-y: auto; padding-right: 5px; margin-bottom: 15px;">
+                <!-- A primeira entrega é gerada pelo JS -->
+            </div>
+
+            <!-- BOTÕES DE AÇÃO -->
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="adicionarEntrega()" style="background:#1a73e8; color:#fff; border:none; padding:10px 15px; border-radius:30px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; flex:1; justify-content:center;">
+                    <i class="fas fa-plus"></i> Adicionar Outro
                 </button>
-                <button onclick="enviarLoteCartoes()" style="background:#4a7c2e; color:#fff; border:none; padding:10px 25px; border-radius:30px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; box-shadow:0 4px 8px rgba(74,124,46,0.3);">
-                    🚀 Enviar tudo
+                <button type="button" onclick="enviarTodasEntregas()" id="btnEnviarMulti" style="background:#4a7c2e; color:#fff; border:none; padding:10px 15px; border-radius:30px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; flex:1; justify-content:center;">
+                    <i class="fas fa-paper-plane"></i> Enviar Tudo
                 </button>
             </div>
-        </div>
-    </div>
 
-    <!-- MODAL POPUP -->
-    <div id="modal-popup-login" class="modal-overlay">
-        <div class="modal-box">
-            <span class="close-btn" onclick="fecharModal('modal-popup-login')">×</span>
-            <h3>📅 Lembrete de Agenda</h3>
-            <div id="popup-login-content" style="font-size: 14px; line-height: 1.6;"></div>
-            <div class="modal-actions" style="justify-content: center;">
-                <button class="btn-primary" onclick="fecharModal('modal-popup-login')">Ok, entendi</button>
+            <!-- STATUS MESSAGE -->
+            <div id="mult-status-message" style="display:none; padding:10px; border-radius:8px; margin-top:15px; font-weight:500; text-align:center;"></div>
+            
+            <div style="margin-top: 15px;">
+                <button class="btn-cancel" onclick="fecharModal('modal-multiplas-entregas')" style="width:100%; padding:10px; text-align:center;">Cancelar</button>
             </div>
         </div>
     </div>
