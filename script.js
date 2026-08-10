@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzHiXYuhbUloSaLYNVL3kJgLFIAQvoGH0Uh6wW65ocbRfMisIh6YaPItTU7HUmTEZqGgQ/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbxUdLdNLEUopBmLmX0aPABhZlF6ovr5Eo3KM6RVmAS_YQ-N61iAVGamzn9Gtm8npp5Jow/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -927,7 +927,7 @@ document.getElementById('cesta-btnSave').addEventListener('click', async ()=>{
 
 
 // ==========================================================
-// 🔥 SCANNER DA CESTA (CÂMERA)
+// 🔥 SCANNER DA CESTA (CÂMERA) - CORRIGIDO PARA MOBILE
 // ==========================================================
 let cameraHtml5QrCesta = null;
 
@@ -936,13 +936,21 @@ async function abrirCameraCesta() {
     const btn = event.target;
     
     if (container.style.display === 'block') {
-        if (cameraHtml5QrCesta) { await cameraHtml5QrCesta.stop(); cameraHtml5QrCesta.clear(); cameraHtml5QrCesta = null; }
+        if (cameraHtml5QrCesta) {
+            try {
+                await cameraHtml5QrCesta.stop();
+                await cameraHtml5QrCesta.clear();
+            } catch (e) {}
+            cameraHtml5QrCesta = null;
+        }
         container.style.display = 'none';
+        container.innerHTML = ''; // Apaga a linha verde
         btn.innerText = '📷 Escanear Carteirinha';
         return;
     }
 
     container.style.display = 'block';
+    container.innerHTML = ''; // Garante que comece limpo
     btn.innerText = '⏹ Fechar';
 
     cameraHtml5QrCesta = new Html5Qrcode("cesta-camera-container");
@@ -954,31 +962,51 @@ async function abrirCameraCesta() {
             onScanSuccessCesta
         );
     } catch (err) {
-        alert("Erro ao abrir câmera.");
+        alert("Erro ao abrir câmera. Verifique as permissões.");
         container.style.display = 'none';
+        container.innerHTML = '';
         btn.innerText = '📷 Escanear Carteirinha';
         cameraHtml5QrCesta = null;
     }
 }
 
-// 🔥 CORREÇÃO NO ON SCAN: CHAMA COM FLAG 'true' PARA ATIVAR O AUTOPREENCHIMENTO
 function onScanSuccessCesta(decodedText) {
+    // 🔥 1. Para a câmera e limpa o container IMEDIATAMENTE (essencial para mobile)
+    const container = document.getElementById('cesta-camera-container');
+    const btn = document.getElementById('btn-abrir-camera');
+
     if (cameraHtml5QrCesta) {
-        cameraHtml5QrCesta.stop().catch(()=>{});
-        cameraHtml5QrCesta.clear().catch(()=>{});
+        try {
+            cameraHtml5QrCesta.stop().catch(()=>{});
+            cameraHtml5QrCesta.clear().catch(()=>{});
+        } catch (e) {}
         cameraHtml5QrCesta = null;
     }
-    document.getElementById('cesta-camera-container').style.display = 'none';
-    document.querySelector('#modal-cesta button[onclick*="abrirCameraCesta"]').innerText = '📷 Escanear Carteirinha';
+    
+    // Limpeza forçada do container (garante que a linha verde suma no mobile)
+    if (container) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+    }
+    if (btn) {
+        btn.innerText = '📷 Escanear Carteirinha';
+    }
 
+    // 2. Processa os dados lidos
     const nome = decodedText.trim();
-    inputCesta.value = nome;
-    buscarEPreencherCesta(nome, true); // 'true' ATIVA O FLUXO DE CONFIRMAÇÃO
+    if (!nome) return;
+    
+    // Coloca no campo de busca para visualização
+    const inputCesta = document.getElementById('cesta-search');
+    if (inputCesta) inputCesta.value = nome;
+
+    // 3. Chama a busca com a flag `true` (isQRCode)
+    buscarEPreencherCesta(nome, true);
 }
 
 
 // ==========================================================
-// 🔥 GERAR CARTEIRINHA (DESIGN PROFISSIONAL E A6 PAISAGEM)
+// 🔥 GERAR CARTEIRINHA
 // ==========================================================
 async function gerarCarteirinha() {
     const nome = document.getElementById('cesta-search').value.trim();
