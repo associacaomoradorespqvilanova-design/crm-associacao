@@ -118,7 +118,7 @@
             </div>
         </div>
 
-        <!-- 🔥 LISTA DE PENDENTES DA CESTA -->
+        <!-- LISTA DE PENDENTES DA CESTA -->
         <div style="margin-top: 25px; width:100%;">
             <div class="panel" style="margin-top: 15px;">
                 <div class="panel-header">
@@ -302,7 +302,7 @@
         </div>
     </div>
 
-    <!-- 🔥 MODAL CESTA (NOVO E FUNCIONAL) -->
+    <!-- MODAL CESTA -->
     <div id="modal-cesta" class="modal-overlay">
         <div class="modal-box" style="max-width: 950px; padding: 25px; background: #e8f9ee;">
             <span class="close-btn" onclick="fecharModal('modal-cesta')">×</span>
@@ -310,7 +310,6 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap;">
                 <h2 style="margin:0; color:#196E3A; display:flex; align-items:center; gap:10px;">
                     📋 Controle - CESTA
-                    <!-- 🔥 BOTÃO DE ENGRENAGEM PARA EDITAR TIPOS -->
                     <button onclick="editarTiposCestaUI()" style="background:transparent; border:none; font-size:20px; cursor:pointer; color:#196E3A;" title="Editar Tipos de Cesta">⚙️</button>
                 </h2>
                 <div>
@@ -320,11 +319,9 @@
                 </div>
             </div>
             
-            <!-- 🔥 CAMPO DE SCANNER -->
             <input type="text" id="cesta-scanner-input" style="position:absolute; opacity:0; width:1px; height:1px; pointer-events:none;" autofocus>
             <div id="cesta-camera-container" style="display:none; width:100%; max-width:350px; margin:0 auto 10px; border:2px dashed #4a7c2e; border-radius:8px; overflow:hidden; background:#000;"></div>
 
-            <!-- 🔥 EDITOR DE TIPOS (OCULTO INICIALMENTE) -->
             <div id="cesta-tipos-editor" style="display:none; background:#fff; padding:12px; border-radius:8px; border:1px solid #e0f2e0; margin-bottom:15px;">
                 <label style="font-weight:700; color:#1f6f35; display:block; margin-bottom:4px;">✏️ Editar Tipos de Cesta (separados por vírgula):</label>
                 <div style="display:flex; gap:8px;">
@@ -362,22 +359,27 @@
         </div>
     </div>
 
-    <!-- 🔥 NOVA CARTEIRINHA (DESIGN DO CRM) -->
-    <div id="carteirinha-print-area" style="position:absolute; left:-9999px; top:0; width: 400px; height: 255px; background: #ffffff; border-radius: 16px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); display:flex; flex-direction:column; align-items:center; justify-content:space-between; border: 1px solid #e0f2e0; font-family: 'Montserrat', sans-serif;">
+    <!-- 🔥 CARTEIRINHA NOVA (ESTILO CARTÃO DE IDENTIDADE) -->
+    <div id="carteirinha-print-area" style="position:absolute; left:-9999px; top:0; width:300px; height:190px; background: #4a7c2e; border-radius:16px; padding:20px; box-shadow:0 8px 24px rgba(0,0,0,0.2); display:flex; flex-direction:column; font-family: 'Montserrat', sans-serif; color:#ffffff; position:relative; overflow:hidden; border:1px solid #2f5a1c;">
+        <!-- Fundo decorativo -->
+        <div style="position:absolute; top:-30px; right:-30px; width:150px; height:150px; background:rgba(255,255,255,0.05); border-radius:50%;"></div>
+        <div style="position:absolute; bottom:-40px; left:-40px; width:200px; height:200px; background:rgba(255,255,255,0.03); border-radius:50%;"></div>
         
-        <!-- Topo com o nome da associação e linha verde -->
-        <div style="width:100%; text-align:center; border-bottom: 2px solid #4a7c2e; padding-bottom: 10px;">
-            <div style="font-size:14px; font-weight:700; color:#4a7c2e; letter-spacing:1px;">ASSOCIAÇÃO PQ VILA NOVA</div>
+        <!-- Topo -->
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; z-index:1;">
+            <div>
+                <div style="font-size:10px; font-weight:600; letter-spacing:1px; opacity:0.8;">ASSOCIAÇÃO PQ VILA NOVA</div>
+                <div id="card-nome" style="font-size:20px; font-weight:800; letter-spacing:0.5px; margin-top:4px; text-shadow:0 1px 2px rgba(0,0,0,0.2);">NOME AQUI</div>
+            </div>
+            <div id="card-logo" style="width:50px; height:50px; background:#ffffff; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#4a7c2e; font-weight:800; font-size:9px; text-align:center; border:2px solid #ffffff; box-shadow:0 2px 6px rgba(0,0,0,0.1);">LOGO<br>AQ</div>
         </div>
         
-        <!-- Meio: Logo e Nome -->
-        <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;">
-            <div id="card-logo" style="width:60px; height:60px; background:#f5f7fa; border: 2px solid #4a7c2e; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#4a7c2e; font-weight:900; font-size:10px; text-transform:uppercase; box-shadow:0 2px 5px rgba(0,0,0,0.02);">LOGO</div>
-            <div id="card-nome" style="font-size:20px; font-weight:800; color:#2c3e50; text-align:center; letter-spacing:0.5px; margin-top:5px;">NOME AQUI</div>
+        <!-- QR Code -->
+        <div style="flex:1; display:flex; align-items:flex-end; justify-content:center; z-index:1; padding-bottom:5px;">
+            <div style="background:#ffffff; border-radius:10px; padding:6px; box-shadow:0 4px 10px rgba(0,0,0,0.15);">
+                <div id="card-qrcode" style="width:75px; height:75px; display:flex; align-items:center; justify-content:center;"></div>
+            </div>
         </div>
-
-        <!-- Rodapé: QR Code -->
-        <div id="card-qrcode" style="background:#fff; width:80px; height:80px; border-radius:8px; display:flex; align-items:center; justify-content:center; border: 1px solid #e0f2e0;"></div>
     </div>
 
     <script src="script.js"></script>
