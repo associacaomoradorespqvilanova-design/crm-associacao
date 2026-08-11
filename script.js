@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzvl7EUb7kFFJWz-7AtEW8TE8IpftV24NspyUDIoOx6gTxda2xdScUy-xcPsAOTq4BShA/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwJekUk0CO8UNJc-sYau0LYSDp9kViTLvSJpac1LZtHIReFFP7NdatS5C0EXQ9GDNhv2Q/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -691,16 +691,15 @@ async function salvarTiposCesta() {
     }
 }
 
-// 🔥 HOME PENDENTES (CORRIGIDO PARA GRID E CLIQUE)
+// 🔥 HOME PENDENTES (COM OPÇÃO DE EDITAR E EXCLUIR)
 async function renderizarPendentesCestaHome() {
     try {
         const list = await fetchFromGS('listarPendentesMesAtual');
         const container = document.getElementById('cesta-pendentes-home');
         
-        // Limpa e aplica o estilo de Grid
         container.innerHTML = '';
         container.style.display = 'grid';
-        container.style.gridTemplateColumns = 'repeat(auto-fill, minmax(180px, 1fr))';
+        container.style.gridTemplateColumns = 'repeat(auto-fill, minmax(220px, 1fr))';
         container.style.gap = '8px';
         container.style.width = '100%';
 
@@ -712,17 +711,33 @@ async function renderizarPendentesCestaHome() {
         list.forEach(item => {
             let nomeLimpo = item.nome || '';
             
-            // Cria o cartão clicável
             const card = document.createElement('div');
             card.className = 'pending-item-card';
-            card.onclick = () => {
-                abrirModalCestaComNome(nomeLimpo); // Chama a função que abre o modal
-            };
+
+            // Área clicável que abre o modal (apenas o nome e o tipo)
+            const content = document.createElement('div');
+            content.className = 'card-content';
+            content.onclick = () => { abrirModalCestaComNome(nomeLimpo); };
             
-            card.innerHTML = `
-                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${nomeLimpo}</span> 
-                <span style="font-weight:400; font-size:10px; opacity:0.7; background: rgba(155, 44, 44, 0.1); padding:2px 6px; border-radius:4px;">${item.tipo || 'Sem tipo'}</span>
+            content.innerHTML = `
+                <span title="Clique para abrir">${nomeLimpo}</span>
+                <span class="card-tag">${item.tipo || 'Sem tipo'}</span>
             `;
+
+            // Área de ações (Editar e Excluir)
+            const actions = document.createElement('div');
+            actions.className = 'card-actions';
+            actions.innerHTML = `
+                <button class="btn-icon btn-edit" onclick="event.stopPropagation(); editarNomePendente('${nomeLimpo}', ${item.linha})" title="Editar nome">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn-icon btn-delete" onclick="event.stopPropagation(); deletarPendente(${item.linha}, '${nomeLimpo}')" title="Excluir cadastro">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            `;
+
+            card.appendChild(content);
+            card.appendChild(actions);
             container.appendChild(card);
         });
     } catch (e) {
@@ -733,11 +748,41 @@ async function renderizarPendentesCestaHome() {
 
 // 🔥 FUNÇÃO PARA ABRIR MODAL COM NOME SELECIONADO
 async function abrirModalCestaComNome(nome) {
-    abrirModal('modal-cesta'); // Abre o modal da cesta
-    // Aguarda 300ms para o modal terminar de abrir e carregar os dados iniciais, depois busca a pessoa
+    abrirModal('modal-cesta');
     setTimeout(() => {
         buscarEPreencherCesta(nome, false);
     }, 300);
+}
+
+// 🔥 FUNÇÃO PARA EDITAR NOME (DO CARTÃO DA HOME)
+async function editarNomePendente(nomeAntigo, linha) {
+    const novoNome = prompt(`Digite o novo nome para "${nomeAntigo}":`, nomeAntigo);
+    if (novoNome === null) return; // Usuário cancelou
+    if (novoNome.trim() === '') {
+        alert("O nome não pode estar vazio.");
+        return;
+    }
+    try {
+        await postParaGoogleSheets('editarNomeMoradorCesta', { linha: linha, novoNome: novoNome.trim().toUpperCase() });
+        alert("✅ Nome atualizado com sucesso!");
+        await renderizarPendentesCestaHome();
+        await carregarNomesCesta(); // Recarrega a lista de nomes para o autocomplete
+    } catch (e) {
+        alert("❌ Erro ao editar o nome: " + e.message);
+    }
+}
+
+// 🔥 FUNÇÃO PARA EXCLUIR A PESSOA (DO CARTÃO DA HOME)
+async function deletarPendente(linha, nome) {
+    if (!confirm(`Tem certeza que deseja EXCLUIR permanentemente o cadastro de "${nome}"? Essa ação não pode ser desfeita.`)) return;
+    try {
+        await postParaGoogleSheets('deletarMoradorCesta', { linha: linha });
+        alert("✅ Cadastro excluído com sucesso!");
+        await renderizarPendentesCestaHome();
+        await carregarNomesCesta(); // Recarrega a lista de nomes para o autocomplete
+    } catch (e) {
+        alert("❌ Erro ao excluir: " + e.message);
+    }
 }
 
 const inputCesta = document.getElementById('cesta-search');
@@ -1000,7 +1045,6 @@ async function abrirCameraCesta() {
 }
 
 function onScanSuccessCesta(decodedText) {
-    // 🔥 1. Para a câmera e limpa o container IMEDIATAMENTE (essencial para mobile)
     const container = document.getElementById('cesta-camera-container');
     const btn = document.getElementById('btn-abrir-camera');
 
@@ -1012,7 +1056,6 @@ function onScanSuccessCesta(decodedText) {
         cameraHtml5QrCesta = null;
     }
     
-    // Limpeza forçada do container (garante que a linha verde suma no mobile)
     if (container) {
         container.style.display = 'none';
         container.innerHTML = '';
@@ -1021,15 +1064,12 @@ function onScanSuccessCesta(decodedText) {
         btn.innerText = '📷 Escanear Carteirinha';
     }
 
-    // 2. Processa os dados lidos
     const nome = decodedText.trim();
     if (!nome) return;
     
-    // Coloca no campo de busca para visualização
     const inputCesta = document.getElementById('cesta-search');
     if (inputCesta) inputCesta.value = nome;
 
-    // 3. Chama a busca com a flag `true` (isQRCode)
     buscarEPreencherCesta(nome, true);
 }
 
