@@ -327,66 +327,46 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     transform: scale(1.1);
 }
 
-/* 🔥 ESTILOS DO MODAL DE BUSCA */
-#modal-busca .modal-box { max-width: 850px; }
-#busca-resultados .result-card {
-    background: #ffffff;
-    border-radius: 10px;
-    padding: 10px 14px;
-    margin-bottom: 6px;
-    border: 1px solid #e0e0e0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    cursor: pointer;
-    transition: box-shadow 0.2s;
-}
-#busca-resultados .result-card:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-    border-color: #4a7c2e;
-}
-#busca-resultados .result-card .info {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex: 1;
-}
-#busca-resultados .result-card .info .numero {
-    font-weight: 800;
-    font-size: 18px;
-    color: #4a7c2e;
-    min-width: 30px;
-}
-#busca-resultados .result-card .info .nome {
-    font-weight: 600;
+/* 🔥 ESTILOS DO MODAL DE BUSCA (Adaptado do Sheets) */
+#modal-busca .modal-box { max-width: 900px; }
+
+/* Chips de Rua */
+.ruas-container { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; padding: 4px; background: #fff; border-radius: 8px; border: 1px solid #e0f2e0; }
+.rua-chip {
+    display: inline-flex; align-items: center; background: white;
+    border: 1px solid #bbb; border-radius: 14px; padding: 2px 10px;
+    font-size: 12px; cursor: pointer; transition: all 0.2s; user-select: none;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 200px;
 }
-#busca-resultados .result-card .info .detalhes {
-    font-size: 12px;
-    color: #555;
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+.rua-chip.selected { background: #c8e6c9; border-color: #4CAF50; font-weight: 600; }
+.rua-chip .rua-count { margin-left: 4px; color: #888; }
+
+/* Editor e Cards */
+.editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.campo-numero {
+    font-size: 32px !important;
+    font-weight: 900;
+    text-align: center;
+    color: #1b5e20;
+    background: linear-gradient(white, #f0fff0);
+    border: 3px solid #ffd700 !important;
+    box-shadow: 0 0 20px #ffd700, 0 0 40px #ffb300;
+    animation: brilhaNumero 1.5s infinite alternate;
+    letter-spacing: 2px;
 }
-#busca-resultados .result-card .info .detalhes span {
-    background: #f5f7f5;
-    padding: 2px 8px;
-    border-radius: 12px;
+@keyframes brilhaNumero {
+    from { box-shadow: 0 0 15px #ffd700, 0 0 30px #ffb300; }
+    to { box-shadow: 0 0 30px #ffd700, 0 0 60px #ffb300; }
 }
-#busca-resultados .result-card .badge-status {
-    font-size: 10px;
-    font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 12px;
-    background: #ffcc02;
+.editor-massa {
+    background: #fffbe6; border-radius: 8px; padding: 12px;
+    margin: 6px 0; border: 2px solid #ffca28;
 }
-#busca-resultados .result-card .badge-status.entregue { background: #4caf50; color: white; }
-#busca-resultados .result-card .badge-status.bloqueado { background: #b71c1c; color: white; }
+.btn-salvar { background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+.btn-cancelar { background: #ccc; color: #333; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+.btn-entregue { background: #2196F3; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+
+#busca-resultados .card .numero { min-width: 30px; text-align: center; }
 
 @media (max-width: 900px) {
     .grid-container { grid-template-columns: 1fr; }
