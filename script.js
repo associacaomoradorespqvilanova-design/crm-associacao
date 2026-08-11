@@ -421,6 +421,16 @@ function abrirModal(id) {
             if (primeiroNome) primeiroNome.focus();
         }, 200);
     }
+    
+    // 🔥 NOVO: Limpa e foca o modal de busca inteligente
+    if (id === 'modal-busca') {
+        setTimeout(() => {
+            document.getElementById('busca-input').value = '';
+            document.getElementById('busca-input').focus();
+            document.getElementById('busca-resultados').innerHTML = '<div style="text-align:center; color:#888; padding:20px;">Digite nome, rua ou ambos para buscar.</div>';
+            document.getElementById('busca-resumo-count').textContent = '';
+        }, 100);
+    }
 }
 
 function adicionarEntrega() {
@@ -1689,3 +1699,128 @@ async function salvarEImprimir() {
 
 function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
 function fecharComprovantePrint() { document.getElementById('modal-comprovante-print').style.display = 'none'; }
+
+// ==========================================================
+// 🔥 NOVO: LÓGICA DA BUSCA INTELIGENTE NO MODAL DE BUSCA
+// ==========================================================
+
+const inputBusca = document.getElementById('busca-input');
+const btnBuscaSearch = document.getElementById('busca-btnSearch');
+const buscaResumoCount = document.getElementById('busca-resumo-count');
+const buscaResultados = document.getElementById('busca-resultados');
+let debounceTimerBusca;
+
+async function executarBuscaInteligente(termo) {
+    if (!termo) {
+        buscaResultados.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">Digite um nome, rua ou ambos.</div>';
+        buscaResumoCount.textContent = '';
+        return;
+    }
+    
+    buscaResultados.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">⏳ Buscando...</div>';
+    
+    try {
+        const resultado = await fetchFromGS('pesquisarInteligente', { termo: termo });
+        
+        if (!resultado || resultado.length === 0) {
+            buscaResultados.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">Nenhum cartão pendente encontrado.</div>';
+            buscaResumoCount.textContent = '';
+            return;
+        }
+        
+        buscaResumoCount.textContent = `🔍 ${resultado.length} cartão(ões) encontrado(s)`;
+        
+        let html = '<div style="display:flex; flex-direction:column; gap:8px;">';
+        resultado.forEach(item => {
+            let borderColor = '#4caf50';
+            if (item.status === 'BLOQUEADO') borderColor = '#b71c1c';
+            else if (item.status === 'PENDENTE') borderColor = '#ff9800';
+            
+            html += `
+              <div style="background:white; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); border-left:6px solid ${borderColor}; display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div style="font-weight:700; font-size:16px; color:#222;">${item.nome}</div>
+                    <div style="font-size:13px; color:#666;">📍 ${item.endereco}</div>
+                  </div>
+                  <div style="font-size:28px; font-weight:900; color:#1b5e20; background:#e8f5e9; padding:2px 12px; border-radius:8px;">${item.numero || '-'}</div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#555; border-top:1px solid #eee; padding-top:8px;">
+                  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <span style="background:#f5f5f5; padding:2px 8px; border-radius:12px;">📅 ${item.data}</span>
+                    <span style="background:#f5f5f5; padding:2px 8px; border-radius:12px;">📋 ${item.tipo}</span>
+                    <span style="background:#f5f5f5; padding:2px 8px; border-radius:12px;">📞 ${item.telefone || '—'}</span>
+                  </div>
+                  <div style="display:flex; gap:6px;">
+                    <button style="background:#2196F3; color:white; border:none; padding:6px 12px; border-radius:20px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="entregarRapidoBusca(${item.linha}, '${item.nome.replace(/'/g, "\\'")}')">✅ Entregar</button>
+                    <button style="background:#ff9800; color:white; border:none; padding:6px 12px; border-radius:20px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="editarCartaoBusca(${item.linha})">✏️ Editar</button>
+                  </div>
+                </div>
+              </div>
+            `;
+        });
+        html += '</div>';
+        buscaResultados.innerHTML = html;
+    } catch (e) {
+        console.error(e);
+        buscaResultados.innerHTML = '<div style="text-align:center; color:#d32f2f; padding:20px;">Erro na busca: ' + e.message + '</div>';
+        buscaResumoCount.textContent = '';
+    }
+}
+
+// Eventos de busca
+inputBusca.addEventListener('input', () => {
+    clearTimeout(debounceTimerBusca);
+    const termo = inputBusca.value.trim();
+    if (termo.length < 2) {
+        buscaResultados.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">Digite pelo menos 2 caracteres.</div>';
+        buscaResumoCount.textContent = '';
+        return;
+    }
+    debounceTimerBusca = setTimeout(() => executarBuscaInteligente(termo), 400);
+});
+
+btnBuscaSearch.addEventListener('click', () => {
+    executarBuscaInteligente(inputBusca.value.trim());
+});
+
+inputBusca.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') executarBuscaInteligente(inputBusca.value.trim());
+});
+
+// Ações rápidas
+function entregarRapidoBusca(linha, nomeAtual) {
+    const nomeRecebedor = prompt(`📦 Para quem foi entregue o cartão de ${nomeAtual}?`, nomeAtual);
+    if (!nomeRecebedor || nomeRecebedor.trim() === '') {
+        alert("Entrega cancelada.");
+        return;
+    }
+
+    const telRecebedor = prompt("📞 Telefone de quem recebeu? (Opcional)", "");
+    const hoje = new Date();
+    const dataEntrega = `${String(hoje.getDate()).padStart(2,'0')}/${String(hoje.getMonth()+1).padStart(2,'0')}/${hoje.getFullYear()}`;
+
+    const dados = {
+        status: 'ENTREGUE',
+        entregueA: nomeRecebedor.trim(),
+        dataEntrega: dataEntrega,
+        telefone: (telRecebedor && telRecebedor.trim() !== '') ? telRecebedor.trim() : ''
+    };
+
+    postParaGoogleSheets('atualizarMultiplosCartoes', { linhas: [linha], dados: dados })
+        .then(() => {
+            alert('✅ Cartão marcado como entregue!');
+            executarBuscaInteligente(inputBusca.value.trim());
+            carregarDadosIniciais();
+        })
+        .catch(erro => alert('Erro: ' + erro.message));
+}
+
+function editarCartaoBusca(linha) {
+    const novoNome = prompt("Editar nome do cartão:");
+    if (novoNome && novoNome.trim() !== '') {
+        postParaGoogleSheets('atualizarMultiplosCartoes', { linhas: [linha], dados: { nome: novoNome } })
+            .then(() => executarBuscaInteligente(inputBusca.value.trim()))
+            .catch(erro => alert('Erro: ' + erro.message));
+    }
+}
