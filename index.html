@@ -354,46 +354,42 @@
         </div>
     </div>
 
-    <!-- 🔥 MODAL: BUSCA INTELIGENTE (Adaptado do Google Sheets) -->
+    <!-- 🔥 NOVO MODAL: BUSCA INTELIGENTE (Design INCRÍVEL) -->
     <div id="modal-busca" class="modal-overlay">
-        <div class="modal-box" style="max-width: 900px; padding: 25px; background: #ffffff; border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
-            <span class="close-btn" onclick="fecharModal('modal-busca')" style="top:15px; right:20px; font-size:28px;">×</span>
+        <div class="modal-box" style="max-width: 1100px; width: 95%; padding: 25px 30px; background: #ffffff; border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
             
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap;">
-                <div>
-                    <h2 style="margin:0; color:#196E3A; display:flex; align-items:center; gap:10px; font-size:22px;">
-                        🔍 Busca Inteligente
-                    </h2>
-                    <p style="margin:4px 0 0 0; font-size:13px; color:#666;">Nome, rua, número. Resultados ordenados por relevância.</p>
+            <!-- Cabeçalho limpo -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 26px;">🔍</span>
+                    <h2 style="margin:0; color:#1b5e20; font-weight:700; font-size:22px;">Busca Inteligente</h2>
                 </div>
-                <div class="contador" id="busca-contador" style="background:#196E3A; color:#fff; padding:4px 14px; border-radius:20px; font-weight:700; font-size:12px;">⏳ ...</div>
-            </div>
-
-            <div style="display:flex; gap:12px; align-items:center; position:relative; margin-bottom: 15px; background:#f5fbf5; padding:10px; border-radius:16px; border:2px solid #e8f5e9;">
-                <input id="busca-input" placeholder="Ex: João Rua 15 ou Maria Silva" style="flex:1; padding:12px; border:none; background:transparent; font-size:16px; outline:none; color:#222;">
-                <button id="busca-btnSearch" style="padding:10px 24px; border-radius:30px; background:#196E3A; color:#fff; border:none; cursor:pointer; font-weight:700; font-size:14px; box-shadow:0 4px 10px rgba(25,110,58,0.3);">🔎 Buscar</button>
-            </div>
-
-            <!-- Dropdown de Ruas e Chips -->
-            <div style="display:flex; flex-direction:column; margin-bottom:10px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="font-size:14px; color:#196E3A; font-weight:600; padding-left:5px;" id="busca-resumo-count"></div>
-                    <select id="busca-select-rua" style="padding:6px 12px; border-radius:8px; border:1px solid #cfcfcf; background:#fff; font-size:13px; cursor:pointer; max-width:200px;">
-                        <option value="">🏘️ Todas as ruas</option>
-                    </select>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span id="busca-contador" style="background:#e8f5e9; color:#1b5e20; padding:6px 18px; border-radius:30px; font-weight:700; font-size:14px;">⏳ ...</span>
+                    <button onclick="fecharModal('modal-busca')" style="background:transparent; border:none; font-size:26px; cursor:pointer; color:#999; line-height:1;">×</button>
                 </div>
-                <div id="ruasContainer" class="ruas-container" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; max-height:70px; overflow-y:auto; padding:4px; background:#fff; border-radius:8px; border:1px solid #e0f2e0;"></div>
             </div>
 
-            <!-- Resultados -->
-            <div id="busca-resultados" style="max-height: 55vh; overflow-y: auto; padding-right:5px; display:flex; flex-direction:column; gap:6px;">
-                <div style="text-align:center; padding:40px; color:#999; font-size:16px;">Digite algo para iniciar a busca.</div>
+            <!-- Barra de busca estilo Google/App -->
+            <div style="display:flex; align-items:center; background:#f4f6f8; border:1px solid #e0e0e0; border-radius:60px; padding:4px 4px 4px 20px; transition: all 0.3s; box-shadow: 0 2px 8px rgba(0,0,0,0.02);" class="search-bar-hover">
+                <i class="fas fa-search" style="color:#888; font-size:18px; margin-right:10px;"></i>
+                <input id="busca-input" placeholder="Pesquise por nome, rua, número ou combinação..." style="flex:1; padding:14px 0; border:none; background:transparent; font-size:16px; outline:none;">
+                <button id="busca-btnSearch" style="padding:12px 32px; border-radius:40px; background:#1b5e20; color:#fff; border:none; cursor:pointer; font-weight:700; font-size:15px; transition: 0.2s; margin: 3px;">Buscar</button>
             </div>
 
-            <!-- Área de edição (ao clicar em um resultado) -->
-            <div id="busca-editor-area" style="display:none; margin-top:15px; border-top:2px solid #e0f2e0; padding-top:15px; background:#fafffa; border-radius:12px; padding:15px;">
-                <!-- Conteúdo gerado pelo JS -->
+            <!-- Filtros (Chips de Rua) -->
+            <div id="ruasContainer" class="ruas-container" style="display:flex; flex-wrap:wrap; gap:8px; margin:15px 0 10px 0; min-height:10px;"></div>
+
+            <!-- Contador -->
+            <div id="busca-resumo-count" style="font-size:14px; color:#555; margin-bottom:10px;"></div>
+
+            <!-- Grid de Resultados (Cards) -->
+            <div id="busca-resultados" style="max-height: 55vh; overflow-y: auto; padding-right:5px; display:flex; flex-direction:column; gap:12px; margin-top:5px;">
+                <div style="text-align:center; padding:50px; color:#bbb; font-size:16px;">🔎 Digite algo para iniciar a busca</div>
             </div>
+
+            <!-- Área de edição (ao clicar em um card) -->
+            <div id="busca-editor-area" style="display:none; margin-top:20px; border-top:2px solid #e8f5e9; padding-top:20px;"></div>
         </div>
     </div>
 
