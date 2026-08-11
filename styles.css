@@ -327,19 +327,90 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     transform: scale(1.1);
 }
 
-/* 🔥 ESTILOS DO MODAL DE BUSCA (Adaptado do Sheets) */
-#modal-busca .modal-box { max-width: 900px; }
+/* 🔥 ESTILOS DO MODAL DE BUSCA INCRÍVEL */
+#modal-busca .modal-box { max-width: 1100px; }
 
-/* Chips de Rua */
-.ruas-container { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; padding: 4px; background: #fff; border-radius: 8px; border: 1px solid #e0f2e0; }
-.rua-chip {
-    display: inline-flex; align-items: center; background: white;
-    border: 1px solid #bbb; border-radius: 14px; padding: 2px 10px;
-    font-size: 12px; cursor: pointer; transition: all 0.2s; user-select: none;
-    white-space: nowrap;
+/* Barra de busca brilhante */
+.search-bar-hover {
+    border: 1px solid #e0e0e0 !important;
+    background: #ffffff !important;
 }
-.rua-chip.selected { background: #c8e6c9; border-color: #4CAF50; font-weight: 600; }
-.rua-chip .rua-count { margin-left: 4px; color: #888; }
+.search-bar-hover:focus-within {
+    border-color: #1b5e20 !important;
+    box-shadow: 0 0 0 4px rgba(27, 94, 32, 0.1) !important;
+    background: #ffffff !important;
+}
+
+/* Chips de Rua Estilo Filtro */
+.rua-chip {
+    display: inline-flex;
+    align-items: center;
+    background: #f0f4f0;
+    border: 1px solid transparent;
+    border-radius: 40px;
+    padding: 4px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    color: #333;
+}
+.rua-chip:hover {
+    background: #e8f0e8;
+}
+.rua-chip.selected {
+    background: #e8f5e9;
+    border-color: #1b5e20;
+    color: #1b5e20;
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px #1b5e20;
+}
+.rua-chip .rua-count {
+    margin-left: 6px;
+    background: rgba(0,0,0,0.05);
+    padding: 0 6px;
+    border-radius: 12px;
+    font-size: 11px;
+}
+.rua-chip.selected .rua-count {
+    background: rgba(27, 94, 32, 0.1);
+}
+
+/* Card de Resultado */
+.search-result-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.06) !important;
+    border-color: #c8e6c9 !important;
+}
+
+/* Scrollbar personalizada da lista */
+#busca-resultados::-webkit-scrollbar {
+    width: 8px;
+}
+#busca-resultados::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+#busca-resultados::-webkit-scrollbar-thumb {
+    background: #c8e6c9;
+    border-radius: 10px;
+}
+#busca-resultados::-webkit-scrollbar-thumb:hover {
+    background: #1b5e20;
+}
+
+/* Responsividade para mobile */
+@media (max-width: 600px) {
+    .search-result-card {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+    }
+    .search-result-card > div {
+        width: 100% !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+    }
+}
 
 /* Editor e Cards */
 .editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
