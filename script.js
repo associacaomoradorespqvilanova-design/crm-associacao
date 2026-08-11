@@ -1,6 +1,6 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbz1TIhpFN2hOC2Q4GGF7meekJ5SrzQPh9H6B80XTS7TsqsnTYKimnRP6ucl-YSw9cMmPg/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwDlcThiZxRzUP6ruvYUWCzkrof6WC9N_4HpmmcEVNA3VJqkvOE6kDBs57X5EVW8iSdDw/exec"; 
 
-// 🔥 JSONP para GET
+// 🔥 JSONP para GET com timeout maior (30 segundos)
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
         const callbackName = 'cb' + Date.now() + Math.random().toString(36).substr(2, 8);
@@ -12,7 +12,7 @@ function fetchFromGS(acao, params = {}, signal) {
             if (document.body.contains(script)) document.body.removeChild(script);
             reject(new Error('O servidor demorou muito para responder. Tente novamente.'));
             setTimeout(() => { delete window[callbackName]; }, 1000);
-        }, 10000);
+        }, 30000); // ⏱️ Aumentado para 30 segundos
         
         window[callbackName] = (res) => {
             clearTimeout(timeout);
@@ -421,15 +421,14 @@ function abrirModal(id) {
         }, 200);
     }
     
-    // 🔥 NOVO: Limpa e foca o modal de busca inteligente (adaptado do Sheets)
+    // 🔥 NOVO: Limpa e foca o modal de busca inteligente
     if (id === 'modal-busca') {
         setTimeout(() => {
             document.getElementById('busca-input').value = '';
             document.getElementById('busca-input').focus();
-            document.getElementById('busca-resultados').innerHTML = '<div style="text-align:center; padding:40px; color:#999; font-size:16px;">Digite algo para iniciar a busca.</div>';
+            document.getElementById('busca-resultados').innerHTML = '<div style="text-align:center; padding:50px; color:#bbb; font-size:16px;">🔎 Digite algo para iniciar a busca</div>';
             document.getElementById('busca-resumo-count').textContent = '';
             document.getElementById('busca-contador').textContent = '⏳ ...';
-            document.getElementById('busca-select-rua').innerHTML = '<option value="">🏘️ Todas as ruas</option>';
             document.getElementById('ruasContainer').innerHTML = '';
             document.getElementById('busca-editor-area').style.display = 'none';
             document.getElementById('busca-editor-area').innerHTML = '';
@@ -1708,7 +1707,7 @@ function fecharComprovantePrint() { document.getElementById('modal-comprovante-p
 
 
 // ==========================================================
-// 🔥 NOVO: LÓGICA DA BUSCA INTELIGENTE NO MODAL DE BUSCA (Adaptado do Sheets)
+// 🔥 NOVO: LÓGICA DA BUSCA INTELIGENTE (Design INCRÍVEL)
 // ==========================================================
 
 // Variáveis de estado específicas da busca
@@ -1764,7 +1763,7 @@ inputBusca.addEventListener('input', () => {
     clearTimeout(debounceTimerBusca);
     const termo = inputBusca.value.trim();
     if (termo.length === 0) {
-        document.getElementById('busca-resultados').innerHTML = '<div style="text-align:center; padding:20px; color:#999;">Digite um nome, rua ou número.</div>';
+        document.getElementById('busca-resultados').innerHTML = '<div style="text-align:center; padding:50px; color:#bbb; font-size:16px;">🔎 Digite algo para iniciar a busca</div>';
         return;
     }
     debounceTimerBusca = setTimeout(async () => {
@@ -1787,21 +1786,24 @@ inputBusca.addEventListener('keypress', (e) => {
 });
 
 async function executarBuscaInteligente(termo) {
-    buscaResultados.innerHTML = '<div style="text-align:center; padding:20px; color:#888;">⏳ Buscando...</div>';
+    buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">⏳ Buscando...</div>';
     document.getElementById('busca-resumo-count').textContent = '';
+    document.getElementById('busca-contador').textContent = '⏳ Buscando...';
     try {
         const resultado = await fetchFromGS('pesquisarInteligente', { termo: termo });
         processarResultadosBusca(resultado || []);
     } catch (e) {
-        buscaResultados.innerHTML = `<div style="text-align:center; padding:20px; color:#d32f2f;">❌ ${e.message}</div>`;
+        buscaResultados.innerHTML = `<div style="text-align:center; padding:30px; color:#d32f2f;">❌ ${e.message}</div>`;
+        document.getElementById('busca-contador').textContent = '⛔ Erro';
     }
 }
 
 function processarResultadosBusca(lista) {
     todosResultadosBusca = lista;
     if (todosResultadosBusca.length === 0) {
-        buscaResultados.innerHTML = '<div class="empty">Nenhum cartão pendente encontrado.</div>';
+        buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#999;">Nenhum cartão pendente encontrado.</div>';
         document.getElementById('busca-resumo-count').textContent = '';
+        document.getElementById('busca-contador').textContent = '0 encontrados';
         selectRuaBusca.innerHTML = '<option value="">🏘️ Todas as ruas</option>';
         document.getElementById('ruasContainer').innerHTML = '';
         return;
@@ -1816,19 +1818,27 @@ function processarResultadosBusca(lista) {
     });
 
     document.getElementById('busca-resumo-count').textContent = `${todosResultadosBusca.length} cartão(ões) encontrado(s)`;
+    document.getElementById('busca-contador').textContent = `📦 ${todosResultadosBusca.length} resultados`;
     ruasSelecionadasBusca.clear();
     renderizarChipsRuasBusca(contagemRuas);
     renderizarResultadosBusca();
 }
 
+// RENDERIZAÇÃO DOS CHIPS DE RUA (Estilo Tag)
 function renderizarChipsRuasBusca(contagemRuas) {
     const container = document.getElementById('ruasContainer');
     if(!container) return;
     container.innerHTML = '';
+    
+    if (Object.keys(contagemRuas).length === 0) {
+        container.innerHTML = '<span style="color:#999; font-size:13px;">Nenhuma rua encontrada.</span>';
+        return;
+    }
+
     for (const [rua, count] of Object.entries(contagemRuas)) {
         const chip = document.createElement('div');
         chip.className = 'rua-chip';
-        chip.innerHTML = `<span class="rua-nome">${rua}</span><span class="rua-count">(${count})</span>`;
+        chip.innerHTML = `<span class="rua-nome">${rua}</span><span class="rua-count">${count}</span>`;
         chip.addEventListener('click', () => {
             if (ruasSelecionadasBusca.has(rua)) {
                 ruasSelecionadasBusca.delete(rua);
@@ -1843,36 +1853,88 @@ function renderizarChipsRuasBusca(contagemRuas) {
     }
 }
 
+// RENDERIZAÇÃO DOS CARDS (Design de App Moderno)
 function renderizarResultadosBusca(listaParaExibir = null) {
     let exibir = listaParaExibir || todosResultadosBusca;
     if (ruasSelecionadasBusca.size > 0) {
         exibir = exibir.filter(item => ruasSelecionadasBusca.has(item.endereco || 'Sem endereço'));
     }
+    
+    const container = document.getElementById('busca-resultados');
+    
     if (exibir.length === 0) {
-        buscaResultados.innerHTML = '<div class="empty">Nenhum cartão para as ruas selecionadas</div>';
+        container.innerHTML = `<div style="text-align:center; padding:30px; color:#999;">Nenhum cartão corresponde aos filtros aplicados.</div>`;
         return;
     }
 
+    const sorted = [...exibir].sort((a, b) => {
+        const statusA = a.status === 'ENTREGUE' ? 1 : (a.status === 'BLOQUEADO' ? 2 : 0);
+        const statusB = b.status === 'ENTREGUE' ? 1 : (b.status === 'BLOQUEADO' ? 2 : 0);
+        return statusA - statusB;
+    });
+
     let html = '';
-    exibir.forEach((item, idx) => {
-        let statusClass = item.status === 'ENTREGUE' ? 'entregue' : (item.status === 'BLOQUEADO' ? 'bloqueado' : '');
+    sorted.forEach((item) => {
+        let statusColor = '#ffb300'; 
+        let statusBg = '#fff8e1';
+        let statusText = 'PENDENTE';
+        if (item.status === 'ENTREGUE') {
+            statusColor = '#4caf50';
+            statusBg = '#e8f5e9';
+            statusText = 'ENTREGUE';
+        } else if (item.status === 'BLOQUEADO') {
+            statusColor = '#b71c1c';
+            statusBg = '#ffebee';
+            statusText = 'BLOQUEADO';
+        }
+
         html += `
-          <div class="card" style="cursor:pointer;" onclick="handleCardClickBusca(${item.linha}, ${idx})">
-            <span class="numero">${item.numero || '-'}</span>
-            <span class="nome" title="${item.nome}">${item.nome}</span>
-            <div class="detalhes">
-              <span class="data-destaque">📅 ${item.data || '—'}</span>
-              <span>📍 ${item.endereco}</span>
-              <span>📋 ${item.tipo}</span>
-              <span class="status-badge ${statusClass}">${item.status || 'PENDENTE'}</span>
+          <div class="search-result-card" style="background:#fff; border-radius:16px; padding:16px; box-shadow:0 4px 12px rgba(0,0,0,0.04); border:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; transition:0.3s; cursor:pointer;" onclick="handleCardClickBusca(${item.linha}, 0)">
+            
+            <!-- Coluna Esquerda: Info Principal -->
+            <div style="display:flex; align-items:center; gap:15px; flex:2; min-width:200px;">
+                <div style="background:#1b5e20; color:white; border-radius:12px; padding:6px 14px; font-weight:900; font-size:20px; letter-spacing:1px; box-shadow:0 4px 8px rgba(27,94,32,0.2);">${item.numero || '---'}</div>
+                <div>
+                    <div style="font-weight:700; font-size:18px; color:#222;">${item.nome}</div>
+                    <div style="font-size:13px; color:#777; margin-top:3px;">
+                        <i class="fas fa-map-marker-alt" style="color:#4caf50; margin-right:4px;"></i> ${item.endereco}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna Direita: Detalhes e Ações -->
+            <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
+                <div style="text-align:right; font-size:12px; color:#555;">
+                    <div><i class="far fa-calendar-alt" style="margin-right:4px;"></i> ${item.data}</div>
+                    <div><i class="fas fa-tag" style="margin-right:4px;"></i> ${item.tipo}</div>
+                    <div style="font-size:11px; margin-top:2px; color:#4caf50;"><i class="fas fa-phone"></i> ${item.telefone || '—'}</div>
+                </div>
+                
+                <!-- Badge Status -->
+                <div style="background:${statusBg}; color:${statusColor}; padding:4px 14px; border-radius:40px; font-weight:700; font-size:11px; border:1px solid ${statusColor};">
+                    ${statusText}
+                </div>
+
+                <!-- Botões Ação -->
+                <div style="display:flex; gap:6px;">
+                    <button onclick="event.stopPropagation(); confirmarEntregaBusca(${item.linha})" style="background:#2196F3; color:white; border:none; padding:8px 16px; border-radius:40px; font-weight:600; font-size:12px; cursor:pointer;">✅ Entregar</button>
+                    <button onclick="event.stopPropagation(); abrirEditorBuscaRapido(${item.linha})" style="background:#ff9800; color:white; border:none; padding:8px 16px; border-radius:40px; font-weight:600; font-size:12px; cursor:pointer;">✏️ Editar</button>
+                </div>
             </div>
           </div>`;
     });
-    buscaResultados.innerHTML = html;
+    container.innerHTML = html;
 }
 
-// 4. Editor Individual e Ações (Adaptado do Sheets)
+// Função rápida para abrir o editor a partir do botão do card
+function abrirEditorBuscaRapido(linha) {
+    const idx = todosResultadosBusca.findIndex(it => it.linha === linha);
+    if (idx !== -1) {
+        handleCardClickBusca(linha, idx);
+    }
+}
 
+// 4. Editor Individual e Ações 
 function handleCardClickBusca(linha, idx) {
     const item = todosResultadosBusca.find(it => it.linha === linha);
     if (!item) return;
@@ -1882,7 +1944,6 @@ function handleCardClickBusca(linha, idx) {
     const chaveEndereco = normalizarEndereco(item.endereco);
     const numeroBloco = item.numero;
 
-    // Cria o editor dentro do box do modal
     const editorArea = document.getElementById('busca-editor-area');
     const resultadosDiv = document.getElementById('busca-resultados');
     
@@ -1924,7 +1985,6 @@ function handleCardClickBusca(linha, idx) {
         </div>
     `;
 
-    // Busca posição no backend
     if (numeroBloco) {
         fetchFromGS('obterPosicaoNoBlocoBackend', { numeroBloco: numeroBloco, linhaAtual: linha })
             .then(result => {
