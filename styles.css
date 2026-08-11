@@ -251,6 +251,38 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .month .pendente { background:#ffe6e6 !important; color:#9b2c2c !important; }
 .stamp.show { display:block; text-align:center; font-size:32px; color:rgba(25,110,58,0.3); font-weight:900; margin-top:10px; }
 
+/* 🔥 ESTILOS DA LISTA DE PENDENTES ORGANIZADA EM GRID */
+#cesta-pendentes-home {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
+    width: 100%;
+    padding: 5px 0;
+}
+
+.pending-item-card {
+    background: #ffe6e6 !important;
+    color: #9b2c2c !important;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid #ffcdd2;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+
+.pending-item-card:hover {
+    background: #ffcdd2 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(155, 44, 44, 0.15);
+    border-color: #9b2c2c;
+}
+
 @media (max-width: 900px) {
     .grid-container { grid-template-columns: 1fr; }
     .col-center { order: -1; }
@@ -262,8 +294,6 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     .modal-box { max-width: 95%; margin: 10px; }
     #cesta-fields { grid-template-columns: 1fr !important; }
     .month { width: 48%; }
-
-    /* 🔥 CORREÇÃO DE RESPONSIVIDADE NO CELULAR */
     .modal-overlay { align-items: flex-start; padding: 15px 0; overflow-y: auto; }
     #modal-cesta .modal-box { max-height: 85vh; padding: 15px; overflow-y: auto; }
 }
