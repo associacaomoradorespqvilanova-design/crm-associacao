@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwDlcThiZxRzUP6ruvYUWCzkrof6WC9N_4HpmmcEVNA3VJqkvOE6kDBs57X5EVW8iSdDw/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbxF-dXkgJ5NMRQ-YlD4MvRkUOL2RdR2sUbE41xEQfBCjMVnFc0q2kWfwoXsEOfzI7J1mg/exec"; 
 
 // 🔥 JSONP para GET
 function fetchFromGS(acao, params = {}, signal) {
