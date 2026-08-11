@@ -1,6 +1,6 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbx1RNI-AsdKMR2lLdMfgvJcibv8K36JfZKW_7SWLhUl_XEUleJNLw_NST-qG5jGjVs/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwDlcThiZxRzUP6ruvYUWCzkrof6WC9N_4HpmmcEVNA3VJqkvOE6kDBs57X5EVW8iSdDw/exec"; 
 
-// 🔥 VOLTAMOS AO JSONP ORIGINAL (FUNCIONA PERFEITAMENTE)
+// 🔥 JSONP para GET com timeout de 8s para evitar erro na tela
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
         const callbackName = 'cb' + Date.now() + Math.random().toString(36).substr(2, 8);
@@ -10,9 +10,9 @@ function fetchFromGS(acao, params = {}, signal) {
         
         const timeout = setTimeout(() => {
             if (document.body.contains(script)) document.body.removeChild(script);
-            reject(new Error('Timeout na requisição JSONP'));
+            reject(new Error('O servidor demorou muito para responder. Tente novamente.'));
             setTimeout(() => { delete window[callbackName]; }, 1000);
-        }, 15000);
+        }, 8000); // ⏱️ Reduzido para 8 segundos
         
         window[callbackName] = (res) => {
             clearTimeout(timeout);
@@ -24,7 +24,7 @@ function fetchFromGS(acao, params = {}, signal) {
         script.onerror = () => {
             clearTimeout(timeout);
             if (document.body.contains(script)) document.body.removeChild(script);
-            reject(new Error('Erro de rede na requisição JSONP'));
+            reject(new Error('Erro de rede na requisição. Verifique sua internet.'));
             setTimeout(() => { delete window[callbackName]; }, 1000);
         };
         
@@ -42,7 +42,7 @@ function fetchFromGS(acao, params = {}, signal) {
     });
 }
 
-// 🔥 POST mantido com no-cors para não bloquear o navegador
+// 🔥 POST mantido com no-cors
 async function postParaGoogleSheets(acao, dados = {}) {
     const formData = new URLSearchParams();
     formData.append('acao', acao);
@@ -225,7 +225,6 @@ async function renderizarCartoes() {
     const respNomes = await fetchFromGS('listarResponsaveis');
     state.responsaveis = respNomes.nomes || [];
 
-    // 🔥 POPULA O DROPDOWN DO MODAL DE CARTÕES (CORRIGE O ERRO DA IMAGEM)
     const select = document.getElementById('card-responsavel');
     if (select) {
         select.innerHTML = '<option value="">Selecione um responsável</option>';
@@ -235,7 +234,6 @@ async function renderizarCartoes() {
         });
     }
 
-    // 🔥 RENDERIZA A TABELA DE CARTÕES (COM CABEÇALHO DINÂMICO)
     const nomesOrdenados = state.responsaveis.map(n => n.replace(/^"|"$/g, '').replace(/^'|'$/g, ''));
     const thead = document.getElementById('cards-header');
     let headerHtml = '<tr>';
@@ -427,8 +425,9 @@ function abrirModal(id) {
         setTimeout(() => {
             document.getElementById('busca-input').value = '';
             document.getElementById('busca-input').focus();
-            document.getElementById('busca-resultados').innerHTML = '<div style="text-align:center; color:#888; padding:20px;">Digite nome, rua ou ambos para buscar.</div>';
+            document.getElementById('busca-resultados').innerHTML = '<div style="text-align:center; padding:40px; color:#999; font-size:16px;">Digite algo para iniciar a busca poderosa.</div>';
             document.getElementById('busca-resumo-count').textContent = '';
+            document.getElementById('busca-contador').textContent = '⏳ ...';
         }, 100);
     }
 }
@@ -1700,6 +1699,7 @@ async function salvarEImprimir() {
 function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
 function fecharComprovantePrint() { document.getElementById('modal-comprovante-print').style.display = 'none'; }
 
+
 // ==========================================================
 // 🔥 NOVO: LÓGICA DA BUSCA INTELIGENTE NO MODAL DE BUSCA
 // ==========================================================
@@ -1712,48 +1712,52 @@ let debounceTimerBusca;
 
 async function executarBuscaInteligente(termo) {
     if (!termo) {
-        buscaResultados.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">Digite um nome, rua ou ambos.</div>';
+        buscaResultados.innerHTML = '<div style="text-align:center; padding:40px; color:#999; font-size:16px;">Digite um nome, rua ou ambos.</div>';
         buscaResumoCount.textContent = '';
+        document.getElementById('busca-contador').textContent = '⏳';
         return;
     }
     
-    buscaResultados.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">⏳ Buscando...</div>';
+    buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">⏳ Carregando resultados...</div>';
+    document.getElementById('busca-contador').textContent = '⏳ Buscando...';
     
     try {
         const resultado = await fetchFromGS('pesquisarInteligente', { termo: termo });
         
         if (!resultado || resultado.length === 0) {
-            buscaResultados.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">Nenhum cartão pendente encontrado.</div>';
+            buscaResultados.innerHTML = '<div style="text-align:center; padding:40px; color:#888; font-size:16px;">Nenhum cartão pendente encontrado.</div>';
             buscaResumoCount.textContent = '';
+            document.getElementById('busca-contador').textContent = '0 encontrados';
             return;
         }
         
         buscaResumoCount.textContent = `🔍 ${resultado.length} cartão(ões) encontrado(s)`;
+        document.getElementById('busca-contador').textContent = `📦 ${resultado.length} resultados`;
         
-        let html = '<div style="display:flex; flex-direction:column; gap:8px;">';
+        let html = '<div style="display:flex; flex-direction:column; gap:12px;">';
         resultado.forEach(item => {
             let borderColor = '#4caf50';
             if (item.status === 'BLOQUEADO') borderColor = '#b71c1c';
             else if (item.status === 'PENDENTE') borderColor = '#ff9800';
             
             html += `
-              <div style="background:white; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); border-left:6px solid ${borderColor}; display:flex; flex-direction:column; gap:8px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="background:white; border-radius:16px; padding:16px 20px; box-shadow:0 2px 12px rgba(0,0,0,0.04); border-left:8px solid ${borderColor}; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; transition:0.2s; border-bottom:1px solid #f0f0f0;">
+                <div style="display:flex; align-items:center; gap:15px; flex:2; min-width:250px;">
+                  <div style="font-size:26px; font-weight:900; color:#1b5e20; background:#e8f5e9; padding:4px 16px; border-radius:10px; text-align:center;">${item.numero || '-'}</div>
                   <div>
-                    <div style="font-weight:700; font-size:16px; color:#222;">${item.nome}</div>
-                    <div style="font-size:13px; color:#666;">📍 ${item.endereco}</div>
+                    <div style="font-weight:700; font-size:17px; color:#222;">${item.nome}</div>
+                    <div style="font-size:13px; color:#666; margin-top:2px;">📍 ${item.endereco}</div>
                   </div>
-                  <div style="font-size:28px; font-weight:900; color:#1b5e20; background:#e8f5e9; padding:2px 12px; border-radius:8px;">${item.numero || '-'}</div>
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#555; border-top:1px solid #eee; padding-top:8px;">
-                  <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <span style="background:#f5f5f5; padding:2px 8px; border-radius:12px;">📅 ${item.data}</span>
-                    <span style="background:#f5f5f5; padding:2px 8px; border-radius:12px;">📋 ${item.tipo}</span>
-                    <span style="background:#f5f5f5; padding:2px 8px; border-radius:12px;">📞 ${item.telefone || '—'}</span>
+                <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
+                  <div style="display:flex; gap:10px; font-size:13px; color:#555;">
+                    <span style="background:#f5f5f5; padding:4px 10px; border-radius:20px;">📅 ${item.data}</span>
+                    <span style="background:#f5f5f5; padding:4px 10px; border-radius:20px;">📋 ${item.tipo}</span>
+                    <span style="background:#f5f5f5; padding:4px 10px; border-radius:20px;">📞 ${item.telefone || '—'}</span>
                   </div>
                   <div style="display:flex; gap:6px;">
-                    <button style="background:#2196F3; color:white; border:none; padding:6px 12px; border-radius:20px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="entregarRapidoBusca(${item.linha}, '${item.nome.replace(/'/g, "\\'")}')">✅ Entregar</button>
-                    <button style="background:#ff9800; color:white; border:none; padding:6px 12px; border-radius:20px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="editarCartaoBusca(${item.linha})">✏️ Editar</button>
+                    <button style="background:#2196F3; color:white; border:none; padding:8px 16px; border-radius:30px; font-size:12px; font-weight:bold; cursor:pointer; transition:0.2s;" onclick="entregarRapidoBusca(${item.linha}, '${item.nome.replace(/'/g, "\\'")}')">✅ Entregar</button>
+                    <button style="background:#ff9800; color:white; border:none; padding:8px 16px; border-radius:30px; font-size:12px; font-weight:bold; cursor:pointer; transition:0.2s;" onclick="editarCartaoBusca(${item.linha})">✏️ Editar</button>
                   </div>
                 </div>
               </div>
@@ -1763,18 +1767,19 @@ async function executarBuscaInteligente(termo) {
         buscaResultados.innerHTML = html;
     } catch (e) {
         console.error(e);
-        buscaResultados.innerHTML = '<div style="text-align:center; color:#d32f2f; padding:20px;">Erro na busca: ' + e.message + '</div>';
+        buscaResultados.innerHTML = `<div style="text-align:center; padding:30px; color:#d32f2f; font-weight:600;">❌ ${e.message}</div>`;
         buscaResumoCount.textContent = '';
+        document.getElementById('busca-contador').textContent = '⛔ Erro';
     }
 }
 
-// Eventos de busca
 inputBusca.addEventListener('input', () => {
     clearTimeout(debounceTimerBusca);
     const termo = inputBusca.value.trim();
     if (termo.length < 2) {
-        buscaResultados.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">Digite pelo menos 2 caracteres.</div>';
+        buscaResultados.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">Digite pelo menos 2 caracteres.</div>';
         buscaResumoCount.textContent = '';
+        document.getElementById('busca-contador').textContent = '⏳ ...';
         return;
     }
     debounceTimerBusca = setTimeout(() => executarBuscaInteligente(termo), 400);
@@ -1788,7 +1793,6 @@ inputBusca.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') executarBuscaInteligente(inputBusca.value.trim());
 });
 
-// Ações rápidas
 function entregarRapidoBusca(linha, nomeAtual) {
     const nomeRecebedor = prompt(`📦 Para quem foi entregue o cartão de ${nomeAtual}?`, nomeAtual);
     if (!nomeRecebedor || nomeRecebedor.trim() === '') {
