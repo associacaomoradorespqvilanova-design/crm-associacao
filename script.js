@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwJekUk0CO8UNJc-sYau0LYSDp9kViTLvSJpac1LZtHIReFFP7NdatS5C0EXQ9GDNhv2Q/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzDiKSy-BdwIe80DXXtGIOvhFcRr9BiBP-KpvHXgKobISPlDayFtJoiWgw8j4OGpkMeUA/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -214,7 +214,7 @@ async function deletarItemAgenda(id) {
 }
 
 // ==========================================================
-// CARTÕES
+// 🔥 CARTÕES (COLUNA DIREITA CORRIGIDA)
 // ==========================================================
 async function renderizarCartoes() {
     const resp = await fetchFromGS('listarCartoes');
@@ -223,24 +223,24 @@ async function renderizarCartoes() {
     const respNomes = await fetchFromGS('listarResponsaveis');
     state.responsaveis = respNomes.nomes || [];
 
-    const select = document.getElementById('card-responsavel');
-    select.innerHTML = '<option value="">Selecione um responsável</option>';
-    
-    state.responsaveis.forEach(nome => {
-        const nomeLimpo = String(nome).replace(/^"|"$/g, '').replace(/^'|'$/g, '');
-        select.innerHTML += `<option value="${nomeLimpo}">${nomeLimpo}</option>`;
-    });
-
-    const thResponsaveis = document.getElementById('th-responsaveis');
+    // 🔥 Limpa os nomes para exibir corretamente
     const nomesOrdenados = state.responsaveis.map(n => n.replace(/^"|"$/g, '').replace(/^'|'$/g, ''));
-    
+
+    // 🔥 CRIA O CABEÇALHO DINÂMICO (CORRIGINDO O ALINHAMENTO)
+    const thead = document.getElementById('cards-header');
+    let headerHtml = '<tr>';
+    headerHtml += `<th>DATA</th>`;
     if (nomesOrdenados.length > 0) {
-        thResponsaveis.colSpan = nomesOrdenados.length;
-        thResponsaveis.innerText = nomesOrdenados.join(' / ');
+        nomesOrdenados.forEach(nome => {
+            headerHtml += `<th style="text-align:center;">${nome}</th>`;
+        });
     } else {
-        thResponsaveis.colSpan = 1;
-        thResponsaveis.innerText = 'RESPONSÁVEIS';
+        headerHtml += `<th style="text-align:center;">RESPONSÁVEIS</th>`;
     }
+    headerHtml += `<th style="text-align:center;">TOTAL DIA</th>`;
+    headerHtml += `<th>AÇÕES</th>`;
+    headerHtml += '</tr>';
+    thead.innerHTML = headerHtml;
 
     const tbody = document.getElementById('cards-list');
     tbody.innerHTML = '';
@@ -714,7 +714,6 @@ async function renderizarPendentesCestaHome() {
             const card = document.createElement('div');
             card.className = 'pending-item-card';
 
-            // Área clicável que abre o modal (apenas o nome e o tipo)
             const content = document.createElement('div');
             content.className = 'card-content';
             content.onclick = () => { abrirModalCestaComNome(nomeLimpo); };
@@ -724,7 +723,6 @@ async function renderizarPendentesCestaHome() {
                 <span class="card-tag">${item.tipo || 'Sem tipo'}</span>
             `;
 
-            // Área de ações (Editar e Excluir)
             const actions = document.createElement('div');
             actions.className = 'card-actions';
             actions.innerHTML = `
