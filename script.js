@@ -1,51 +1,54 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzDiKSy-BdwIe80DXXtGIOvhFcRr9BiBP-KpvHXgKobISPlDayFtJoiWgw8j4OGpkMeUA/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbyzpYcLMyFr0EL2I8u-IpJRpZU6hwzaI9XVmWa-5rNRPgzwr6gesaCoPDaiVrPP7uQyqA/exec"; 
 
-function fetchFromGS(acao, params = {}, signal) {
-    return new Promise((resolve, reject) => {
-        const callbackName = 'cb' + Date.now() + Math.random().toString(36).substr(2, 8);
-        const urlParams = new URLSearchParams({ acao, callback: callbackName, ...params });
-        const script = document.createElement('script');
-        script.src = URL_API_GS + '?' + urlParams.toString();
-        
-        const timeout = setTimeout(() => {
-            if (document.body.contains(script)) document.body.removeChild(script);
-            reject(new Error('Timeout na requisição JSONP'));
-            setTimeout(() => { delete window[callbackName]; }, 1000);
-        }, 15000);
-        
-        window[callbackName] = (res) => {
-            clearTimeout(timeout);
-            if (document.body.contains(script)) document.body.removeChild(script);
-            resolve(res);
-            setTimeout(() => { delete window[callbackName]; }, 1000);
-        };
-        
-        script.onerror = () => {
-            clearTimeout(timeout);
-            if (document.body.contains(script)) document.body.removeChild(script);
-            reject(new Error('Erro de rede na requisição JSONP'));
-            setTimeout(() => { delete window[callbackName]; }, 1000);
-        };
-        
-        document.body.appendChild(script);
+// 🔥 NOVA FUNÇÃO DE GET (MUITO MAIS RÁPIDA QUE JSONP)
+async function getFromGS(acao, params = {}) {
+    const url = new URL(URL_API_GS);
+    url.searchParams.append('acao', acao);
+    Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
 
-        if (signal) {
-            signal.addEventListener('abort', () => {
-                if (document.body.contains(script)) {
-                    document.body.removeChild(script);
-                    clearTimeout(timeout);
-                    delete window[callbackName];
-                }
-            });
-        }
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    try {
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            mode: 'cors', // Permite ler a resposta corretamente
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (!response.ok) throw new Error('Erro de rede: ' + response.status);
+        return await response.json();
+    } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') throw new Error('Tempo limite excedido.');
+        throw error;
+    }
 }
 
+// 🔥 NOVA FUNÇÃO DE POST (AGORA LÊ A RESPOSTA DO SERVIDOR)
 async function postParaGoogleSheets(acao, dados = {}) {
     const formData = new URLSearchParams();
     formData.append('acao', acao);
     formData.append('dados', JSON.stringify(dados));
-    await fetch(URL_API_GS, { method: 'POST', body: formData, mode: 'no-cors' });
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    try {
+        const response = await fetch(URL_API_GS, { 
+            method: 'POST', 
+            body: formData, 
+            mode: 'cors',
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (!response.ok) throw new Error('Erro de rede: ' + response.status);
+        return await response.json();
+    } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') throw new Error('Tempo limite excedido.');
+        throw error;
+    }
 }
 
 const state = {
@@ -148,8 +151,13 @@ async function renderizarTabelas() {
 }
 
 async function renderizarAgenda() {
-    const resp = await fetchFromGS('listarAgenda');
-    state.dadosAgenda = resp.itens || [];
+    try {
+        const resp = await getFromGS('listarAgenda');
+        state.dadosAgenda = resp.itens || [];
+    } catch (e) {
+        console.error("Erro ao carregar Agenda:", e);
+        return;
+    }
 
     const tbody = document.getElementById('agenda-list');
     const hoje = new Date();
@@ -197,122 +205,144 @@ async function salvarAgenda() {
         return; 
     }
 
-    await postParaGoogleSheets('salvarAgenda', { id: Date.now(), nome, data, periodo, endereco, telefone });
-    fecharModal('modal-agenda');
-    await renderizarAgenda();
-    document.getElementById('ag-nome').value = ''; 
-    document.getElementById('ag-data').value = ''; 
-    document.getElementById('ag-periodo').value = ''; 
-    document.getElementById('ag-end').value = ''; 
-    document.getElementById('ag-tel').value = '';
+    try {
+        await postParaGoogleSheets('salvarAgenda', { id: Date.now(), nome, data, periodo, endereco, telefone });
+        fecharModal('modal-agenda');
+        await renderizarAgenda();
+        document.getElementById('ag-nome').value = ''; 
+        document.getElementById('ag-data').value = ''; 
+        document.getElementById('ag-periodo').value = ''; 
+        document.getElementById('ag-end').value = ''; 
+        document.getElementById('ag-tel').value = '';
+    } catch (e) {
+        alert("Erro ao salvar agenda: " + e.message);
+    }
 }
 
 async function deletarItemAgenda(id) {
     if (!confirm('Tem certeza que deseja excluir este compromisso?')) return;
-    await postParaGoogleSheets('deletarAgenda', id);
-    await renderizarAgenda();
+    try {
+        await postParaGoogleSheets('deletarAgenda', id);
+        await renderizarAgenda();
+    } catch (e) {
+        alert("Erro ao excluir: " + e.message);
+    }
 }
 
 // ==========================================================
-// 🔥 CARTÕES (COLUNA DIREITA CORRIGIDA)
+// 🔥 CARTÕES (COLUNA DIREITA CORRIGIDA E DROPDOWN POPULADO)
 // ==========================================================
 async function renderizarCartoes() {
-    const resp = await fetchFromGS('listarCartoes');
-    state.dadosCartoes = resp.itens || [];
+    try {
+        const resp = await getFromGS('listarCartoes');
+        state.dadosCartoes = resp.itens || [];
 
-    const respNomes = await fetchFromGS('listarResponsaveis');
-    state.responsaveis = respNomes.nomes || [];
+        const respNomes = await getFromGS('listarResponsaveis');
+        state.responsaveis = respNomes.nomes || [];
 
-    // 🔥 Limpa os nomes para exibir corretamente
-    const nomesOrdenados = state.responsaveis.map(n => n.replace(/^"|"$/g, '').replace(/^'|'$/g, ''));
-
-    // 🔥 CRIA O CABEÇALHO DINÂMICO (CORRIGINDO O ALINHAMENTO)
-    const thead = document.getElementById('cards-header');
-    let headerHtml = '<tr>';
-    headerHtml += `<th>DATA</th>`;
-    if (nomesOrdenados.length > 0) {
-        nomesOrdenados.forEach(nome => {
-            headerHtml += `<th style="text-align:center;">${nome}</th>`;
-        });
-    } else {
-        headerHtml += `<th style="text-align:center;">RESPONSÁVEIS</th>`;
-    }
-    headerHtml += `<th style="text-align:center;">TOTAL DIA</th>`;
-    headerHtml += `<th>AÇÕES</th>`;
-    headerHtml += '</tr>';
-    thead.innerHTML = headerHtml;
-
-    const tbody = document.getElementById('cards-list');
-    tbody.innerHTML = '';
-    const totais = {};
-
-    state.dadosCartoes.forEach(item => {
-        if(!totais[item.responsavel]) totais[item.responsavel] = 0;
-        totais[item.responsavel] += item.qtd;
-    });
-
-    const agrupado = {};
-    state.dadosCartoes.forEach(item => {
-        let dataObj = new Date(item.data + 'T00:00:00');
-        if (isNaN(dataObj.getTime())) {
-            const partes = item.data.split('/');
-            if (partes.length === 3) {
-                dataObj = new Date(partes[2], partes[1] - 1, partes[0]);
-            }
+        // 🔥 POPULA O DROPDOWN DO MODAL DE CARTÕES (CORRIGE O ERRO DA IMAGEM)
+        const select = document.getElementById('card-responsavel');
+        if (select) {
+            select.innerHTML = '<option value="">Selecione um responsável</option>';
+            state.responsaveis.forEach(nome => {
+                const nomeLimpo = String(nome).replace(/^"|"$/g, '').replace(/^'|'$/g, '');
+                select.innerHTML += `<option value="${nomeLimpo}">${nomeLimpo}</option>`;
+            });
         }
-        const dataStr = dataObj.toISOString().split('T')[0];
 
-        if(!agrupado[dataStr]) agrupado[dataStr] = {};
-        if(!agrupado[dataStr][item.responsavel]) agrupado[dataStr][item.responsavel] = 0;
-        agrupado[dataStr][item.responsavel] += item.qtd;
-    });
+        // 🔥 RENDERIZA A TABELA DE CARTÕES (COM CABEÇALHO DINÂMICO)
+        const nomesOrdenados = state.responsaveis.map(n => n.replace(/^"|"$/g, '').replace(/^'|'$/g, ''));
+        const thead = document.getElementById('cards-header');
+        let headerHtml = '<tr>';
+        headerHtml += `<th>DATA</th>`;
+        if (nomesOrdenados.length > 0) {
+            nomesOrdenados.forEach(nome => {
+                headerHtml += `<th style="text-align:center;">${nome}</th>`;
+            });
+        } else {
+            headerHtml += `<th style="text-align:center;">RESPONSÁVEIS</th>`;
+        }
+        headerHtml += `<th style="text-align:center;">TOTAL DIA</th>`;
+        headerHtml += `<th>AÇÕES</th>`;
+        headerHtml += '</tr>';
+        thead.innerHTML = headerHtml;
 
-    for (const [data, valores] of Object.entries(agrupado).sort((a,b) => new Date(a[0]) - new Date(b[0]))) {
-        const tr = document.createElement('tr');
-        const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
-        let totalDia = 0;
-        let colunasHtml = '';
+        const tbody = document.getElementById('cards-list');
+        tbody.innerHTML = '';
+        const totais = {};
 
-        nomesOrdenados.forEach(nome => {
-            const qtd = valores[nome] || 0;
-            if (qtd > 0) {
-                colunasHtml += `<td style="text-align:center;"><strong>${qtd}</strong></td>`;
-            } else {
-                colunasHtml += `<td style="text-align:center; color:#ccc;">-</td>`;
-            }
-            totalDia += qtd;
+        state.dadosCartoes.forEach(item => {
+            if(!totais[item.responsavel]) totais[item.responsavel] = 0;
+            totais[item.responsavel] += item.qtd;
         });
 
-        tr.innerHTML = `
-            <td>${dataFormatada}</td>
-            ${colunasHtml}
-            <td style="color:#4a7c2e; font-weight:700; text-align:center;">${totalDia}</td>
-            <td>
-                <button class="btn-edit" onclick="excluirMesCartao('${data}')" title="Excluir Mês" style="color:#ff4757;">📆🗑️</button>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    }
+        const agrupado = {};
+        state.dadosCartoes.forEach(item => {
+            let dataObj = new Date(item.data + 'T00:00:00');
+            if (isNaN(dataObj.getTime())) {
+                const partes = item.data.split('/');
+                if (partes.length === 3) {
+                    dataObj = new Date(partes[2], partes[1] - 1, partes[0]);
+                }
+            }
+            const dataStr = dataObj.toISOString().split('T')[0];
 
-    if (tbody.children.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Nenhum registro de cartão.</td></tr>';
-    }
+            if(!agrupado[dataStr]) agrupado[dataStr] = {};
+            if(!agrupado[dataStr][item.responsavel]) agrupado[dataStr][item.responsavel] = 0;
+            agrupado[dataStr][item.responsavel] += item.qtd;
+        });
 
-    const totaisDiv = document.getElementById('totais-gerais');
-    let htmlTotais = '';
-    let totalGeral = 0;
-    nomesOrdenados.forEach(nome => {
-        if (totais[nome]) {
-            htmlTotais += `<span>Total ${nome}: <span style="font-weight:700;">${totais[nome]}</span></span>`;
-            totalGeral += totais[nome];
+        for (const [data, valores] of Object.entries(agrupado).sort((a,b) => new Date(a[0]) - new Date(b[0]))) {
+            const tr = document.createElement('tr');
+            const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
+            let totalDia = 0;
+            let colunasHtml = '';
+
+            nomesOrdenados.forEach(nome => {
+                const qtd = valores[nome] || 0;
+                if (qtd > 0) {
+                    colunasHtml += `<td style="text-align:center;"><strong>${qtd}</strong></td>`;
+                } else {
+                    colunasHtml += `<td style="text-align:center; color:#ccc;">-</td>`;
+                }
+                totalDia += qtd;
+            });
+
+            tr.innerHTML = `
+                <td>${dataFormatada}</td>
+                ${colunasHtml}
+                <td style="color:#4a7c2e; font-weight:700; text-align:center;">${totalDia}</td>
+                <td>
+                    <button class="btn-edit" onclick="excluirMesCartao('${data}')" title="Excluir Mês" style="color:#ff4757;">📆🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
         }
-    });
-    if (htmlTotais) {
-        htmlTotais += `<span>Total Geral: <span style="font-weight:700; color:#4a7c2e;">${totalGeral}</span></span>`;
-        totaisDiv.innerHTML = htmlTotais;
-        totaisDiv.style.display = 'flex';
-    } else {
-        totaisDiv.style.display = 'none';
+
+        if (tbody.children.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Nenhum registro de cartão.</td></tr>';
+        }
+
+        const totaisDiv = document.getElementById('totais-gerais');
+        let htmlTotais = '';
+        let totalGeral = 0;
+        nomesOrdenados.forEach(nome => {
+            if (totais[nome]) {
+                htmlTotais += `<span>Total ${nome}: <span style="font-weight:700;">${totais[nome]}</span></span>`;
+                totalGeral += totais[nome];
+            }
+        });
+        if (htmlTotais) {
+            htmlTotais += `<span>Total Geral: <span style="font-weight:700; color:#4a7c2e;">${totalGeral}</span></span>`;
+            totaisDiv.innerHTML = htmlTotais;
+            totaisDiv.style.display = 'flex';
+        } else {
+            totaisDiv.style.display = 'none';
+        }
+    } catch (e) {
+        console.error("Erro crítico ao renderizar cartões:", e);
+        // Exibe mensagem de erro na tela caso o carregamento falhe
+        document.getElementById('cards-list').innerHTML = `<tr><td colspan="4" style="text-align:center; color:#d9534f; padding:20px;">❌ Erro ao carregar dados. Verifique sua internet.</td></tr>`;
     }
 }
 
@@ -333,8 +363,12 @@ async function excluirMesCartao(data) {
     const ano = dataObj.getFullYear();
     const confirmGeral = confirm(`Excluir TODOS os cartões do mês ${mes}/${ano}?`);
     if (!confirmGeral) return;
-    await postParaGoogleSheets('deletarMesGeral', { mes, ano });
-    await renderizarCartoes();
+    try {
+        await postParaGoogleSheets('deletarMesGeral', { mes, ano });
+        await renderizarCartoes();
+    } catch (e) {
+        alert("Erro ao excluir mês: " + e.message);
+    }
 }
 
 async function salvarCartoes() {
@@ -345,11 +379,15 @@ async function salvarCartoes() {
         alert("Preencha o Responsável, Quantidade e Data."); 
         return; 
     }
-    await postParaGoogleSheets('salvarCartao', { id: Date.now(), responsavel, qtd, data });
-    fecharModal('modal-cartoes');
-    await renderizarCartoes();
-    document.getElementById('card-qtd').value = ''; 
-    document.getElementById('card-data').value = '';
+    try {
+        await postParaGoogleSheets('salvarCartao', { id: Date.now(), responsavel, qtd, data });
+        fecharModal('modal-cartoes');
+        await renderizarCartoes();
+        document.getElementById('card-qtd').value = ''; 
+        document.getElementById('card-data').value = '';
+    } catch (e) {
+        alert("Erro ao salvar cartão: " + e.message);
+    }
 }
 
 async function adicionarResponsavel() {
@@ -361,31 +399,43 @@ async function adicionarResponsavel() {
         alert("Digite um nome."); 
         return; 
     }
-    await postParaGoogleSheets('salvarResponsavel', nome);
-    input.value = '';
-    await renderizarCartoes();
-    await carregarListaResponsaveisNoModal();
+    try {
+        await postParaGoogleSheets('salvarResponsavel', nome);
+        input.value = '';
+        await renderizarCartoes();
+        await carregarListaResponsaveisNoModal();
+    } catch (e) {
+        alert("Erro ao adicionar responsável: " + e.message);
+    }
 }
 
 async function carregarListaResponsaveisNoModal() {
-    const resp = await fetchFromGS('listarResponsaveis');
-    state.responsaveis = resp.nomes || [];
-    const container = document.getElementById('lista-responsaveis-cadastrados');
-    container.innerHTML = '';
-    state.responsaveis.forEach(nome => {
-        const nomeLimpo = String(nome).replace(/^"|"$/g, '').replace(/^'|'$/g, '');
-        const span = document.createElement('span');
-        span.style.cssText = 'background:#eafde8; padding:3px 10px; border-radius:12px; font-size:12px; display:flex; align-items:center; gap:5px;';
-        span.innerHTML = `${nomeLimpo} <button onclick="deletarResponsavel('${nomeLimpo}')" style="border:none; background:transparent; color:#ff4757; font-weight:bold; cursor:pointer;">×</button>`;
-        container.appendChild(span);
-    });
+    try {
+        const resp = await getFromGS('listarResponsaveis');
+        state.responsaveis = resp.nomes || [];
+        const container = document.getElementById('lista-responsaveis-cadastrados');
+        container.innerHTML = '';
+        state.responsaveis.forEach(nome => {
+            const nomeLimpo = String(nome).replace(/^"|"$/g, '').replace(/^'|'$/g, '');
+            const span = document.createElement('span');
+            span.style.cssText = 'background:#eafde8; padding:3px 10px; border-radius:12px; font-size:12px; display:flex; align-items:center; gap:5px;';
+            span.innerHTML = `${nomeLimpo} <button onclick="deletarResponsavel('${nomeLimpo}')" style="border:none; background:transparent; color:#ff4757; font-weight:bold; cursor:pointer;">×</button>`;
+            container.appendChild(span);
+        });
+    } catch (e) {
+        alert("Erro ao carregar lista de responsáveis.");
+    }
 }
 
 async function deletarResponsavel(nome) {
     if (!confirm(`Remover o responsável "${nome}" da lista?`)) return;
-    await postParaGoogleSheets('deletarResponsavel', nome);
-    await renderizarCartoes();
-    await carregarListaResponsaveisNoModal();
+    try {
+        await postParaGoogleSheets('deletarResponsavel', nome);
+        await renderizarCartoes();
+        await carregarListaResponsaveisNoModal();
+    } catch (e) {
+        alert("Erro ao deletar responsável: " + e.message);
+    }
 }
 
 
@@ -570,7 +620,7 @@ function limparCamposNomeEndereco() {
     });
 }
 
-function enviarTodasEntregas() {
+async function enviarTodasEntregas() {
     if (!validarCampos()) return;
     
     const entregas = coletarDadosParaEnvio();
@@ -581,35 +631,33 @@ function enviarTodasEntregas() {
     }
     
     const btnEnviar = document.getElementById('btnEnviarMulti');
+    const originalText = btnEnviar.innerText;
     btnEnviar.innerText = 'Enviando...';
     btnEnviar.disabled = true;
     
     const statusDiv = document.getElementById('mult-status-message');
     statusDiv.style.display = 'none';
     
-    postParaGoogleSheets('salvarLoteCartoesEntrega', entregas)
-        .then(() => {
-            statusDiv.style.display = 'block';
-            statusDiv.style.background = '#e8f5e9';
-            statusDiv.style.color = '#2e7d32';
-            statusDiv.style.border = '2px solid #a5d6a7';
-            statusDiv.innerText = `✅ ${entregas.length} registro(s) salvos com sucesso!`;
-            
-            limparCamposNomeEndereco();
-            const nomes = document.querySelectorAll('#mult-lista-entregas .nome-input');
-            if (nomes.length > 0) nomes[0].focus();
-        })
-        .catch((err) => {
-            statusDiv.style.display = 'block';
-            statusDiv.style.background = '#ffebee';
-            statusDiv.style.color = '#c62828';
-            statusDiv.style.border = '2px solid #ef9a9a';
-            statusDiv.innerText = `❌ Erro ao salvar: ${err.message}`;
-        })
-        .finally(() => {
-            btnEnviar.innerText = 'Enviar Tudo';
-            btnEnviar.disabled = false;
-        });
+    try {
+        const resposta = await postParaGoogleSheets('salvarLoteCartoesEntrega', entregas);
+        statusDiv.style.display = 'block';
+        statusDiv.style.background = '#e8f5e9';
+        statusDiv.style.color = '#2e7d32';
+        statusDiv.style.border = '2px solid #a5d6a7';
+        statusDiv.innerText = `✅ ${entregas.length} registro(s) salvos com sucesso!`;
+        limparCamposNomeEndereco();
+        const nomes = document.querySelectorAll('#mult-lista-entregas .nome-input');
+        if (nomes.length > 0) nomes[0].focus();
+    } catch (err) {
+        statusDiv.style.display = 'block';
+        statusDiv.style.background = '#ffebee';
+        statusDiv.style.color = '#c62828';
+        statusDiv.style.border = '2px solid #ef9a9a';
+        statusDiv.innerText = `❌ Erro ao salvar: ${err.message}`;
+    } finally {
+        btnEnviar.innerText = originalText;
+        btnEnviar.disabled = false;
+    }
 }
 
 
@@ -617,11 +665,9 @@ function enviarTodasEntregas() {
 // 🔥 CESTA - MÓDULO REFINADO E FUNCIONAL
 // ==========================================================
 
-// Utilitários de normalização
 function normalizeString(s) { if (!s && s !== 0) return ""; return s.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').toLowerCase().trim(); }
 function headerToId(lbl) { if (!lbl && lbl !== 0) lbl = ""; return lbl.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').replace(/_+/g, '_').toUpperCase(); }
 
-// Estado da Cesta
 const cestaState = {
     names: [],
     types: [],
@@ -640,7 +686,6 @@ async function abrirModalCesta() {
     setTimeout(() => { scannerInput.focus(); }, 300);
 }
 
-// Sobrescreve a função abrirModal
 const abrirModalOriginal = abrirModal;
 abrirModal = function(id) {
     if (id === 'modal-cesta') {
@@ -652,14 +697,14 @@ abrirModal = function(id) {
 
 async function carregarNomesCesta() {
     try {
-        const res = await fetchFromGS('buscarTodosNomesCesta');
+        const res = await getFromGS('buscarTodosNomesCesta');
         cestaState.names = res || [];
     } catch (e) { console.error(e); cestaState.names = []; }
 }
 
 async function carregarTiposCesta() {
     try {
-        const res = await fetchFromGS('listarTiposCesta');
+        const res = await getFromGS('listarTiposCesta');
         cestaState.types = res || [];
         document.getElementById('cesta-tipos-input').value = cestaState.types.join(', ');
     } catch (e) { console.error(e); cestaState.types = []; }
@@ -691,10 +736,9 @@ async function salvarTiposCesta() {
     }
 }
 
-// 🔥 HOME PENDENTES (COM OPÇÃO DE EDITAR E EXCLUIR)
 async function renderizarPendentesCestaHome() {
     try {
-        const list = await fetchFromGS('listarPendentesMesAtual');
+        const list = await getFromGS('listarPendentesMesAtual');
         const container = document.getElementById('cesta-pendentes-home');
         
         container.innerHTML = '';
@@ -717,7 +761,6 @@ async function renderizarPendentesCestaHome() {
             const content = document.createElement('div');
             content.className = 'card-content';
             content.onclick = () => { abrirModalCestaComNome(nomeLimpo); };
-            
             content.innerHTML = `
                 <span title="Clique para abrir">${nomeLimpo}</span>
                 <span class="card-tag">${item.tipo || 'Sem tipo'}</span>
@@ -744,7 +787,6 @@ async function renderizarPendentesCestaHome() {
     }
 }
 
-// 🔥 FUNÇÃO PARA ABRIR MODAL COM NOME SELECIONADO
 async function abrirModalCestaComNome(nome) {
     abrirModal('modal-cesta');
     setTimeout(() => {
@@ -752,10 +794,9 @@ async function abrirModalCestaComNome(nome) {
     }, 300);
 }
 
-// 🔥 FUNÇÃO PARA EDITAR NOME (DO CARTÃO DA HOME)
 async function editarNomePendente(nomeAntigo, linha) {
     const novoNome = prompt(`Digite o novo nome para "${nomeAntigo}":`, nomeAntigo);
-    if (novoNome === null) return; // Usuário cancelou
+    if (novoNome === null) return;
     if (novoNome.trim() === '') {
         alert("O nome não pode estar vazio.");
         return;
@@ -764,20 +805,19 @@ async function editarNomePendente(nomeAntigo, linha) {
         await postParaGoogleSheets('editarNomeMoradorCesta', { linha: linha, novoNome: novoNome.trim().toUpperCase() });
         alert("✅ Nome atualizado com sucesso!");
         await renderizarPendentesCestaHome();
-        await carregarNomesCesta(); // Recarrega a lista de nomes para o autocomplete
+        await carregarNomesCesta();
     } catch (e) {
         alert("❌ Erro ao editar o nome: " + e.message);
     }
 }
 
-// 🔥 FUNÇÃO PARA EXCLUIR A PESSOA (DO CARTÃO DA HOME)
 async function deletarPendente(linha, nome) {
     if (!confirm(`Tem certeza que deseja EXCLUIR permanentemente o cadastro de "${nome}"? Essa ação não pode ser desfeita.`)) return;
     try {
         await postParaGoogleSheets('deletarMoradorCesta', { linha: linha });
         alert("✅ Cadastro excluído com sucesso!");
         await renderizarPendentesCestaHome();
-        await carregarNomesCesta(); // Recarrega a lista de nomes para o autocomplete
+        await carregarNomesCesta();
     } catch (e) {
         alert("❌ Erro ao excluir: " + e.message);
     }
@@ -813,10 +853,9 @@ document.getElementById('cesta-btnSearch').addEventListener('click', async ()=>{
     await buscarEPreencherCesta(nome);
 });
 
-// 🔥 FUNÇÃO DE BUSCA E PREENCHIMENTO (USADA PELA BUSCA E QRCODE)
 async function buscarEPreencherCesta(nome, isQRCode = false) {
     try {
-        const resp = await fetchFromGS('buscarMoradorCesta', { nome: nome });
+        const resp = await getFromGS('buscarMoradorCesta', { nome: nome });
         if(!resp || !resp.dados) { 
             if(isQRCode) alert("❌ Morador não encontrado na planilha.");
             else alert("❌ Morador não encontrado."); 
@@ -826,7 +865,6 @@ async function buscarEPreencherCesta(nome, isQRCode = false) {
         cestaState.currentDados = resp.dados;
         renderFormCesta(resp.dados);
 
-        // 🟢 FLUXO AUTOMÁTICO DO QR CODE
         if (isQRCode) {
             const confirmar = confirm(`Deseja marcar a cesta como ENTREGUE para ${nome} (com a data de hoje)?`);
             if (confirmar) {
@@ -845,8 +883,6 @@ async function buscarEPreencherCesta(nome, isQRCode = false) {
                 } else {
                     alert("Erro ao encontrar o mês atual para marcar.");
                 }
-            } else {
-                // Se cancelar, apenas mantém o formulário aberto para edição manual
             }
         }
     } catch (e) {
@@ -856,7 +892,6 @@ async function buscarEPreencherCesta(nome, isQRCode = false) {
     }
 }
 
-// 🔥 RENDERIZAR FORMULÁRIO
 function renderFormCesta(dadosArray) {
     document.getElementById('cesta-formArea').style.display='block';
     document.getElementById('cesta-panelPendentes').style.display='none';
@@ -999,7 +1034,7 @@ document.getElementById('cesta-btnSave').addEventListener('click', async ()=>{
 
 
 // ==========================================================
-// 🔥 SCANNER DA CESTA (CÂMERA) - CORRIGIDO PARA MOBILE
+// 🔥 SCANNER DA CESTA (CÂMERA)
 // ==========================================================
 let cameraHtml5QrCesta = null;
 
@@ -1016,13 +1051,13 @@ async function abrirCameraCesta() {
             cameraHtml5QrCesta = null;
         }
         container.style.display = 'none';
-        container.innerHTML = ''; // Apaga a linha verde
+        container.innerHTML = '';
         btn.innerText = '📷 Escanear Carteirinha';
         return;
     }
 
     container.style.display = 'block';
-    container.innerHTML = ''; // Garante que comece limpo
+    container.innerHTML = '';
     btn.innerText = '⏹ Fechar';
 
     cameraHtml5QrCesta = new Html5Qrcode("cesta-camera-container");
@@ -1455,7 +1490,7 @@ async function abrirComprovantePrint(tipo) {
     
     try {
         if (URL_API_GS.includes('COLE_AQUI')) throw new Error("A URL do Apps Script não foi configurada!");
-        const dados = await fetchFromGS('getNumero');
+        const dados = await getFromGS('getNumero');
         document.getElementById('print-numero').value = dados.numero || '0000001';
     } catch (e) {
         console.error(e);
@@ -1482,7 +1517,7 @@ async function buscarCPFPrint() {
     if (cpf.length !== 11) { alert("CPF inválido"); return; }
     try {
         if (URL_API_GS.includes('COLE_AQUI')) throw new Error("A URL do Apps Script não foi configurada!");
-        const r = await fetchFromGS('buscarCPF', { cpf: cpf });
+        const r = await getFromGS('buscarCPF', { cpf: cpf });
         if (r.erro) { alert("ERRO DO APPS SCRIPT: " + r.erro); return; }
         if (!r.encontrado) { alert("CPF NÃO LOCALIZADO na planilha."); return; }
         const d = r.dados;
@@ -1550,7 +1585,7 @@ function buscarSugestoesEndereco() {
             container.innerHTML = '<div class="suggestion-item" style="text-align:center;color:#888;cursor:default;">🔍 Buscando...</div>';
             container.style.display = 'block';
             searchController = new AbortController();
-            const resultados = await fetchFromGS('buscarEnderecos', { q: queryComAcentos }, searchController.signal);
+            const resultados = await getFromGS('buscarEnderecos', { q: queryComAcentos }, searchController.signal);
             const querySemAcento = removerAcentos(queryOriginal);
             const resultadosFiltrados = resultados.filter(item => {
                 const enderecoSemAcento = removerAcentos(item.endereco.toUpperCase());
