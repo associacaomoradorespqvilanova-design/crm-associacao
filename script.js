@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbxGR9UX7Z4BAlwrvoFECRPbXUBILobh2xgLzlU4Nx1OxHI_mVyhOqQV8rpg_c_WW_0x-A/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwDlcThiZxRzUP6ruvYUWCzkrof6WC9N_4HpmmcEVNA3VJqkvOE6kDBs57X5EVW8iSdDw/exec"; 
 
 // 🔥 JSONP para GET com timeout maior (30 segundos)
 function fetchFromGS(acao, params = {}, signal) {
@@ -432,7 +432,6 @@ function abrirModal(id) {
             document.getElementById('ruasContainer').innerHTML = '';
             document.getElementById('busca-editor-area').style.display = 'none';
             document.getElementById('busca-editor-area').innerHTML = '';
-            // Reseta variáveis globais de busca
             if (typeof todosResultadosBusca !== 'undefined') todosResultadosBusca = [];
             if (typeof ruasSelecionadasBusca !== 'undefined') ruasSelecionadasBusca.clear();
         }, 100);
@@ -1786,6 +1785,10 @@ inputBusca.addEventListener('keypress', (e) => {
 });
 
 async function executarBuscaInteligente(termo) {
+    // 🛡️ SALVA-VIDAS: Verifica se o elemento existe antes de tentar escrever nele
+    const buscaResultados = document.getElementById('busca-resultados');
+    if (!buscaResultados) return; // Se não existir, para aqui e não dá erro.
+
     buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">⏳ Buscando...</div>';
     document.getElementById('busca-resumo-count').textContent = '';
     document.getElementById('busca-contador').textContent = '⏳ Buscando...';
@@ -1801,7 +1804,8 @@ async function executarBuscaInteligente(termo) {
 function processarResultadosBusca(lista) {
     todosResultadosBusca = lista;
     if (todosResultadosBusca.length === 0) {
-        buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#999;">Nenhum cartão pendente encontrado.</div>';
+        const buscaResultados = document.getElementById('busca-resultados');
+        if (buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#999;">Nenhum cartão pendente encontrado.</div>';
         document.getElementById('busca-resumo-count').textContent = '';
         document.getElementById('busca-contador').textContent = '0 encontrados';
         selectRuaBusca.innerHTML = '<option value="">🏘️ Todas as ruas</option>';
@@ -1861,6 +1865,7 @@ function renderizarResultadosBusca(listaParaExibir = null) {
     }
     
     const container = document.getElementById('busca-resultados');
+    if (!container) return; 
     
     if (exibir.length === 0) {
         container.innerHTML = `<div style="text-align:center; padding:30px; color:#999;">Nenhum cartão corresponde aos filtros aplicados.</div>`;
