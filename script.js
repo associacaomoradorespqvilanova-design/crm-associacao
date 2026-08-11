@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbxUdLdNLEUopBmLmX0aPABhZlF6ovr5Eo3KM6RVmAS_YQ-N61iAVGamzn9Gtm8npp5Jow/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzvl7EUb7kFFJWz-7AtEW8TE8IpftV24NspyUDIoOx6gTxda2xdScUy-xcPsAOTq4BShA/exec"; 
 
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
@@ -691,24 +691,53 @@ async function salvarTiposCesta() {
     }
 }
 
+// 🔥 HOME PENDENTES (CORRIGIDO PARA GRID E CLIQUE)
 async function renderizarPendentesCestaHome() {
     try {
         const list = await fetchFromGS('listarPendentesMesAtual');
         const container = document.getElementById('cesta-pendentes-home');
+        
+        // Limpa e aplica o estilo de Grid
+        container.innerHTML = '';
+        container.style.display = 'grid';
+        container.style.gridTemplateColumns = 'repeat(auto-fill, minmax(180px, 1fr))';
+        container.style.gap = '8px';
+        container.style.width = '100%';
+
         if (!list || list.length === 0) {
-            container.innerHTML = '<span style="color:#4a7c2e; font-weight:600;">✅ Todos os cadastros do mês atual estão em dia!</span>';
+            container.innerHTML = '<div style="grid-column: 1 / -1; color:#4a7c2e; font-weight:600; padding:10px; text-align:center;">✅ Todos os cadastros do mês atual estão em dia!</div>';
             return;
         }
-        let html = '';
+
         list.forEach(item => {
             let nomeLimpo = item.nome || '';
-            html += `<span style="background:#ffe6e6; color:#9b2c2c; padding:5px 12px; border-radius:20px; font-weight:600; font-size:13px;">${nomeLimpo} (${item.tipo || 'Sem tipo'})</span>`;
+            
+            // Cria o cartão clicável
+            const card = document.createElement('div');
+            card.className = 'pending-item-card';
+            card.onclick = () => {
+                abrirModalCestaComNome(nomeLimpo); // Chama a função que abre o modal
+            };
+            
+            card.innerHTML = `
+                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${nomeLimpo}</span> 
+                <span style="font-weight:400; font-size:10px; opacity:0.7; background: rgba(155, 44, 44, 0.1); padding:2px 6px; border-radius:4px;">${item.tipo || 'Sem tipo'}</span>
+            `;
+            container.appendChild(card);
         });
-        container.innerHTML = html;
     } catch (e) {
         console.error(e);
         document.getElementById('cesta-pendentes-home').innerHTML = '<span style="color:#888;">Erro ao carregar pendentes.</span>';
     }
+}
+
+// 🔥 FUNÇÃO PARA ABRIR MODAL COM NOME SELECIONADO
+async function abrirModalCestaComNome(nome) {
+    abrirModal('modal-cesta'); // Abre o modal da cesta
+    // Aguarda 300ms para o modal terminar de abrir e carregar os dados iniciais, depois busca a pessoa
+    setTimeout(() => {
+        buscarEPreencherCesta(nome, false);
+    }, 300);
 }
 
 const inputCesta = document.getElementById('cesta-search');
