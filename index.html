@@ -92,7 +92,6 @@
                     </div>
                     <button class="btn-action" onclick="abrirModal('modal-multiplas-entregas')">ADC CARTÕES</button>
                     <button class="btn-action" onclick="abrirModal('modal-cesta')">CESTAS</button>
-                    <!-- 🔥 NOVO BOTÃO DE BUSCA -->
                     <button class="btn-action" onclick="abrirModal('modal-busca')">🔍 BUSCAR</button>
                 </div>
             </div>
@@ -136,7 +135,7 @@
 
     <!-- MODAL CURRÍCULO -->
     <div id="modal-curriculo" class="modal-overlay">
-        <div class="modal-box" style="max-width: 800px;">
+        <div class="modal-box modal-box-large">
             <span class="close-btn" onclick="fecharModal('modal-curriculo')">×</span>
             <h3>📄 Preencher Currículo</h3>
             <div class="grid-cv" style="margin-bottom: 15px;">
@@ -222,7 +221,7 @@
 
     <!-- MODAL CARTÕES -->
     <div id="modal-cartoes" class="modal-overlay">
-        <div class="modal-box" style="max-width: 600px;">
+        <div class="modal-box">
             <span class="close-btn" onclick="fecharModal('modal-cartoes')">×</span>
             <h3 id="cartao-modal-title">Adicionar Lote de Cartões</h3>
             <div style="border-bottom:1px solid #ddd; padding-bottom:10px; margin-bottom:15px;">
@@ -250,7 +249,7 @@
 
     <!-- MODAL ADC CARTÕES -->
     <div id="modal-multiplas-entregas" class="modal-overlay">
-        <div class="modal-box" style="max-width: 700px; padding: 25px;">
+        <div class="modal-box modal-box-large" style="padding: 25px;">
             <span class="close-btn" onclick="fecharModal('modal-multiplas-entregas')">×</span>
             <h3><i class="fas fa-truck"></i> Múltiplas Entregas</h3>
             <p style="font-size: 13px; color: #555; margin-bottom: 15px;">Pressione <strong>TAB</strong> ou <strong>ENTER</strong> no campo de endereço para adicionar automaticamente o próximo.</p>
@@ -259,15 +258,15 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div>
                         <label style="display:block; font-weight:600; font-size:12px; color:#444;">Quantidade</label>
-                        <input type="number" id="mult-qtd" min="1" value="1" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; background:#fff;">
+                        <input type="number" id="mult-qtd" min="1" value="1">
                     </div>
                     <div>
                         <label style="display:block; font-weight:600; font-size:12px; color:#444;">Data</label>
-                        <input type="text" id="mult-data" readonly style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; background:#f5f5f5; color:#666;">
+                        <input type="text" id="mult-data" readonly>
                     </div>
                     <div>
                         <label style="display:block; font-weight:600; font-size:12px; color:#444;">Tipo</label>
-                        <select id="mult-tipo" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; background:#fff;">
+                        <select id="mult-tipo">
                             <option value="">Selecione...</option>
                             <option value="SHOPEE">SHOPEE</option>
                             <option value="CARTÃO">CARTÃO</option>
@@ -276,12 +275,12 @@
                     </div>
                     <div>
                         <label style="display:block; font-weight:600; font-size:12px; color:#444;">N°</label>
-                        <input type="text" id="mult-numero" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; background:#fff;">
+                        <input type="text" id="mult-numero">
                     </div>
                 </div>
                 <div style="margin-top: 10px;">
                     <label style="display:block; font-weight:600; font-size:12px; color:#444;">Observação</label>
-                    <input type="text" id="mult-obs" placeholder="Opcional" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; background:#fff;">
+                    <input type="text" id="mult-obs" placeholder="Opcional">
                 </div>
             </div>
             <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;">
@@ -306,7 +305,7 @@
 
     <!-- MODAL CESTA -->
     <div id="modal-cesta" class="modal-overlay">
-        <div class="modal-box" style="max-width: 950px; padding: 25px; background: #e8f9ee;">
+        <div class="modal-box modal-box-large" style="padding: 25px; background: #e8f9ee;">
             <span class="close-btn" onclick="fecharModal('modal-cesta')">×</span>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap;">
                 <h2 style="margin:0; color:#196E3A; display:flex; align-items:center; gap:10px;">
@@ -324,13 +323,13 @@
             <div id="cesta-tipos-editor" style="display:none; background:#fff; padding:12px; border-radius:8px; border:1px solid #e0f2e0; margin-bottom:15px;">
                 <label style="font-weight:700; color:#1f6f35; display:block; margin-bottom:4px;">✏️ Editar Tipos de Cesta (separados por vírgula):</label>
                 <div style="display:flex; gap:8px;">
-                    <input type="text" id="cesta-tipos-input" style="flex:1; padding:8px; border-radius:6px; border:1px solid #ccc; background:#fff;">
+                    <input type="text" id="cesta-tipos-input">
                     <button onclick="salvarTiposCesta()" style="background:#4a7c2e; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600;">Salvar</button>
                     <button onclick="fecharEditorTipos()" style="background:#ccc; color:#333; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">Cancelar</button>
                 </div>
             </div>
             <div style="display:flex; gap:10px; align-items:center; position:relative; margin-bottom: 10px;">
-                <input id="cesta-search" placeholder="Digite o nome do morador..." autocomplete="off" style="flex:1; padding:10px; border-radius:8px; border:1px solid #cfcfcf; font-size:15px; background:#fff;">
+                <input id="cesta-search" placeholder="Digite o nome do morador..." autocomplete="off">
                 <button id="cesta-btnSearch" style="padding:10px 14px; border-radius:8px; background:#196E3A; color:#fff; border:none; cursor:pointer; font-weight:700;">Buscar</button>
                 <div id="cesta-suggestions" class="suggestions-box" style="display:none; position:absolute; top:45px; left:0; width:75%; background:#fff; border:1px solid #ddd; border-radius:8px; max-height:200px; overflow:auto; z-index:99;"></div>
             </div>
@@ -356,7 +355,7 @@
 
     <!-- 🔥 MODAL: BUSCA INTELIGENTE (Adaptado do Google Sheets) -->
     <div id="modal-busca" class="modal-overlay">
-        <div class="modal-box" style="max-width: 900px; padding: 25px; background: #ffffff; border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+        <div class="modal-box modal-box-xl" style="padding: 25px 30px;">
             <span class="close-btn" onclick="fecharModal('modal-busca')" style="top:15px; right:20px; font-size:28px;">×</span>
             
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap;">
@@ -370,28 +369,26 @@
             </div>
 
             <div style="display:flex; gap:12px; align-items:center; position:relative; margin-bottom: 15px; background:#f5fbf5; padding:10px; border-radius:16px; border:2px solid #e8f5e9;">
+                <i class="fas fa-search" style="color:#888; font-size:18px; margin-left:10px;"></i>
                 <input id="busca-input" placeholder="Ex: João Rua 15 ou Maria Silva" style="flex:1; padding:12px; border:none; background:transparent; font-size:16px; outline:none; color:#222;">
                 <button id="busca-btnSearch" style="padding:10px 24px; border-radius:30px; background:#196E3A; color:#fff; border:none; cursor:pointer; font-weight:700; font-size:14px; box-shadow:0 4px 10px rgba(25,110,58,0.3);">🔎 Buscar</button>
             </div>
 
-            <!-- Dropdown de Ruas e Chips -->
             <div style="display:flex; flex-direction:column; margin-bottom:10px;">
                 <div style="font-size:14px; color:#196E3A; font-weight:600; padding-left:5px;" id="busca-resumo-count"></div>
-                <select id="busca-select-rua" style="padding:6px 12px; border-radius:8px; border:1px solid #cfcfcf; background:#fff; font-size:13px; cursor:pointer; max-width:200px;">
-                    <option value="">🏘️ Todas as ruas</option>
-                </select>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
+                    <select id="busca-select-rua" style="padding:6px 12px; border-radius:8px; border:1px solid #cfcfcf; background:#fff; font-size:13px; cursor:pointer; max-width:200px;">
+                        <option value="">🏘️ Todas as ruas</option>
+                    </select>
+                </div>
                 <div id="ruasContainer" class="ruas-container" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; max-height:70px; overflow-y:auto; padding:4px; background:#fff; border-radius:8px; border:1px solid #e0f2e0;"></div>
             </div>
 
-            <!-- Resultados -->
             <div id="busca-resultados" style="max-height: 55vh; overflow-y: auto; padding-right:5px; display:flex; flex-direction:column; gap:6px;">
                 <div style="text-align:center; padding:40px; color:#999; font-size:16px;">Digite algo para iniciar a busca.</div>
             </div>
 
-            <!-- Área de edição (ao clicar em um resultado) -->
-            <div id="busca-editor-area" style="display:none; margin-top:15px; border-top:2px solid #e0f2e0; padding-top:15px; background:#fafffa; border-radius:12px; padding:15px;">
-                <!-- Conteúdo gerado pelo JS -->
-            </div>
+            <div id="busca-editor-area" style="display:none; margin-top:15px; border-top:2px solid #e0f2e0; padding-top:15px; background:#fafffa; border-radius:12px; padding:15px;"></div>
         </div>
     </div>
 
