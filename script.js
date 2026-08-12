@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzC1LeY9zyqAdty6otvM4yl-BrunaMDAaOIs0S90QowK6pQotqoKoJXAaRebLv1b04Y5Q/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwgc1OAiQ_DMqJQOXlS8GqBSI00zDJi4RY8BtGPetahdRORGNFsO8gV-Kq0dj3j7kctSw/exec"; 
 
 // 🔥 JSONP para GET com timeout maior (30 segundos)
 function fetchFromGS(acao, params = {}, signal) {
@@ -149,29 +149,6 @@ async function renderizarTabelas() {
     await renderizarCartoes(); 
 }
 
-// 🔧 Função para converter datas brasileiras (dd/mm/yyyy) e objetos Date
-function parseDateBR(val) {
-    if (!val) return null;
-    if (val instanceof Date && !isNaN(val.getTime())) {
-        return new Date(val);
-    }
-    let str = String(val).trim();
-    if (str.includes('-')) {
-        let d = new Date(str + 'T00:00:00');
-        if (!isNaN(d.getTime())) return d;
-    }
-    let partes = str.split('/');
-    if (partes.length === 3) {
-        let day = parseInt(partes[0], 10);
-        let month = parseInt(partes[1], 10) - 1;
-        let year = parseInt(partes[2], 10);
-        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-            return new Date(year, month, day);
-        }
-    }
-    return null;
-}
-
 async function renderizarAgenda() {
     const resp = await fetchFromGS('listarAgenda');
     state.dadosAgenda = resp.itens || [];
@@ -182,33 +159,29 @@ async function renderizarAgenda() {
     tbody.innerHTML = '';
 
     const sorted = [...state.dadosAgenda].sort((a, b) => new Date(a.data) - new Date(b.data));
-    let hojeEncontrado = false, amanhaEncontrado = false;
 
     sorted.forEach(item => {
         const tr = document.createElement('tr');
-        const dataItem = parseDateBR(item.data);
         
-        if (!dataItem) {
-            tr.innerHTML = `
-                <td>${item.data || 'Inválido'}</td>
-                <td>${item.periodo}</td>
-                <td style="font-weight:600;">${item.nome}</td>
-                <td>${item.endereco}</td>
-                <td style="white-space: nowrap;">${item.telefone}</td>
-                <td><button class="btn-edit" onclick="deletarItemAgenda(${item.id})" title="Excluir" style="color:#ff4757;">🗑️</button></td>
-            `;
-            tbody.appendChild(tr);
-            return;
+        // 🔥 CORREÇÃO DEFINITIVA: Converte a string ISO ou data diretamente para dd/mm
+        let dataFormatada = item.data || 'Inválido';
+        let dataItem = new Date(item.data);
+        if (!isNaN(dataItem.getTime())) {
+            const dia = String(dataItem.getDate()).padStart(2, '0');
+            const mes = String(dataItem.getMonth() + 1).padStart(2, '0');
+            dataFormatada = `${dia}/${mes}`;
         }
 
-        dataItem.setHours(0,0,0,0);
-        // 🔥 CORREÇÃO DA DATA: Apenas dia e mês (dd/MM)
-        const dataFormatada = `${String(dataItem.getDate()).padStart(2, '0')}/${String(dataItem.getMonth() + 1).padStart(2, '0')}`;
-        const diffDays = Math.ceil((dataItem - hoje) / (1000 * 60 * 60 * 24));
+        // Cálculo de dias para destaque
+        let diffDays = 999;
+        if (!isNaN(dataItem.getTime())) {
+            dataItem.setHours(0,0,0,0);
+            diffDays = Math.ceil((dataItem - hoje) / (1000 * 60 * 60 * 24));
+        }
 
-        if (diffDays === 0) { tr.className = 'highlight-row pulse-row'; hojeEncontrado = true; }
-        else if (diffDays === 1) { tr.className = 'highlight-row pulse-row'; amanhaEncontrado = true; }
-        else if (diffDays < 0) return;
+        if (diffDays === 0) { tr.className = 'highlight-row pulse-row'; }
+        else if (diffDays === 1) { tr.className = 'highlight-row pulse-row'; }
+        else if (diffDays < 0) return; // Ignora compromissos passados
 
         tr.innerHTML = `
             <td>${dataFormatada}</td>
