@@ -163,7 +163,6 @@ async function renderizarAgenda() {
     sorted.forEach(item => {
         const tr = document.createElement('tr');
         
-        // 🔥 CORREÇÃO DEFINITIVA: Converte a string ISO ou data diretamente para dd/mm
         let dataFormatada = item.data || 'Inválido';
         let dataItem = new Date(item.data);
         if (!isNaN(dataItem.getTime())) {
@@ -172,7 +171,6 @@ async function renderizarAgenda() {
             dataFormatada = `${dia}/${mes}`;
         }
 
-        // Cálculo de dias para destaque
         let diffDays = 999;
         if (!isNaN(dataItem.getTime())) {
             dataItem.setHours(0,0,0,0);
@@ -181,7 +179,7 @@ async function renderizarAgenda() {
 
         if (diffDays === 0) { tr.className = 'highlight-row pulse-row'; }
         else if (diffDays === 1) { tr.className = 'highlight-row pulse-row'; }
-        else if (diffDays < 0) return; // Ignora compromissos passados
+        else if (diffDays < 0) return;
 
         tr.innerHTML = `
             <td>${dataFormatada}</td>
@@ -1733,20 +1731,32 @@ function fecharComprovantePrint() { document.getElementById('modal-comprovante-p
 
 
 // ==========================================================
-// 🔥 NOVO: LÓGICA DA BUSCA INTELIGENTE (Design INCRÍVEL)
+// 🔥 NOVO: LÓGICA DA BUSCA (Adaptada do Google Sheets)
 // ==========================================================
 
-// Variáveis de estado específicas da busca
 let todosResultadosBusca = [];
 let ruasSelecionadasBusca = new Set();
+let debounceTimerBusca;
 
 const inputBusca = document.getElementById('busca-input');
 const btnBuscaSearch = document.getElementById('busca-btnSearch');
 const selectRuaBusca = document.getElementById('busca-select-rua');
 const buscaResumoCount = document.getElementById('busca-resumo-count');
 const buscaResultados = document.getElementById('busca-resultados');
-let debounceTimerBusca;
 
+// 1. Inicialização / Limpeza do modal (Já está no abrirModal, mas vamos garantir)
+function limparBusca() {
+    if (buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:40px; color:#999; font-size:16px;">Digite algo para buscar.</div>';
+    if (buscaResumoCount) buscaResumoCount.textContent = '';
+    document.getElementById('busca-contador').textContent = '⏳ ...';
+    const ruasContainer = document.getElementById('ruasContainer');
+    if (ruasContainer) ruasContainer.innerHTML = '';
+    if (selectRuaBusca) selectRuaBusca.innerHTML = '<option value="">🏘️ Todas as ruas</option>';
+    todosResultadosBusca = [];
+    ruasSelecionadasBusca.clear();
+}
+
+// 2. Funções Auxiliares (Normalização de Endereço)
 function extrairNomeRua(endereco) {
     if (!endereco) return '';
     let txt = normalizarEndereco(endereco);
@@ -1766,12 +1776,65 @@ function normalizarEndereco(endereco) {
     return txt;
 }
 
-// 2. Popula dropdown de ruas
-function popularDropdownRuasBaseBusca() {
+// 3. Lógica de Busca (Chamada via JSONP)
+function executarBuscaPorNome(termo) {
+    if (!termo) {
+        limparBusca();
+        return;
+    }
+
+    if (!buscaResultados) return;
+    buscaResultados.innerHTML = '<div style="text-align:center; padding:20px; color:#888;">⏳ Buscando...</div>';
+
+    // 🔥 AQUI É A MUDANÇA: fetchFromGS ao invés de google.script.run
+    fetchFromGS('pesquisarCartoes', { termo: termo })
+        .then(resultado => {
+            processarResultados(resultado || []);
+        })
+        .catch(e => {
+            buscaResultados.innerHTML = `<div style="text-align:center; padding:20px; color:#d32f2f;">❌ Erro: ${e.message}</div>`;
+            document.getElementById('busca-contador').textContent = '⛔ Erro';
+        });
+}
+
+// 4. Processar Resultados (Exatamente igual ao Google Sheets)
+function processarResultados(lista) {
+    todosResultadosBusca = lista || [];
+
+    if (todosResultadosBusca.length === 0) {
+        if (buscaResultados) buscaResultados.innerHTML = '<div class="empty">Nenhum cartão encontrado</div>';
+        if (buscaResumoCount) buscaResumoCount.textContent = '';
+        document.getElementById('busca-contador').textContent = '0 encontrados';
+        selectRuaBusca.innerHTML = '<option value="">🏘️ Todas as ruas</option>';
+        document.getElementById('ruasContainer').innerHTML = '';
+        return;
+    }
+
+    popularDropdownRuasBase();
+
+    const contagemRuas = {};
+    todosResultadosBusca.forEach(item => {
+        const rua = item.endereco || 'Sem endereço';
+        contagemRuas[rua] = (contagemRuas[rua] || 0) + 1;
+    });
+
+    if (buscaResumoCount) {
+        buscaResumoCount.style.display = 'block';
+        buscaResumoCount.textContent = `${todosResultadosBusca.length} cartão(ões) encontrado(s)`;
+    }
+    document.getElementById('busca-contador').textContent = `📦 ${todosResultadosBusca.length} resultados`;
+
+    ruasSelecionadasBusca.clear();
+    renderizarChipsRuas(contagemRuas);
+    renderizarResultados();
+}
+
+// 5. Popula dropdown de ruas base
+function popularDropdownRuasBase() {
     if (todosResultadosBusca.length === 0) return;
     const ruasBaseSet = new Set();
     todosResultadosBusca.forEach(item => {
-        let ruaBase = extrairNomeRua(item.endereco);
+        const ruaBase = extrairNomeRua(item.endereco);
         if (ruaBase) ruasBaseSet.add(ruaBase);
     });
     const ruasBase = Array.from(ruasBaseSet).sort();
@@ -1784,118 +1847,15 @@ function popularDropdownRuasBaseBusca() {
     });
 }
 
-// 3. Lógica de busca
-inputBusca.addEventListener('input', () => {
-    clearTimeout(debounceTimerBusca);
-    const termo = inputBusca.value.trim();
-    if (termo.length === 0) {
-        document.getElementById('busca-resultados').innerHTML = '<div style="text-align:center; padding:50px; color:#bbb; font-size:16px;">🔎 Digite algo para iniciar a busca</div>';
-        return;
-    }
-    debounceTimerBusca = setTimeout(async () => {
-        await executarBuscaInteligente(termo);
-    }, 400);
-});
-
-btnBuscaSearch.addEventListener('click', async () => {
-    const termo = inputBusca.value.trim();
-    if(termo.length < 2) return alert("Digite pelo menos 2 caracteres");
-    await executarBuscaInteligente(termo);
-});
-
-inputBusca.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        clearTimeout(debounceTimerBusca);
-        const termo = inputBusca.value.trim();
-        if(termo.length >= 2) executarBuscaInteligente(termo);
-    }
-});
-
-async function executarBuscaInteligente(termo) {
-    // 🛡️ TENTATIVA DE RESGATE: Tenta achar o elemento por 1 segundo. Se falhar, CRIA na hora.
-    let buscaResultados = null;
-    
-    // Tenta 5 vezes (1 segundo de tentativa)
-    for (let tentativa = 0; tentativa < 5; tentativa++) {
-        buscaResultados = document.getElementById('busca-resultados');
-        if (buscaResultados) break;
-        await new Promise(r => setTimeout(r, 200)); // Aguarda 200ms a cada tentativa
-    }
-
-    // Se mesmo após 5 tentativas não achou, ele cria manualmente no modal
-    if (!buscaResultados) {
-        const modalBox = document.querySelector('#modal-busca .modal-box');
-        if (modalBox) {
-            const novoContainer = document.createElement('div');
-            novoContainer.id = 'busca-resultados';
-            novoContainer.style.cssText = 'max-height: 55vh; overflow-y: auto; padding-right:5px; display:flex; flex-direction:column; gap:12px; margin-top:5px;';
-            modalBox.appendChild(novoContainer);
-            // Tenta pegar novamente depois de criar
-            buscaResultados = document.getElementById('busca-resultados');
-        }
-    }
-
-    // 🛡️ SE MESMO APÓS TUDO ISSO ELE FOR NULO, PARA SILENCIOSAMENTE E NÃO QUEBRA A TELA
-    if (!buscaResultados) {
-        console.error("Erro crítico: Não foi possível encontrar ou criar o ID 'busca-resultados' no HTML.");
-        return;
-    }
-
-    // A partir daqui, o "buscaResultados" existe com 100% de certeza
-    buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">⏳ Buscando...</div>';
-    document.getElementById('busca-resumo-count').textContent = '';
-    document.getElementById('busca-contador').textContent = '⏳ Buscando...';
-    
-    try {
-        const resultado = await fetchFromGS('pesquisarInteligente', { termo: termo });
-        processarResultadosBusca(resultado || []);
-    } catch (e) {
-        buscaResultados.innerHTML = `<div style="text-align:center; padding:30px; color:#d32f2f;">❌ ${e.message}</div>`;
-        document.getElementById('busca-contador').textContent = '⛔ Erro';
-    }
-}
-function processarResultadosBusca(lista) {
-    todosResultadosBusca = lista;
-    const buscaResultados = document.getElementById('busca-resultados');
-    if (!buscaResultados) return; // Se não existir, para aqui
-
-    if (todosResultadosBusca.length === 0) {
-        buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#999;">Nenhum cartão pendente encontrado.</div>';
-        document.getElementById('busca-resumo-count').textContent = '';
-        document.getElementById('busca-contador').textContent = '0 encontrados';
-        selectRuaBusca.innerHTML = '<option value="">🏘️ Todas as ruas</option>';
-        document.getElementById('ruasContainer').innerHTML = '';
-        return;
-    }
-
-    popularDropdownRuasBaseBusca();
-    const contagemRuas = {};
-    todosResultadosBusca.forEach(item => {
-        const ruaCompleta = item.endereco || 'Sem endereço';
-        contagemRuas[ruaCompleta] = (contagemRuas[ruaCompleta] || 0) + 1;
-    });
-
-    document.getElementById('busca-resumo-count').textContent = `${todosResultadosBusca.length} cartão(ões) encontrado(s)`;
-    document.getElementById('busca-contador').textContent = `📦 ${todosResultadosBusca.length} resultados`;
-    ruasSelecionadasBusca.clear();
-    renderizarChipsRuasBusca(contagemRuas);
-    renderizarResultadosBusca();
-}
-// RENDERIZAÇÃO DOS CHIPS DE RUA (Estilo Tag)
-function renderizarChipsRuasBusca(contagemRuas) {
+// 6. Renderiza Chips de Rua
+function renderizarChipsRuas(contagemRuas) {
     const container = document.getElementById('ruasContainer');
-    if(!container) return;
+    if (!container) return;
     container.innerHTML = '';
-    
-    if (Object.keys(contagemRuas).length === 0) {
-        container.innerHTML = '<span style="color:#999; font-size:13px;">Nenhuma rua encontrada.</span>';
-        return;
-    }
-
     for (const [rua, count] of Object.entries(contagemRuas)) {
         const chip = document.createElement('div');
         chip.className = 'rua-chip';
-        chip.innerHTML = `<span class="rua-nome">${rua}</span><span class="rua-count">${count}</span>`;
+        chip.innerHTML = `<span class="rua-nome">${rua}</span><span class="rua-count">(${count})</span>`;
         chip.addEventListener('click', () => {
             if (ruasSelecionadasBusca.has(rua)) {
                 ruasSelecionadasBusca.delete(rua);
@@ -1904,100 +1864,80 @@ function renderizarChipsRuasBusca(contagemRuas) {
                 ruasSelecionadasBusca.add(rua);
                 chip.classList.add('selected');
             }
-            renderizarResultadosBusca();
+            renderizarResultados();
         });
         container.appendChild(chip);
     }
 }
 
-// RENDERIZAÇÃO DOS CARDS (Design de App Moderno)
-function renderizarResultadosBusca(listaParaExibir = null) {
+// 7. Renderiza os Cards (Versão do Google Sheets)
+function renderizarResultados(listaParaExibir = null) {
     let exibir = listaParaExibir || todosResultadosBusca;
     if (ruasSelecionadasBusca.size > 0) {
         exibir = exibir.filter(item => ruasSelecionadasBusca.has(item.endereco || 'Sem endereço'));
     }
     
-    const container = document.getElementById('busca-resultados');
-    if (!container) return; 
-    
     if (exibir.length === 0) {
-        container.innerHTML = `<div style="text-align:center; padding:30px; color:#999;">Nenhum cartão corresponde aos filtros aplicados.</div>`;
+        if (buscaResultados) buscaResultados.innerHTML = '<div class="empty">Nenhum cartão para as ruas selecionadas</div>';
         return;
     }
 
-    const sorted = [...exibir].sort((a, b) => {
-        const statusA = a.status === 'ENTREGUE' ? 1 : (a.status === 'BLOQUEADO' ? 2 : 0);
-        const statusB = b.status === 'ENTREGUE' ? 1 : (b.status === 'BLOQUEADO' ? 2 : 0);
-        return statusA - statusB;
-    });
-
+    const anoAtual = new Date().getFullYear();
     let html = '';
-    sorted.forEach((item) => {
-        let statusColor = '#ffb300'; 
-        let statusBg = '#fff8e1';
-        let statusText = 'PENDENTE';
-        if (item.status === 'ENTREGUE') {
-            statusColor = '#4caf50';
-            statusBg = '#e8f5e9';
-            statusText = 'ENTREGUE';
-        } else if (item.status === 'BLOQUEADO') {
-            statusColor = '#b71c1c';
-            statusBg = '#ffebee';
-            statusText = 'BLOQUEADO';
+    exibir.forEach((item, idx) => {
+        let classeSelo = 'recente';
+        let textoSelo = 'RECENTE';
+        if (item.data) {
+            const partes = item.data.split('/');
+            if (partes.length === 3) {
+                const anoCartao = parseInt(partes[2], 10);
+                if (!isNaN(anoCartao) && anoCartao < anoAtual) {
+                    classeSelo = 'antigo';
+                    textoSelo = 'ANTIGO';
+                }
+            }
         }
 
+        let statusClass = item.status === 'ENTREGUE' ? 'entregue' : (item.status === 'BLOQUEADO' ? 'bloqueado' : '');
+        
+        const qtdEndereco = contarIguaisPorEndereco(item);
+        const multiIcon = qtdEndereco > 1 ? '<span class="multi-morador" title="Há mais moradores neste endereço">👥</span>' : '';
+
+        const seloHTML = `
+          <div class="selo-container">
+            <div class="selo-ondas"></div>
+            <div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div>
+            <div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div>
+            <div class="selo ${classeSelo}">${textoSelo}</div>
+          </div>`;
+
         html += `
-          <div class="search-result-card" style="background:#fff; border-radius:16px; padding:16px; box-shadow:0 4px 12px rgba(0,0,0,0.04); border:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; transition:0.3s; cursor:pointer;" onclick="handleCardClickBusca(${item.linha}, 0)">
-            
-            <!-- Coluna Esquerda: Info Principal -->
-            <div style="display:flex; align-items:center; gap:15px; flex:2; min-width:200px;">
-                <div style="background:#1b5e20; color:white; border-radius:12px; padding:6px 14px; font-weight:900; font-size:20px; letter-spacing:1px; box-shadow:0 4px 8px rgba(27,94,32,0.2);">${item.numero || '---'}</div>
-                <div>
-                    <div style="font-weight:700; font-size:18px; color:#222;">${item.nome}</div>
-                    <div style="font-size:13px; color:#777; margin-top:3px;">
-                        <i class="fas fa-map-marker-alt" style="color:#4caf50; margin-right:4px;"></i> ${item.endereco}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Coluna Direita: Detalhes e Ações -->
-            <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
-                <div style="text-align:right; font-size:12px; color:#555;">
-                    <div><i class="far fa-calendar-alt" style="margin-right:4px;"></i> ${item.data}</div>
-                    <div><i class="fas fa-tag" style="margin-right:4px;"></i> ${item.tipo}</div>
-                    <div style="font-size:11px; margin-top:2px; color:#4caf50;"><i class="fas fa-phone"></i> ${item.telefone || '—'}</div>
-                </div>
-                
-                <!-- Badge Status -->
-                <div style="background:${statusBg}; color:${statusColor}; padding:4px 14px; border-radius:40px; font-weight:700; font-size:11px; border:1px solid ${statusColor};">
-                    ${statusText}
-                </div>
-
-                <!-- Botões Ação -->
-                <div style="display:flex; gap:6px;">
-                    <button onclick="event.stopPropagation(); confirmarEntregaBusca(${item.linha})" style="background:#2196F3; color:white; border:none; padding:8px 16px; border-radius:40px; font-weight:600; font-size:12px; cursor:pointer;">✅ Entregar</button>
-                    <button onclick="event.stopPropagation(); abrirEditorBuscaRapido(${item.linha})" style="background:#ff9800; color:white; border:none; padding:8px 16px; border-radius:40px; font-weight:600; font-size:12px; cursor:pointer;">✏️ Editar</button>
-                </div>
+          <div class="card" onclick="abrirEditorBuscaRapido(${item.linha})">
+            <span class="numero">${item.numero || '-'}</span>
+            <span class="nome" title="${item.nome}">${item.nome}</span>
+            <div class="detalhes">
+              <span class="data-destaque">📅 ${item.data || '—'}</span>
+              ${seloHTML}
+              <span>📍 ${item.endereco} ${multiIcon}</span>
+              <span>📋 ${item.tipo}</span>
+              <span class="status-badge ${statusClass}">${item.status || 'PENDENTE'}</span>
             </div>
           </div>`;
     });
-    container.innerHTML = html;
+    if (buscaResultados) buscaResultados.innerHTML = html;
 }
 
-// Função rápida para abrir o editor a partir do botão do card
+function contarIguaisPorEndereco(item) {
+    const enderecoNorm = normalizarEndereco(item.endereco);
+    return todosResultadosBusca.filter(it => normalizarEndereco(it.endereco) === enderecoNorm).length;
+}
+
+// 8. Função para abrir o editor ao clicar no card
 function abrirEditorBuscaRapido(linha) {
-    const idx = todosResultadosBusca.findIndex(it => it.linha === linha);
-    if (idx !== -1) {
-        handleCardClickBusca(linha, idx);
-    }
-}
-
-// 4. Editor Individual e Ações 
-function handleCardClickBusca(linha, idx) {
     const item = todosResultadosBusca.find(it => it.linha === linha);
     if (!item) return;
 
-    const qtdMesmoEndereco = todosResultadosBusca.filter(it => normalizarEndereco(it.endereco) === normalizarEndereco(item.endereco)).length;
+    const qtdMesmoEndereco = contarIguaisPorEndereco(item);
     const temOutros = qtdMesmoEndereco > 1;
     const chaveEndereco = normalizarEndereco(item.endereco);
     const numeroBloco = item.numero;
@@ -2073,7 +2013,7 @@ function cancelarEdicaoBusca(linha) {
     document.getElementById('busca-resultados').style.display = 'flex';
 }
 
-// 5. Ações de Salvar e Entrega
+// 9. Ações de Salvar e Entrega (Já estão no seu script, mas vamos manter a chamada)
 window.salvarEdicaoBusca = async function(linha) {
     const itemOriginal = todosResultadosBusca.find(it => it.linha === linha) || {};
     const get = id => document.getElementById(id)?.value;
@@ -2098,7 +2038,7 @@ window.salvarEdicaoBusca = async function(linha) {
         alert("✅ Dados salvos com sucesso!");
         cancelarEdicaoBusca(linha);
         const termo = inputBusca.value.trim();
-        if(termo) executarBuscaInteligente(termo);
+        if(termo) executarBuscaPorNome(termo);
     } catch(erro) {
         alert("❌ Erro ao salvar: " + erro.message);
     }
@@ -2147,14 +2087,13 @@ async function finalizarEntregaBusca(linha, nomeEntregueA, dataEntrega, telefone
         alert("✅ Cartão marcado como ENTREGUE com sucesso!");
         cancelarEdicaoBusca(linha);
         const termo = inputBusca.value.trim();
-        if(termo) executarBuscaInteligente(termo);
+        if(termo) executarBuscaPorNome(termo);
     } catch (erro) {
         alert("❌ Erro: " + erro.message);
     }
 }
 
-// Funções de Massiva e Lista
-window.abrirListaMoradoresBusca = async function(enderecoOriginal, linhaAtual) {
+function abrirListaMoradoresBusca(enderecoOriginal, linhaAtual) {
     const enderecoNorm = normalizarEndereco(enderecoOriginal);
     const cartoes = todosResultadosBusca.filter(item => normalizarEndereco(item.endereco) === enderecoNorm);
     if (cartoes.length === 0) return;
@@ -2179,8 +2118,7 @@ window.abrirListaMoradoresBusca = async function(enderecoOriginal, linhaAtual) {
     `;
 };
 
-// Função Massiva
-window.abrirEdicaoMassivaBusca = async function(chaveEndereco, linhaAtual) {
+function abrirEdicaoMassivaBusca(chaveEndereco, linhaAtual) {
     const cartoes = todosResultadosBusca.filter(it => normalizarEndereco(it.endereco) === chaveEndereco);
     if (cartoes.length <= 1) return;
     const linhas = cartoes.map(it => it.linha);
@@ -2206,7 +2144,7 @@ window.abrirEdicaoMassivaBusca = async function(chaveEndereco, linhaAtual) {
         </div>`;
 };
 
-window.salvarEdicaoMassivaBusca = async function(linhas) {
+async function salvarEdicaoMassivaBusca(linhas) {
     const dados = {};
     const status = document.getElementById('massa-status-busca')?.value;
     const dataEntrega = document.getElementById('massa-dataentrega-busca')?.value.trim();
@@ -2225,7 +2163,7 @@ window.salvarEdicaoMassivaBusca = async function(linhas) {
         alert("✅ Edição massiva salva com sucesso!");
         cancelarEdicaoBusca(linhas[0]);
         const termo = inputBusca.value.trim();
-        if(termo) executarBuscaInteligente(termo);
+        if(termo) executarBuscaPorNome(termo);
     } catch (erro) {
         alert('Erro: ' + erro.message);
     }
