@@ -435,7 +435,7 @@ function abrirModal(id) {
             document.getElementById('busca-input').value = '';
             document.getElementById('busca-input').focus();
 
-            // 🛡️ PROTEÇÃO NUCLEAR: Se o HTML não tiver o ID, o JavaScript Cria ele na hora!
+            // 🛡️ CRIA O ELEMENTO SE ELE NÃO EXISTIR NO HTML
             let resultadosDiv = document.getElementById('busca-resultados');
             if (!resultadosDiv) {
                 const modalBox = document.querySelector('#modal-busca .modal-box');
@@ -1812,21 +1812,11 @@ inputBusca.addEventListener('keypress', (e) => {
 });
 
 async function executarBuscaInteligente(termo) {
-    // 🛡️ PROTEÇÃO EXTREMA: Cria o elemento na hora se ele não existir
-    let buscaResultados = document.getElementById('busca-resultados');
+    // 🛡️ Verifica se o elemento existe. Se não existir, ele para e não quebra o site.
+    const buscaResultados = document.getElementById('busca-resultados');
     if (!buscaResultados) {
-        const modalBox = document.querySelector('#modal-busca .modal-box');
-        if (modalBox) {
-            const novoContainer = document.createElement('div');
-            novoContainer.id = 'busca-resultados';
-            novoContainer.style.cssText = 'max-height: 55vh; overflow-y: auto; padding-right:5px; display:flex; flex-direction:column; gap:12px; margin-top:5px;';
-            modalBox.appendChild(novoContainer);
-            buscaResultados = document.getElementById('busca-resultados');
-        }
-        if (!buscaResultados) {
-            console.error("Não foi possível encontrar ou criar o ID 'busca-resultados'.");
-            return;
-        }
+        console.error("Elemento 'busca-resultados' não encontrado. A busca foi interrompida.");
+        return; 
     }
 
     buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">⏳ Buscando...</div>';
@@ -1841,12 +1831,13 @@ async function executarBuscaInteligente(termo) {
         document.getElementById('busca-contador').textContent = '⛔ Erro';
     }
 }
-
 function processarResultadosBusca(lista) {
     todosResultadosBusca = lista;
+    const buscaResultados = document.getElementById('busca-resultados');
+    if (!buscaResultados) return; // Se não existir, para aqui
+
     if (todosResultadosBusca.length === 0) {
-        const buscaResultados = document.getElementById('busca-resultados');
-        if (buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#999;">Nenhum cartão pendente encontrado.</div>';
+        buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#999;">Nenhum cartão pendente encontrado.</div>';
         document.getElementById('busca-resumo-count').textContent = '';
         document.getElementById('busca-contador').textContent = '0 encontrados';
         selectRuaBusca.innerHTML = '<option value="">🏘️ Todas as ruas</option>';
@@ -1855,7 +1846,6 @@ function processarResultadosBusca(lista) {
     }
 
     popularDropdownRuasBaseBusca();
-
     const contagemRuas = {};
     todosResultadosBusca.forEach(item => {
         const ruaCompleta = item.endereco || 'Sem endereço';
@@ -1868,7 +1858,6 @@ function processarResultadosBusca(lista) {
     renderizarChipsRuasBusca(contagemRuas);
     renderizarResultadosBusca();
 }
-
 // RENDERIZAÇÃO DOS CHIPS DE RUA (Estilo Tag)
 function renderizarChipsRuasBusca(contagemRuas) {
     const container = document.getElementById('ruasContainer');
