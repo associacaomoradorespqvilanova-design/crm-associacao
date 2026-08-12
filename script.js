@@ -1812,13 +1812,36 @@ inputBusca.addEventListener('keypress', (e) => {
 });
 
 async function executarBuscaInteligente(termo) {
-    // 🛡️ Verifica se o elemento existe. Se não existir, ele para e não quebra o site.
-    const buscaResultados = document.getElementById('busca-resultados');
-    if (!buscaResultados) {
-        console.error("Elemento 'busca-resultados' não encontrado. A busca foi interrompida.");
-        return; 
+    // 🛡️ TENTATIVA DE RESGATE: Tenta achar o elemento por 1 segundo. Se falhar, CRIA na hora.
+    let buscaResultados = null;
+    
+    // Tenta 5 vezes (1 segundo de tentativa)
+    for (let tentativa = 0; tentativa < 5; tentativa++) {
+        buscaResultados = document.getElementById('busca-resultados');
+        if (buscaResultados) break;
+        await new Promise(r => setTimeout(r, 200)); // Aguarda 200ms a cada tentativa
     }
 
+    // Se mesmo após 5 tentativas não achou, ele cria manualmente no modal
+    if (!buscaResultados) {
+        const modalBox = document.querySelector('#modal-busca .modal-box');
+        if (modalBox) {
+            const novoContainer = document.createElement('div');
+            novoContainer.id = 'busca-resultados';
+            novoContainer.style.cssText = 'max-height: 55vh; overflow-y: auto; padding-right:5px; display:flex; flex-direction:column; gap:12px; margin-top:5px;';
+            modalBox.appendChild(novoContainer);
+            // Tenta pegar novamente depois de criar
+            buscaResultados = document.getElementById('busca-resultados');
+        }
+    }
+
+    // 🛡️ SE MESMO APÓS TUDO ISSO ELE FOR NULO, PARA SILENCIOSAMENTE E NÃO QUEBRA A TELA
+    if (!buscaResultados) {
+        console.error("Erro crítico: Não foi possível encontrar ou criar o ID 'busca-resultados' no HTML.");
+        return;
+    }
+
+    // A partir daqui, o "buscaResultados" existe com 100% de certeza
     buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">⏳ Buscando...</div>';
     document.getElementById('busca-resumo-count').textContent = '';
     document.getElementById('busca-contador').textContent = '⏳ Buscando...';
