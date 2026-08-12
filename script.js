@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwgc1OAiQ_DMqJQOXlS8GqBSI00zDJi4RY8BtGPetahdRORGNFsO8gV-Kq0dj3j7kctSw/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbxNBRlhY5tSNTXR5w_R9iVtLe1xvsN5103Cd61c2tjysEDmZOAHYlGgSZ-kVbRtB6HiDA/exec"; 
 
 // 🔥 JSONP para GET com timeout maior (30 segundos)
 function fetchFromGS(acao, params = {}, signal) {
