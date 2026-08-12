@@ -421,26 +421,43 @@ function abrirModal(id) {
         lista.innerHTML = '';
         contadorEntregas = 0;
         adicionarEntrega();
-        
         const hoje = new Date();
         const formatada = hoje.toLocaleDateString('pt-BR');
         document.getElementById('mult-data').value = formatada;
-        
         setTimeout(() => {
             const primeiroNome = document.querySelector('#mult-lista-entregas .nome-input');
             if (primeiroNome) primeiroNome.focus();
         }, 200);
     }
     
-    // 🔥 NOVO: Limpa e foca o modal de busca inteligente
     if (id === 'modal-busca') {
         setTimeout(() => {
             document.getElementById('busca-input').value = '';
             document.getElementById('busca-input').focus();
-            document.getElementById('busca-resultados').innerHTML = '<div style="text-align:center; padding:50px; color:#bbb; font-size:16px;">🔎 Digite algo para iniciar a busca</div>';
+
+            // 🛡️ PROTEÇÃO NUCLEAR: Se o HTML não tiver o ID, o JavaScript Cria ele na hora!
+            let resultadosDiv = document.getElementById('busca-resultados');
+            if (!resultadosDiv) {
+                const modalBox = document.querySelector('#modal-busca .modal-box');
+                if (modalBox) {
+                    const novoContainer = document.createElement('div');
+                    novoContainer.id = 'busca-resultados';
+                    novoContainer.style.cssText = 'max-height: 55vh; overflow-y: auto; padding-right:5px; display:flex; flex-direction:column; gap:12px; margin-top:5px;';
+                    modalBox.appendChild(novoContainer);
+                    resultadosDiv = document.getElementById('busca-resultados');
+                }
+            }
+            
+            if (resultadosDiv) {
+                resultadosDiv.innerHTML = '<div style="text-align:center; padding:50px; color:#bbb; font-size:16px;">🔎 Digite algo para iniciar a busca</div>';
+            }
+
             document.getElementById('busca-resumo-count').textContent = '';
             document.getElementById('busca-contador').textContent = '⏳ ...';
-            document.getElementById('ruasContainer').innerHTML = '';
+            
+            const ruasContainer = document.getElementById('ruasContainer');
+            if (ruasContainer) ruasContainer.innerHTML = '';
+
             document.getElementById('busca-editor-area').style.display = 'none';
             document.getElementById('busca-editor-area').innerHTML = '';
             if (typeof todosResultadosBusca !== 'undefined') todosResultadosBusca = [];
@@ -448,7 +465,6 @@ function abrirModal(id) {
         }, 100);
     }
 }
-
 function adicionarEntrega() {
     contadorEntregas++;
     const lista = document.getElementById('mult-lista-entregas');
