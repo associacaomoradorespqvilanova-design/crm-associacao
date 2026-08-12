@@ -1,4 +1,4 @@
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbxv6vtcDo3jW73r4KFG4w8nlPEOoxHNEGi3rS0cZZ2GjtboSNRX8Xm3RErv7iQ5rehDFA/exec"; 
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzC1LeY9zyqAdty6otvM4yl-BrunaMDAaOIs0S90QowK6pQotqoKoJXAaRebLv1b04Y5Q/exec"; 
 
 // 🔥 JSONP para GET com timeout maior (30 segundos)
 function fetchFromGS(acao, params = {}, signal) {
@@ -188,14 +188,13 @@ async function renderizarAgenda() {
         const tr = document.createElement('tr');
         const dataItem = parseDateBR(item.data);
         
-        // Se a data for inválida, exibe o valor original
         if (!dataItem) {
             tr.innerHTML = `
                 <td>${item.data || 'Inválido'}</td>
                 <td>${item.periodo}</td>
                 <td style="font-weight:600;">${item.nome}</td>
                 <td>${item.endereco}</td>
-                <td>${item.telefone}</td>
+                <td style="white-space: nowrap;">${item.telefone}</td>
                 <td><button class="btn-edit" onclick="deletarItemAgenda(${item.id})" title="Excluir" style="color:#ff4757;">🗑️</button></td>
             `;
             tbody.appendChild(tr);
@@ -203,7 +202,8 @@ async function renderizarAgenda() {
         }
 
         dataItem.setHours(0,0,0,0);
-        const dataFormatada = dataItem.toLocaleDateString('pt-BR');
+        // 🔥 CORREÇÃO DA DATA: Apenas dia e mês (dd/MM)
+        const dataFormatada = `${String(dataItem.getDate()).padStart(2, '0')}/${String(dataItem.getMonth() + 1).padStart(2, '0')}`;
         const diffDays = Math.ceil((dataItem - hoje) / (1000 * 60 * 60 * 24));
 
         if (diffDays === 0) { tr.className = 'highlight-row pulse-row'; hojeEncontrado = true; }
@@ -215,7 +215,7 @@ async function renderizarAgenda() {
             <td>${item.periodo}</td>
             <td style="font-weight:600;">${item.nome}</td>
             <td>${item.endereco}</td>
-            <td>${item.telefone}</td>
+            <td style="white-space: nowrap;">${item.telefone}</td>
             <td><button class="btn-edit" onclick="deletarItemAgenda(${item.id})" title="Excluir" style="color:#ff4757;">🗑️</button></td>
         `;
         tbody.appendChild(tr);
