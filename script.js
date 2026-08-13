@@ -65,6 +65,27 @@ async function postParaGoogleSheets(acao, dados = {}) {
 }
 
 // ============================================================
+// UTILITÁRIO DE DATA - PADRÃO BRASILEIRO (dd/mm/yyyy)
+// ============================================================
+function formatarDataBR(valor) {
+    if (!valor) return "";
+    let data = new Date(valor);
+    if (isNaN(data.getTime())) {
+        const partes = String(valor).split('/');
+        if (partes.length === 3) {
+            data = new Date(partes[2], partes[1] - 1, partes[0]);
+        }
+    }
+    if (!isNaN(data.getTime())) {
+        const dia = String(data.getDate()).padStart(2, '0');
+        const mes = String(data.getMonth() + 1).padStart(2, '0');
+        const ano = data.getFullYear();
+        return `${dia}/${mes}/${ano}`;
+    }
+    return valor;
+}
+
+// ============================================================
 // ESTADO GERAL
 // ============================================================
 const state = {
@@ -172,7 +193,7 @@ function verificarProximaAgendaPopup() {
         if (!content) return;
         let html = `<p><strong>Você tem os seguintes compromissos agendados:</strong></p><ul>`;
         proximos.forEach(item => {
-            const dataFormatada = new Date(item.data + 'T00:00:00').toLocaleDateString('pt-BR');
+            const dataFormatada = formatarDataBR(item.data);
             html += `<li><strong>${dataFormatada}</strong> - ${item.nome} (${item.periodo})</li>`;
         });
         html += '</ul>';
@@ -205,14 +226,8 @@ async function renderizarAgenda() {
     const sorted = [...state.dadosAgenda].sort((a, b) => new Date(a.data) - new Date(b.data));
     sorted.forEach(item => {
         const tr = document.createElement('tr');
-        let dataFormatada = item.data || 'Inválido';
+        let dataFormatada = formatarDataBR(item.data);
         let dataItem = new Date(item.data);
-        if (!isNaN(dataItem.getTime())) {
-            const dia = String(dataItem.getDate()).padStart(2, '0');
-            const mes = String(dataItem.getMonth() + 1).padStart(2, '0');
-            dataFormatada = `${dia}/${mes}`;
-        }
-        let diffDays = 999;
         if (!isNaN(dataItem.getTime())) {
             dataItem.setHours(0, 0, 0, 0);
             diffDays = Math.ceil((dataItem - hoje) / (1000 * 60 * 60 * 24));
@@ -223,7 +238,7 @@ async function renderizarAgenda() {
             return;
         }
         tr.innerHTML = `
-            <td>${item.data || ''}</td>
+            <td>${dataFormatada}</td>
             <td>${item.periodo || ''}</td>
             <td style="font-weight:600;">${item.nome || ''}</td>
             <td>${item.endereco || ''}</td>
@@ -325,7 +340,7 @@ async function renderizarCartoes() {
 
     const agrupado = {};
     state.dadosCartoes.forEach(item => {
-        let dataObj = new Date(item.data + 'T00:00:00');
+        let dataObj = new Date(item.data);
         if (isNaN(dataObj.getTime())) {
             const partes = String(item.data || '').split('/');
             if (partes.length === 3) dataObj = new Date(partes[2], partes[1] - 1, partes[0]);
@@ -339,7 +354,7 @@ async function renderizarCartoes() {
 
     for (const [data, valores] of Object.entries(agrupado).sort((a, b) => new Date(a[0]) - new Date(b[0]))) {
         const tr = document.createElement('tr');
-        const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
+        const dataFormatada = formatarDataBR(data);
         let totalDia = 0;
         let colunasHtml = '';
         nomesOrdenados.forEach(nome => {
@@ -1433,7 +1448,10 @@ async function buscarCEPPrint() {
             return;
         }
         document.getElementById('print-endereco').value = (dados.logradouro || '').toUpperCase();
-        document.getElementById('print-bairro').value = (dados.bairro || '').toUpperCase();
+        // Atualização: Bairro + Cidade
+        const bairro = (dados.bairro || '').toUpperCase();
+        const cidade = (dados.localidade || '').toUpperCase();
+        document.getElementById('print-bairro').value = bairro + '/' + cidade;
         document.getElementById('print-uf').value = (dados.uf || '').toUpperCase();
     } catch (e) {
         console.error(e);
@@ -1553,7 +1571,9 @@ function exibirSugestoes(container, resultados) {
         div.appendChild(small);
         div.onclick = () => {
             document.getElementById('print-endereco').value = item.endereco || '';
-            document.getElementById('print-bairro').value = item.bairro || '';
+            const bairro = (item.bairro || '').toUpperCase();
+            const cidade = (item.cidade || '').toUpperCase();
+            document.getElementById('print-bairro').value = bairro + '/' + cidade;
             document.getElementById('print-uf').value = item.uf || '';
             document.getElementById('print-cep').value = item.cep || '';
             container.style.display = 'none';
@@ -1721,27 +1741,20 @@ function fecharComprovantePrint() {
 }
 
 // ============================================================
-// 🔥 BUSCA INTELIGENTE (SOMENTE PENDENTES)
+// 🔥 BUSCA INTELIGENTE (SOMENTE PENDENTES - FILTROS REMOVIDOS)
 // ============================================================
 let todosResultadosBusca = [];
-let ruasSelecionadasBusca = new Set();
-let filtroStatus = '';
-let filtroTipo = '';
-let filtroRua = '';
-let filtroAno = '';
 let debounceTimerBusca = null;
 let buscaRequestController = null;
 
 let inputBusca = null;
 let btnBuscaSearch = null;
-let selectRuaBusca = null;
 let buscaResumoCount = null;
 let buscaResultados = null;
 
 function inicializarEventosBusca() {
     inputBusca = document.getElementById('busca-input');
     btnBuscaSearch = document.getElementById('busca-btnSearch');
-    selectRuaBusca = document.getElementById('busca-select-rua');
     buscaResumoCount = document.getElementById('busca-resumo-count');
     buscaResultados = document.getElementById('busca-resultados');
 
@@ -1762,29 +1775,6 @@ function inicializarEventosBusca() {
             debounceTimerBusca = setTimeout(executarBusca, 450);
         });
     }
-
-    if (selectRuaBusca && !selectRuaBusca.dataset.bound) {
-        selectRuaBusca.dataset.bound = 'true';
-        selectRuaBusca.addEventListener('change', function() {
-            filtroRua = this.value;
-            ruasSelecionadasBusca.clear();
-            if (filtroRua) ruasSelecionadasBusca.add(filtroRua);
-            renderizarResultados();
-        });
-    }
-
-    ['busca-select-status', 'busca-select-tipo', 'busca-select-ano'].forEach(id => {
-        const select = document.getElementById(id);
-        if (select && !select.dataset.bound) {
-            select.dataset.bound = 'true';
-            select.addEventListener('change', function() {
-                if (id === 'busca-select-status') filtroStatus = this.value;
-                if (id === 'busca-select-tipo') filtroTipo = this.value;
-                if (id === 'busca-select-ano') filtroAno = this.value;
-                executarBusca();
-            });
-        }
-    });
 }
 
 function prepararModalBusca() {
@@ -1792,12 +1782,6 @@ function prepararModalBusca() {
         if (!inputBusca) inicializarEventosBusca();
         if (inputBusca) { inputBusca.value = ''; inputBusca.focus(); }
         todosResultadosBusca = [];
-        ruasSelecionadasBusca.clear();
-        filtroStatus = filtroTipo = filtroRua = filtroAno = '';
-        ['busca-select-status', 'busca-select-tipo', 'busca-select-ano', 'busca-select-rua'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.value = '';
-        });
         document.getElementById('ruasContainer').innerHTML = '';
         if (buscaResumoCount) buscaResumoCount.textContent = '';
         const editorArea = document.getElementById('busca-editor-area');
@@ -1807,7 +1791,6 @@ function prepararModalBusca() {
             buscaResultados.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">🔎 Digite algo para iniciar a busca</div>';
         }
         carregarTotalCartoesBusca();
-        carregarOpcoesFiltro();
     }, 100);
 }
 
@@ -1829,33 +1812,9 @@ async function carregarTotalCartoesBusca() {
     }
 }
 
-async function carregarOpcoesFiltro() {
-    try {
-        const resp = await fetchFromGS('listarOpcoesBusca');
-        if (!resp) return;
-        popularSelect('busca-select-status', resp.status, '📋 Status (pendentes)');
-        popularSelect('busca-select-tipo', resp.tipo, '📦 Todos tipos');
-        popularSelect('busca-select-ano', resp.anos, '📅 Todos anos');
-    } catch (e) {
-        console.warn('Erro ao carregar opções de filtro', e);
-    }
-}
-
-function popularSelect(id, valores, placeholder) {
-    const select = document.getElementById(id);
-    if (!select) return;
-    select.innerHTML = `<option value="">${placeholder}</option>`;
-    valores.forEach(v => {
-        const opt = document.createElement('option');
-        opt.value = v;
-        opt.textContent = v;
-        select.appendChild(opt);
-    });
-}
-
 async function executarBusca() {
     const termo = inputBusca ? inputBusca.value.trim() : '';
-    if (!termo && !filtroStatus && !filtroTipo && !filtroRua && !filtroAno) {
+    if (!termo) {
         limparBusca();
         return;
     }
@@ -1870,11 +1829,7 @@ async function executarBusca() {
 
     try {
         const resultado = await fetchFromGS('pesquisarCartoes', {
-            termo,
-            status: filtroStatus,
-            tipo: filtroTipo,
-            rua: filtroRua,
-            ano: filtroAno
+            termo
         }, buscaRequestController.signal);
         processarResultados(resultado);
     } catch (e) {
@@ -1888,51 +1843,15 @@ async function executarBusca() {
 
 function processarResultados(resposta) {
     todosResultadosBusca = resposta.resultados || [];
-    ruasSelecionadasBusca.clear();
 
     const contador = document.getElementById('busca-contador');
     if (contador) contador.textContent = `📦 ${resposta.total} pendente(s)`;
 
     if (buscaResumoCount) {
-        const partes = [];
-        if (resposta.porStatus && Object.keys(resposta.porStatus).length) {
-            partes.push(`Status: ${Object.entries(resposta.porStatus).map(([k, v]) => `${v} ${k}`).join(', ')}`);
-        }
-        if (resposta.porTipo && Object.keys(resposta.porTipo).length) {
-            partes.push(`Tipo: ${Object.entries(resposta.porTipo).map(([k, v]) => `${v} ${k}`).join(', ')}`);
-        }
-        buscaResumoCount.textContent = partes.join(' | ') || `${resposta.total} pendente(s)`;
+        buscaResumoCount.textContent = `${resposta.total} pendente(s) encontrado(s)`;
     }
 
-    montarChipsRuas(resposta.porRua || {});
     renderizarResultados();
-}
-
-function montarChipsRuas(porRua) {
-    const container = document.getElementById('ruasContainer');
-    if (!container) return;
-    container.innerHTML = '';
-    for (const [rua, count] of Object.entries(porRua)) {
-        const chip = document.createElement('div');
-        chip.className = 'rua-chip';
-        chip.dataset.rua = rua;
-        chip.innerHTML = `<span class="rua-nome">${rua}</span><span class="rua-count">(${count})</span>`;
-        chip.addEventListener('click', () => {
-            ruasSelecionadasBusca.clear();
-            document.querySelectorAll('.rua-chip.selected').forEach(el => el.classList.remove('selected'));
-            if (filtroRua === rua) {
-                filtroRua = '';
-                selectRuaBusca.value = '';
-            } else {
-                filtroRua = rua;
-                ruasSelecionadasBusca.add(rua);
-                chip.classList.add('selected');
-                if (selectRuaBusca) selectRuaBusca.value = rua;
-            }
-            renderizarResultados();
-        });
-        container.appendChild(chip);
-    }
 }
 
 function renderizarResultados() {
@@ -1940,9 +1859,22 @@ function renderizarResultados() {
     if (!buscaResultados) return;
 
     let exibir = todosResultadosBusca;
-    if (ruasSelecionadasBusca.size > 0) {
-        exibir = exibir.filter(item => ruasSelecionadasBusca.has(extrairNomeRua(item.endereco)));
-    }
+
+    // 🚀 ORDENAÇÃO: MAIS RECENTES PRIMEIRO (Data decrescente)
+    exibir.sort((a, b) => {
+        const parseDate = (str) => {
+            if (!str) return new Date(0).getTime();
+            let d = new Date(str);
+            if (!isNaN(d.getTime())) return d.getTime();
+            const partes = String(str).split('/');
+            if (partes.length === 3) {
+                d = new Date(partes[2], partes[1] - 1, partes[0]);
+                if (!isNaN(d.getTime())) return d.getTime();
+            }
+            return new Date(0).getTime();
+        };
+        return parseDate(b.data) - parseDate(a.data); // Do maior para o menor (mais recente)
+    });
 
     if (!exibir.length) {
         buscaResultados.innerHTML = '<div style="text-align:center; padding:25px; color:#999;">Nenhum pendente encontrado.</div>';
@@ -1952,38 +1884,20 @@ function renderizarResultados() {
     let html = '';
     exibir.forEach(item => {
         let classeSelo = 'recente';
-        let textoSelo = 'RECENTE';
-        if (item.data) {
-            const partes = String(item.data).split('/');
-            if (partes.length === 3) {
-                const anoCartao = parseInt(partes[2], 10);
-                const anoAtual = new Date().getFullYear();
-                if (!isNaN(anoCartao) && anoCartao < anoAtual) {
-                    classeSelo = 'antigo';
-                    textoSelo = 'ANTIGO';
-                }
-            }
-        }
-        const statusNormalizado = String(item.status || '').toUpperCase().trim();
-        let statusClass = statusNormalizado === 'BLOQUEADO' ? 'bloqueado' : '';
         const qtdEndereco = contarIguaisPorEndereco(item);
         const multiIcon = qtdEndereco > 1 ? `<span class="multi-morador" title="Há ${qtdEndereco} cartões neste endereço">👥 ${qtdEndereco}</span>` : '';
-        const seloHTML = `
-            <div class="selo-container">
-                <div class="selo-ondas"></div>
-                <div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div>
-                <div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div>
-                <div class="selo ${classeSelo}">${textoSelo}</div>
-            </div>`;
+        const statusNormalizado = String(item.status || '').toUpperCase().trim();
+        let statusClass = statusNormalizado === 'BLOQUEADO' ? 'bloqueado' : '';
+
         html += `
             <div class="card" onclick="abrirEditorBuscaRapido(${Number(item.linha)})">
                 <span class="numero">${escapeHtml(item.numero || '-')}</span>
                 <span class="nome" title="${escapeHtml(item.nome || '')}">${escapeHtml(item.nome || '')}</span>
                 <div class="detalhes">
-                    <span class="data-destaque">📅 ${escapeHtml(item.data || '—')}</span>
-                    ${seloHTML}
+                    <span class="data-destaque">📅 ${escapeHtml(formatarDataBR(item.data))}</span>
+                    <div class="selo-container"><div class="selo">RECENTE</div></div>
                     <span>📍 ${escapeHtml(item.endereco || 'SEM ENDEREÇO')} ${multiIcon}</span>
-                    <span>📋 ${escapeHtml(item.tipo || '')}</span>
+                    <span>📦 ${escapeHtml(item.tipo || '')}</span>
                     <span class="status-badge ${statusClass}">${escapeHtml(item.status || 'PENDENTE')}</span>
                 </div>
             </div>`;
@@ -1995,12 +1909,6 @@ function limparBusca() {
     clearTimeout(debounceTimerBusca);
     if (buscaRequestController) { buscaRequestController.abort(); buscaRequestController = null; }
     todosResultadosBusca = [];
-    ruasSelecionadasBusca.clear();
-    filtroStatus = filtroTipo = filtroRua = filtroAno = '';
-    ['busca-select-status', 'busca-select-tipo', 'busca-select-ano', 'busca-select-rua'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-    });
     document.getElementById('ruasContainer').innerHTML = '';
     if (buscaResumoCount) buscaResumoCount.textContent = '';
     if (buscaResultados) {
@@ -2057,11 +1965,11 @@ function abrirEditorBuscaRapido(linha) {
             </div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                 <div><label>Nome</label><input id="edit-nome-busca-${Number(linha)}" value="${escapeHtml(item.nome || '')}"></div>
-                <div><label>📅 Data</label><input id="edit-data-busca-${Number(linha)}" value="${escapeHtml(item.data || '')}" placeholder="dd/mm/yyyy"></div>
+                <div><label>📅 Data</label><input id="edit-data-busca-${Number(linha)}" value="${escapeHtml(formatarDataBR(item.data))}" placeholder="dd/mm/yyyy"></div>
                 <div style="grid-column:span 2;"><label>🔢 NÚMERO DO CARTÃO</label><input id="edit-num-busca-${Number(linha)}" class="campo-numero" value="${escapeHtml(item.numero || '')}"></div>
                 <div style="grid-column:span 2;"><label>📍 ENDEREÇO COMPLETO</label><input id="edit-end-busca-${Number(linha)}" value="${escapeHtml(item.endereco || '')}" style="${temOutros ? 'background:#fff3e0;border:2px solid #ff9800;' : ''}">
                     ${temOutros ? `
-                        <div style="margin-top:8px; padding:6px; background:#fff0e0; border-radius:6px; display:flex; gap:8px; flex-wrap:wrap; justify-content:space-between;">
+                        <div class="alerta-duplicidade">
                             <span style="color:#e65100; font-weight:bold;">⚠️ Há ${qtdMesmoEndereco} cartões neste mesmo endereço!</span>
                             <div>
                                 <button class="btn-sm" onclick="abrirListaMoradoresBusca('${escapeHtml(item.endereco || '')}', ${Number(linha)})" style="background:#2196f3; color:white;">👥 VER MORADORES</button>
@@ -2074,9 +1982,9 @@ function abrirEditorBuscaRapido(linha) {
                 <div><label>Telefone</label><input id="edit-tel-busca-${Number(linha)}" value="${escapeHtml(item.telefone || '')}"></div>
             </div>
             <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap;">
-                <button class="btn-salvar" onclick="salvarEdicaoBusca(${Number(linha)})">💾 Salvar</button>
-                <button class="btn-entregue" onclick="confirmarEntregaBusca(${Number(linha)})">✅ ENTREGUE</button>
-                <button class="btn-cancelar" onclick="cancelarEdicaoBusca(${Number(linha)})">Cancelar</button>
+                <button class="btn-salvar" style="background:#4a7c2e; color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer; transition:0.2s;" onclick="salvarEdicaoBusca(${Number(linha)})">💾 Salvar</button>
+                <button class="botao-entregue" onclick="confirmarEntregaBusca(${Number(linha)})">✅ ENTREGUE</button>
+                <button class="btn-cancelar" style="background:#f44336; color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer;" onclick="cancelarEdicaoBusca(${Number(linha)})">Cancelar</button>
             </div>
         </div>`;
 
