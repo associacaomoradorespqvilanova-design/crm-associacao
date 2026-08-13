@@ -1,7 +1,7 @@
 // ============================================================
 // CONFIGURAÇÃO DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwk2sgvFnjKZ7lU1sbVKMt7GUOkiQgXLGRhb5LLIIdQzX9jekPSMvmql8nekpU1-Aoc7A/exec";
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbz5Ah3HHWvXHwvR6irbjXCV8-Ks9BAopfAUOU2YrUJKoZqrk_XU_L3-5r5Iyw1veLXy4Q/exec";
 
 // ============================================================
 // GET VIA JSONP
@@ -9,7 +9,11 @@ const URL_API_GS = "https://script.google.com/macros/s/AKfycbwk2sgvFnjKZ7lU1sbVK
 function fetchFromGS(acao, params = {}, signal) {
     return new Promise((resolve, reject) => {
         const callbackName = 'cb' + Date.now() + Math.random().toString(36).substr(2, 8);
-        const urlParams = new URLSearchParams({ acao, callback: callbackName, ...params });
+        const urlParams = new URLSearchParams({
+            acao,
+            callback: callbackName,
+            ...params
+        });
         const script = document.createElement('script');
         script.src = URL_API_GS + '?' + urlParams.toString();
 
@@ -53,7 +57,11 @@ async function postParaGoogleSheets(acao, dados = {}) {
     const formData = new URLSearchParams();
     formData.append('acao', acao);
     formData.append('dados', JSON.stringify(dados));
-    await fetch(URL_API_GS, { method: 'POST', body: formData, mode: 'no-cors' });
+    await fetch(URL_API_GS, {
+        method: 'POST',
+        body: formData,
+        mode: 'no-cors'
+    });
 }
 
 // ============================================================
@@ -244,7 +252,14 @@ async function salvarAgenda() {
         return;
     }
 
-    await postParaGoogleSheets('salvarAgenda', { id: Date.now(), nome, data, periodo, endereco, telefone });
+    await postParaGoogleSheets('salvarAgenda', {
+        id: Date.now(),
+        nome,
+        data,
+        periodo,
+        endereco,
+        telefone
+    });
     fecharModal('modal-agenda');
     await renderizarAgenda();
 
@@ -398,7 +413,12 @@ async function salvarCartoes() {
         return;
     }
 
-    await postParaGoogleSheets('salvarCartao', { id: Date.now(), responsavel, qtd, data });
+    await postParaGoogleSheets('salvarCartao', {
+        id: Date.now(),
+        responsavel,
+        qtd,
+        data
+    });
     fecharModal('modal-cartoes');
     await renderizarCartoes();
 
@@ -770,7 +790,10 @@ async function abrirModalCestaComNome(nome) {
 async function editarNomePendente(nomeAntigo, linha) {
     const novoNome = prompt(`Digite o novo nome para "${nomeAntigo}":`, nomeAntigo);
     if (novoNome === null) return;
-    if (novoNome.trim() === '') { alert("O nome não pode estar vazio."); return; }
+    if (novoNome.trim() === '') {
+        alert("O nome não pode estar vazio.");
+        return;
+    }
     await postParaGoogleSheets('editarNomeMoradorCesta', { linha, novoNome: novoNome.trim().toUpperCase() });
     alert("✅ Nome atualizado com sucesso!");
     await renderizarPendentesCestaHome();
@@ -790,14 +813,21 @@ async function deletarPendente(linha, nome) {
 // ============================================================
 const inputCesta = document.getElementById('cesta-search');
 const suggCesta = document.getElementById('cesta-suggestions');
+
 if (inputCesta && suggCesta) {
     inputCesta.addEventListener('input', function () {
         const v = this.value;
         suggCesta.innerHTML = '';
-        if (!v || v.length < 2) { suggCesta.style.display = 'none'; return; }
+        if (!v || v.length < 2) {
+            suggCesta.style.display = 'none';
+            return;
+        }
         const q = normalizeString(v);
         const filtered = cestaState.names.filter(n => normalizeString(n).includes(q)).slice(0, 30);
-        if (filtered.length === 0) { suggCesta.style.display = 'none'; return; }
+        if (filtered.length === 0) {
+            suggCesta.style.display = 'none';
+            return;
+        }
         filtered.forEach(name => {
             const d = document.createElement('div');
             d.textContent = name;
@@ -819,7 +849,10 @@ const cestaBtnSearch = document.getElementById('cesta-btnSearch');
 if (cestaBtnSearch) {
     cestaBtnSearch.addEventListener('click', async () => {
         const nome = inputCesta.value.trim();
-        if (!nome) { alert("Digite um nome para buscar."); return; }
+        if (!nome) {
+            alert("Digite um nome para buscar.");
+            return;
+        }
         await buscarEPreencherCesta(nome);
     });
 }
@@ -834,10 +867,11 @@ async function buscarEPreencherCesta(nome, isQRCode = false) {
         cestaState.currentLine = resp.linha;
         cestaState.currentDados = resp.dados;
         renderFormCesta(resp.dados);
+
         if (isQRCode) {
             const confirmar = confirm(`Deseja marcar a cesta como ENTREGUE para ${nome} (com a data de hoje)?`);
             if (confirmar) {
-                const monthLabels = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+                const monthLabels = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
                 const todayIndex = new Date().getMonth();
                 const today = new Date();
                 const dia = String(today.getDate()).padStart(2, '0');
@@ -868,7 +902,8 @@ function renderFormCesta(dadosArray) {
     fields.innerHTML = '';
     monthsContainer.innerHTML = '';
     const tiposOptions = cestaState.types.map(t => `<option value="${t}">${t}</option>`).join('');
-    const monthLabels = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+    const monthLabels = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+
     dadosArray.forEach(item => {
         const id = item.id;
         const label = item.label || id;
@@ -911,6 +946,7 @@ function renderFormCesta(dadosArray) {
             fields.appendChild(wrapper);
         }
     });
+
     atualizarMesesUICesta();
 }
 
@@ -943,13 +979,15 @@ function atualizarMesesUICesta() {
             inputEl.style.color = '#9b2c2c';
         }
     });
+
     const stamp = document.getElementById('cesta-stamp');
     if (stamp) stamp.classList.toggle('show', pagos === 12);
+
     const statusId = headerToId('STATUS');
     const statusInput = document.getElementById(statusId);
     if (statusInput) {
         const todayIndex = new Date().getMonth();
-        const monthLabels = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+        const monthLabels = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
         const monthId = headerToId(monthLabels[todayIndex]);
         const monthField = document.getElementById(monthId);
         const isPago = monthField && monthField.classList.contains('pago');
@@ -972,7 +1010,10 @@ async function salvarCestaAutomatico() {
 const cestaBtnSave = document.getElementById('cesta-btnSave');
 if (cestaBtnSave) {
     cestaBtnSave.addEventListener('click', async () => {
-        if (!cestaState.currentLine) { alert("Nenhum morador selecionado."); return; }
+        if (!cestaState.currentLine) {
+            alert("Nenhum morador selecionado.");
+            return;
+        }
         const inputs = document.querySelectorAll('#cesta-fields .field, #cesta-monthsContainer input');
         const payload = {};
         inputs.forEach(inp => { payload[inp.id] = inp.value; });
@@ -1131,7 +1172,10 @@ function adicionarTelefone() {
 }
 
 function adicionarCurso() {
-    if (state.cursoCount >= 3) { alert("Você já atingiu o limite máximo de 3 cursos para caber em 1 única folha A4."); return; }
+    if (state.cursoCount >= 3) {
+        alert("Você já atingiu o limite máximo de 3 cursos para caber em 1 única folha A4.");
+        return;
+    }
     const container = document.getElementById('cursos-container');
     const id = `curso-${Date.now()}`;
     const html = `
@@ -1148,7 +1192,10 @@ function adicionarCurso() {
 }
 
 function adicionarExperiencia() {
-    if (state.expCount >= 6) { alert("Você já atingiu o limite máximo de 6 experiências para caber em 1 única folha A4."); return; }
+    if (state.expCount >= 6) {
+        alert("Você já atingiu o limite máximo de 6 experiências para caber em 1 única folha A4.");
+        return;
+    }
     const container = document.getElementById('exp-container');
     const id = `exp-${Date.now()}`;
     const html = `
@@ -1174,7 +1221,10 @@ function removerItem(id) {
 
 async function gerarCurriculo() {
     const nome = document.getElementById('cv-nome').value;
-    if (!nome) { alert("Por favor, preencha pelo menos o Nome Completo."); return; }
+    if (!nome) {
+        alert("Por favor, preencha pelo menos o Nome Completo.");
+        return;
+    }
     const templateSelecionado = document.getElementById('cv-template').value;
     const tel1 = document.getElementById('cv-tel-1').value;
     const tel2 = document.getElementById('cv-tel-2').value;
@@ -1345,7 +1395,10 @@ async function abrirComprovantePrint(tipo) {
     document.getElementById('comprovante-bg').style.backgroundImage = `url('${bgImage}')`;
     document.getElementById('modal-comprovante-print').style.display = 'flex';
     const idsLimpar = ['print-nome', 'print-endereco', 'print-numero_endereco', 'print-complemento', 'print-cep', 'print-bairro', 'print-uf', 'print-nacionalidade', 'print-estado_civil', 'print-cpf', 'print-rg'];
-    idsLimpar.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    idsLimpar.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
     document.getElementById('print-emissor').value = 'DETRAN/RJ';
     document.getElementById('print-propria').checked = false;
     document.getElementById('print-alugada').checked = false;
@@ -1368,11 +1421,17 @@ async function abrirComprovantePrint(tipo) {
 
 async function buscarCEPPrint() {
     const cep = document.getElementById('print-cep').value.replace(/\D/g, '');
-    if (cep.length !== 8) { alert("CEP inválido"); return; }
+    if (cep.length !== 8) {
+        alert("CEP inválido");
+        return;
+    }
     try {
         const resp = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
         const dados = await resp.json();
-        if (dados.erro) { alert("CEP não encontrado na API dos Correios"); return; }
+        if (dados.erro) {
+            alert("CEP não encontrado na API dos Correios");
+            return;
+        }
         document.getElementById('print-endereco').value = (dados.logradouro || '').toUpperCase();
         document.getElementById('print-bairro').value = (dados.bairro || '').toUpperCase();
         document.getElementById('print-uf').value = (dados.uf || '').toUpperCase();
@@ -1384,11 +1443,20 @@ async function buscarCEPPrint() {
 
 async function buscarCPFPrint() {
     const cpf = document.getElementById('print-cpf').value.replace(/\D/g, '');
-    if (cpf.length !== 11) { alert("CPF inválido"); return; }
+    if (cpf.length !== 11) {
+        alert("CPF inválido");
+        return;
+    }
     try {
         const r = await fetchFromGS('buscarCPF', { cpf });
-        if (r.erro) { alert("ERRO DO APPS SCRIPT: " + r.erro); return; }
-        if (!r.encontrado) { alert("CPF NÃO LOCALIZADO na planilha."); return; }
+        if (r.erro) {
+            alert("ERRO DO APPS SCRIPT: " + r.erro);
+            return;
+        }
+        if (!r.encontrado) {
+            alert("CPF NÃO LOCALIZADO na planilha.");
+            return;
+        }
         const d = r.dados;
         document.getElementById('print-nome').value = d.nome || '';
         document.getElementById('print-endereco').value = d.endereco || '';
@@ -1422,6 +1490,7 @@ function detectarGeneroENacionalidadeComprovante() {
     else if (['mar', 'luz', 'flor', 'marjorie', 'alice', 'constance'].includes(primeiroNome)) genero = 'FEMININO';
     else if (primeiroNome.endsWith('a') || primeiroNome.endsWith('e') || primeiroNome.endsWith('i') || primeiroNome.endsWith('ad') || primeiroNome.endsWith('ra') || primeiroNome.endsWith('na') || primeiroNome.endsWith('la') || primeiroNome.endsWith('da') || primeiroNome.endsWith('ia')) genero = 'FEMININO';
     else genero = 'MASCULINO';
+
     if (genero === 'FEMININO') {
         document.getElementById('print-nacionalidade').value = 'BRASILEIRA';
         document.getElementById('print-estado_civil').value = 'SOLTEIRA';
@@ -1464,7 +1533,9 @@ function buscarSugestoesEndereco() {
                 console.warn("Erro ao buscar endereços:", e);
                 container.style.display = 'none';
             }
-        } finally { searchController = null; }
+        } finally {
+            searchController = null;
+        }
     }, 100);
 }
 
@@ -1526,36 +1597,45 @@ function obterValoresComprovante() {
 
 function gerarHTMLImpressaoCRM(v) {
     return `
-    <!DOCTYPE html><html><head><style>
-        body{margin:0;padding:0;font-family:Arial,sans-serif;}
-        .popup{position:relative;width:794px;height:1123px;background-color:white;overflow:hidden;margin:0 auto;}
-        .popup-content{position:relative;width:100%;height:100%;}
-        .popup-content img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;z-index:0;}
-        .input-field{position:absolute;font-size:13px;padding:2px 4px;z-index:1;font-weight:bold;background:transparent;border:none;outline:none;color:black;text-transform:uppercase;}
-        .input-field[type="checkbox"]{width:16px;height:16px;accent-color:black;}
-        @media print{body{margin:0!important;padding:0!important;}}
-    </style></head><body>
-    <div class="popup"><div class="popup-content">
-        <img src="https://i.imgur.com/lFhk0Hq.png">
-        <input class="input-field" style="top:386px;left:230px;width:80px" value="${v.numero}" readonly>
-        <input class="input-field" style="top:386px;left:390px;width:130px" value="${v.data}" readonly>
-        <input class="input-field" style="top:386px;left:580px;width:80px" value="${v.ano}" readonly>
-        <input class="input-field" style="top:437px;left:167px;width:500px;font-size:18px" value="${v.nome}" readonly>
-        <input class="input-field" style="top:508px;left:216px;width:350px" value="${v.endereco}" readonly>
-        <input class="input-field" style="top:508px;left:629px;width:90px" value="${v.numero_endereco}" readonly>
-        <input class="input-field" style="top:568px;left:240px;width:210px" value="${v.complemento}" readonly>
-        <input class="input-field" style="top:568px;left:530px;width:150px" value="${v.cep}" readonly>
-        <input class="input-field" style="top:633px;left:165px;width:350px" value="${v.bairro}" readonly>
-        <input class="input-field" style="top:633px;left:630px;width:80px" value="${v.uf}" readonly>
-        <input class="input-field" style="top:695px;left:247px;width:150px" value="${v.nacionalidade}" readonly>
-        <input class="input-field" style="top:695px;left:555px;width:150px" value="${v.estado_civil}" readonly>
-        <input class="input-field" style="top:758px;left:135px;width:188px" value="${v.cpf}" readonly>
-        <input class="input-field" style="top:758px;left:395px;width:100px" value="${v.rg}" readonly>
-        <input class="input-field" style="top:758px;left:625px;width:120px" value="${v.emissor}" readonly>
-        <input type="checkbox" class="input-field" style="top:844px;left:249px" ${v.propria ? 'checked' : ''} readonly>
-        <input type="checkbox" class="input-field" style="top:844px;left:425px" ${v.alugada ? 'checked' : ''} readonly>
-        <input type="checkbox" class="input-field" style="top:844px;left:652px" ${v.emprestada ? 'checked' : ''} readonly>
-    </div></div></body></html>`;
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body{margin:0;padding:0;font-family:Arial,sans-serif;}
+            .popup{position:relative;width:794px;height:1123px;background-color:white;overflow:hidden;margin:0 auto;}
+            .popup-content{position:relative;width:100%;height:100%;}
+            .popup-content img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;z-index:0;}
+            .input-field{position:absolute;font-size:13px;padding:2px 4px;z-index:1;font-weight:bold;background:transparent;border:none;outline:none;color:black;text-transform:uppercase;}
+            .input-field[type="checkbox"]{width:16px;height:16px;accent-color:black;}
+            @media print{body{margin:0!important;padding:0!important;}}
+        </style>
+    </head>
+    <body>
+        <div class="popup">
+            <div class="popup-content">
+                <img src="https://i.imgur.com/lFhk0Hq.png">
+                <input class="input-field" style="top:386px;left:230px;width:80px" value="${v.numero}" readonly>
+                <input class="input-field" style="top:386px;left:390px;width:130px" value="${v.data}" readonly>
+                <input class="input-field" style="top:386px;left:580px;width:80px" value="${v.ano}" readonly>
+                <input class="input-field" style="top:437px;left:167px;width:500px;font-size:18px" value="${v.nome}" readonly>
+                <input class="input-field" style="top:508px;left:216px;width:350px" value="${v.endereco}" readonly>
+                <input class="input-field" style="top:508px;left:629px;width:90px" value="${v.numero_endereco}" readonly>
+                <input class="input-field" style="top:568px;left:240px;width:210px" value="${v.complemento}" readonly>
+                <input class="input-field" style="top:568px;left:530px;width:150px" value="${v.cep}" readonly>
+                <input class="input-field" style="top:633px;left:165px;width:350px" value="${v.bairro}" readonly>
+                <input class="input-field" style="top:633px;left:630px;width:80px" value="${v.uf}" readonly>
+                <input class="input-field" style="top:695px;left:247px;width:150px" value="${v.nacionalidade}" readonly>
+                <input class="input-field" style="top:695px;left:555px;width:150px" value="${v.estado_civil}" readonly>
+                <input class="input-field" style="top:758px;left:135px;width:188px" value="${v.cpf}" readonly>
+                <input class="input-field" style="top:758px;left:395px;width:100px" value="${v.rg}" readonly>
+                <input class="input-field" style="top:758px;left:625px;width:120px" value="${v.emissor}" readonly>
+                <input type="checkbox" class="input-field" style="top:844px;left:249px" ${v.propria ? 'checked' : ''} readonly>
+                <input type="checkbox" class="input-field" style="top:844px;left:425px" ${v.alugada ? 'checked' : ''} readonly>
+                <input type="checkbox" class="input-field" style="top:844px;left:652px" ${v.emprestada ? 'checked' : ''} readonly>
+            </div>
+        </div>
+    </body>
+    </html>`;
 }
 
 async function salvarDadosComprovante() {
@@ -1641,7 +1721,7 @@ function fecharComprovantePrint() {
 }
 
 // ============================================================
-// 🔥 BUSCA INTELIGENTE (NOVA VERSÃO)
+// 🔥 BUSCA INTELIGENTE (SOMENTE PENDENTES)
 // ============================================================
 let todosResultadosBusca = [];
 let ruasSelecionadasBusca = new Set();
@@ -1693,7 +1773,6 @@ function inicializarEventosBusca() {
         });
     }
 
-    // Novos filtros
     ['busca-select-status', 'busca-select-tipo', 'busca-select-ano'].forEach(id => {
         const select = document.getElementById(id);
         if (select && !select.dataset.bound) {
@@ -1739,7 +1818,7 @@ async function carregarTotalCartoesBusca() {
     try {
         const resposta = await fetchFromGS('contarCartoesPendentes');
         if (resposta && resposta.success) {
-            contador.textContent = `📦 ${resposta.total} cartões pendentes`;
+            contador.textContent = `📦 ${resposta.total} pendentes`;
         } else {
             contador.textContent = '⚠️ Erro';
             console.error('Erro retornado pelo Apps Script:', resposta);
@@ -1754,7 +1833,7 @@ async function carregarOpcoesFiltro() {
     try {
         const resp = await fetchFromGS('listarOpcoesBusca');
         if (!resp) return;
-        popularSelect('busca-select-status', resp.status, '📋 Todos status');
+        popularSelect('busca-select-status', resp.status, '📋 Status (pendentes)');
         popularSelect('busca-select-tipo', resp.tipo, '📦 Todos tipos');
         popularSelect('busca-select-ano', resp.anos, '📅 Todos anos');
     } catch (e) {
@@ -1786,7 +1865,7 @@ async function executarBusca() {
 
     if (buscaResultados) {
         buscaResultados.style.display = 'flex';
-        buscaResultados.innerHTML = `<div style="text-align:center; padding:30px; color:#888;">⏳ Buscando...</div>`;
+        buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">⏳ Buscando...</div>';
     }
 
     try {
@@ -1795,14 +1874,13 @@ async function executarBusca() {
             status: filtroStatus,
             tipo: filtroTipo,
             rua: filtroRua,
-            ano: filtroAno,
-            somentePendentes: false
+            ano: filtroAno
         }, buscaRequestController.signal);
         processarResultados(resultado);
     } catch (e) {
         if (e.name === 'AbortError') return;
         console.error(e);
-        if (buscaResultados) buscaResultados.innerHTML = `<div style="text-align:center; padding:30px; color:#d32f2f;">❌ Erro na busca</div>`;
+        if (buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#d32f2f;">❌ Erro na busca</div>';
     } finally {
         buscaRequestController = null;
     }
@@ -1813,7 +1891,7 @@ function processarResultados(resposta) {
     ruasSelecionadasBusca.clear();
 
     const contador = document.getElementById('busca-contador');
-    if (contador) contador.textContent = `📦 ${resposta.total} resultado(s)`;
+    if (contador) contador.textContent = `📦 ${resposta.total} pendente(s)`;
 
     if (buscaResumoCount) {
         const partes = [];
@@ -1823,7 +1901,7 @@ function processarResultados(resposta) {
         if (resposta.porTipo && Object.keys(resposta.porTipo).length) {
             partes.push(`Tipo: ${Object.entries(resposta.porTipo).map(([k, v]) => `${v} ${k}`).join(', ')}`);
         }
-        buscaResumoCount.textContent = partes.join(' | ') || `${resposta.total} cartão(s) encontrado(s)`;
+        buscaResumoCount.textContent = partes.join(' | ') || `${resposta.total} pendente(s)`;
     }
 
     montarChipsRuas(resposta.porRua || {});
@@ -1867,7 +1945,7 @@ function renderizarResultados() {
     }
 
     if (!exibir.length) {
-        buscaResultados.innerHTML = '<div style="text-align:center; padding:25px; color:#999;">Nenhum cartão encontrado.</div>';
+        buscaResultados.innerHTML = '<div style="text-align:center; padding:25px; color:#999;">Nenhum pendente encontrado.</div>';
         return;
     }
 
@@ -1887,9 +1965,7 @@ function renderizarResultados() {
             }
         }
         const statusNormalizado = String(item.status || '').toUpperCase().trim();
-        let statusClass = '';
-        if (statusNormalizado === 'ENTREGUE') statusClass = 'entregue';
-        else if (statusNormalizado === 'BLOQUEADO') statusClass = 'bloqueado';
+        let statusClass = statusNormalizado === 'BLOQUEADO' ? 'bloqueado' : '';
         const qtdEndereco = contarIguaisPorEndereco(item);
         const multiIcon = qtdEndereco > 1 ? `<span class="multi-morador" title="Há ${qtdEndereco} cartões neste endereço">👥 ${qtdEndereco}</span>` : '';
         const seloHTML = `
@@ -1936,7 +2012,7 @@ function limparBusca() {
     carregarTotalCartoesBusca();
 }
 
-// Funções auxiliares para busca
+// Funções auxiliares de busca
 function extrairNomeRua(endereco) {
     let rua = String(endereco || '');
     rua = rua.replace(/\s+\d+([-–]\d+)?$/, '');
@@ -1958,7 +2034,7 @@ function escapeHtml(value) {
 }
 
 // ============================================================
-// EDITOR RÁPIDO (mantido e adaptado)
+// EDITOR RÁPIDO
 // ============================================================
 function abrirEditorBuscaRapido(linha) {
     const item = todosResultadosBusca.find(it => Number(it.linha) === Number(linha));
@@ -1972,6 +2048,7 @@ function abrirEditorBuscaRapido(linha) {
     if (!editorArea || !resultadosDiv) return;
     editorArea.style.display = 'block';
     resultadosDiv.style.display = 'none';
+
     editorArea.innerHTML = `
         <div id="editor-busca-${Number(linha)}">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
