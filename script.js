@@ -1,7 +1,7 @@
 // ============================================================
 // CONFIGURAÇÃO DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwwap6_6Pf5uatNkicqGLXHqLpuGes3PTbMCx40VsLcqw_cn1mhbPAMvVNjAlqIRfUuaQ/exec";
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwZ9WdiSeiuPU43UoLIs7t-l9s0vcqYIPqpfoZpwEyKSSjYsOVmrHmCWdXSbHc-RqfAtw/exec";
 
 // ============================================================
 // GET VIA JSONP
@@ -228,6 +228,7 @@ async function renderizarAgenda() {
         const tr = document.createElement('tr');
         let dataFormatada = formatarDataBR(item.data);
         let dataItem = new Date(item.data);
+        let diffDays = 999;
         if (!isNaN(dataItem.getTime())) {
             dataItem.setHours(0, 0, 0, 0);
             diffDays = Math.ceil((dataItem - hoje) / (1000 * 60 * 60 * 24));
@@ -1572,7 +1573,7 @@ function exibirSugestoes(container, resultados) {
         div.onclick = () => {
             document.getElementById('print-endereco').value = item.endereco || '';
             const bairro = (item.bairro || '').toUpperCase();
-            const cidade = (item.cidade || '').toUpperCase();
+            const cidade = (item.cidade || '').toUpperCase(); // Nota: precisa do backend ajustado
             document.getElementById('print-bairro').value = bairro + '/' + cidade;
             document.getElementById('print-uf').value = item.uf || '';
             document.getElementById('print-cep').value = item.cep || '';
@@ -1749,14 +1750,14 @@ let buscaRequestController = null;
 
 let inputBusca = null;
 let btnBuscaSearch = null;
-let buscaResumoCount = null;
 let buscaResultados = null;
+let contadorBusca = null;
 
 function inicializarEventosBusca() {
     inputBusca = document.getElementById('busca-input');
     btnBuscaSearch = document.getElementById('busca-btnSearch');
-    buscaResumoCount = document.getElementById('busca-resumo-count');
     buscaResultados = document.getElementById('busca-resultados');
+    contadorBusca = document.getElementById('busca-contador');
 
     if (!inputBusca) return;
 
@@ -1782,8 +1783,7 @@ function prepararModalBusca() {
         if (!inputBusca) inicializarEventosBusca();
         if (inputBusca) { inputBusca.value = ''; inputBusca.focus(); }
         todosResultadosBusca = [];
-        document.getElementById('ruasContainer').innerHTML = '';
-        if (buscaResumoCount) buscaResumoCount.textContent = '';
+        if (contadorBusca) contadorBusca.textContent = '⏳ ...';
         const editorArea = document.getElementById('busca-editor-area');
         if (editorArea) { editorArea.style.display = 'none'; editorArea.innerHTML = ''; }
         if (buscaResultados) {
@@ -1795,20 +1795,19 @@ function prepararModalBusca() {
 }
 
 async function carregarTotalCartoesBusca() {
-    const contador = document.getElementById('busca-contador');
-    if (!contador) return;
-    contador.textContent = '⏳ ...';
+    if (!contadorBusca) return;
+    contadorBusca.textContent = '⏳ ...';
     try {
         const resposta = await fetchFromGS('contarCartoesPendentes');
         if (resposta && resposta.success) {
-            contador.textContent = `📦 ${resposta.total} pendentes`;
+            contadorBusca.textContent = `📦 ${resposta.total} pendentes`;
         } else {
-            contador.textContent = '⚠️ Erro';
+            contadorBusca.textContent = '⚠️ Erro';
             console.error('Erro retornado pelo Apps Script:', resposta);
         }
     } catch (erro) {
         console.error('Erro ao carregar total de cartões:', erro);
-        contador.textContent = '⚠️ Erro';
+        contadorBusca.textContent = '⚠️ Erro';
     }
 }
 
@@ -1843,14 +1842,7 @@ async function executarBusca() {
 
 function processarResultados(resposta) {
     todosResultadosBusca = resposta.resultados || [];
-
-    const contador = document.getElementById('busca-contador');
-    if (contador) contador.textContent = `📦 ${resposta.total} pendente(s)`;
-
-    if (buscaResumoCount) {
-        buscaResumoCount.textContent = `${resposta.total} pendente(s) encontrado(s)`;
-    }
-
+    if (contadorBusca) contadorBusca.textContent = `📦 ${resposta.total} pendente(s)`;
     renderizarResultados();
 }
 
@@ -1860,20 +1852,20 @@ function renderizarResultados() {
 
     let exibir = todosResultadosBusca;
 
-    // 🚀 ORDENAÇÃO: MAIS RECENTES PRIMEIRO (Data decrescente)
+    // 🚀 ORDENAÇÃO: MAIS RECENTES PRIMEIRO
     exibir.sort((a, b) => {
         const parseDate = (str) => {
-            if (!str) return new Date(0).getTime();
+            if (!str) return 0;
             let d = new Date(str);
             if (!isNaN(d.getTime())) return d.getTime();
-            const partes = String(str).split('/');
-            if (partes.length === 3) {
-                d = new Date(partes[2], partes[1] - 1, partes[0]);
+            const p = String(str).split('/');
+            if (p.length === 3) {
+                d = new Date(p[2], p[1] - 1, p[0]);
                 if (!isNaN(d.getTime())) return d.getTime();
             }
-            return new Date(0).getTime();
+            return 0;
         };
-        return parseDate(b.data) - parseDate(a.data); // Do maior para o menor (mais recente)
+        return parseDate(b.data) - parseDate(a.data);
     });
 
     if (!exibir.length) {
@@ -1883,9 +1875,8 @@ function renderizarResultados() {
 
     let html = '';
     exibir.forEach(item => {
-        let classeSelo = 'recente';
         const qtdEndereco = contarIguaisPorEndereco(item);
-        const multiIcon = qtdEndereco > 1 ? `<span class="multi-morador" title="Há ${qtdEndereco} cartões neste endereço">👥 ${qtdEndereco}</span>` : '';
+        const multiIcon = qtdEndereco > 1 ? `<span style="background:#e3f2fd; padding:2px 8px; border-radius:12px; margin-left:5px;">👥 ${qtdEndereco}</span>` : '';
         const statusNormalizado = String(item.status || '').toUpperCase().trim();
         let statusClass = statusNormalizado === 'BLOQUEADO' ? 'bloqueado' : '';
 
@@ -1909,12 +1900,8 @@ function limparBusca() {
     clearTimeout(debounceTimerBusca);
     if (buscaRequestController) { buscaRequestController.abort(); buscaRequestController = null; }
     todosResultadosBusca = [];
-    document.getElementById('ruasContainer').innerHTML = '';
-    if (buscaResumoCount) buscaResumoCount.textContent = '';
-    if (buscaResultados) {
-        buscaResultados.style.display = 'flex';
-        buscaResultados.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">Digite algo para buscar.</div>';
-    }
+    if (buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">Digite algo para buscar.</div>';
+    if (contadorBusca) contadorBusca.textContent = '⏳ ...';
     const editorArea = document.getElementById('busca-editor-area');
     if (editorArea) { editorArea.style.display = 'none'; editorArea.innerHTML = ''; }
     carregarTotalCartoesBusca();
