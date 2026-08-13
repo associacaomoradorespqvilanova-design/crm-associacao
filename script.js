@@ -1799,36 +1799,64 @@ function executarBuscaPorNome(termo) {
 
 // 4. Processar Resultados (Exatamente igual ao Google Sheets)
 function processarResultados(lista) {
-    todosResultadosBusca = lista || [];
+    console.log("🟢 Função processarResultados foi executada!");
+    console.log("📦 Dados recebidos:", lista);
 
-    if (todosResultadosBusca.length === 0) {
-        if (buscaResultados) buscaResultados.innerHTML = '<div class="empty">Nenhum cartão encontrado</div>';
-        if (buscaResumoCount) buscaResumoCount.textContent = '';
-        document.getElementById('busca-contador').textContent = '0 encontrados';
-        selectRuaBusca.innerHTML = '<option value="">🏘️ Todas as ruas</option>';
-        document.getElementById('ruasContainer').innerHTML = '';
+    // 🔥 Verifica se o elemento onde os cartões vão ficar existe. Se não, cria!
+    let buscaResultados = document.getElementById('busca-resultados');
+    if (!buscaResultados) {
+        console.warn("⚠️ Elemento 'busca-resultados' não encontrado no HTML. Tentando criar...");
+        const modalBox = document.querySelector('#modal-busca .modal-box');
+        if (modalBox) {
+            const novoContainer = document.createElement('div');
+            novoContainer.id = 'busca-resultados';
+            novoContainer.style.cssText = 'max-height: 55vh; overflow-y: auto; padding:10px;';
+            modalBox.appendChild(novoContainer);
+            buscaResultados = document.getElementById('busca-resultados');
+            console.log("✅ Elemento 'busca-resultados' criado com sucesso!");
+        }
+    }
+
+    // Se mesmo após tentar criar ele não existir, para aqui.
+    if (!buscaResultados) {
+        console.error("❌ Falha crítica: Não foi possível encontrar ou criar o espaço para os resultados.");
         return;
     }
 
-    popularDropdownRuasBase();
+    // Limpa o container antes de escrever
+    buscaResultados.innerHTML = '';
 
-    const contagemRuas = {};
-    todosResultadosBusca.forEach(item => {
-        const rua = item.endereco || 'Sem endereço';
-        contagemRuas[rua] = (contagemRuas[rua] || 0) + 1;
+    // Se a lista for vazia
+    if (!lista || lista.length === 0) {
+        buscaResultados.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">Nenhum cartão pendente encontrado.</div>';
+        document.getElementById('busca-contador').textContent = '0 resultados';
+        return;
+    }
+
+    // Atualiza o contador de cartões (o contador que você disse que não aparece)
+    document.getElementById('busca-contador').textContent = `📦 ${lista.length} resultados`;
+
+    // Renderiza os 48 cartões na tela (Versão Simplificada para garantir que funcione)
+    let html = '';
+    lista.forEach(item => {
+        html += `
+          <div style="background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:10px 15px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+            <div>
+                <span style="font-weight:bold; font-size:20px; color:#1b5e20; margin-right:10px;">${item.numero || '-'}</span>
+                <span style="font-weight:600; font-size:16px;">${item.nome}</span>
+                <div style="font-size:13px; color:#666; margin-top:2px;">📍 ${item.endereco}</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="background:#e3f2fd; padding:4px 8px; border-radius:12px; font-size:12px; font-weight:600; color:#0d47a1;">📅 ${item.data}</span>
+                <span style="background:#ffcc02; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:700; text-transform:uppercase;">${item.status || 'PENDENTE'}</span>
+            </div>
+          </div>`;
     });
 
-    if (buscaResumoCount) {
-        buscaResumoCount.style.display = 'block';
-        buscaResumoCount.textContent = `${todosResultadosBusca.length} cartão(ões) encontrado(s)`;
-    }
-    document.getElementById('busca-contador').textContent = `📦 ${todosResultadosBusca.length} resultados`;
-
-    ruasSelecionadasBusca.clear();
-    renderizarChipsRuas(contagemRuas);
-    renderizarResultados();
+    // 🔥 O GRANDE MOMENTO: Escreve no HTML
+    buscaResultados.innerHTML = html;
+    console.log("✅ Cartões renderizados com sucesso na tela!");
 }
-
 // 5. Popula dropdown de ruas base
 function popularDropdownRuasBase() {
     if (todosResultadosBusca.length === 0) return;
