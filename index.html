@@ -540,7 +540,7 @@
 
 
     <!-- ====================================================== -->
-    <!-- 🔥 BUSCA INTELIGENTE -->
+    <!-- 🔥 BUSCA INTELIGENTE (FILTROS REMOVIDOS) -->
     <!-- ====================================================== -->
     <div id="modal-busca" class="modal-overlay">
         <div class="modal-box modal-box-xl busca-modal-container">
@@ -561,26 +561,6 @@
                 <i class="fas fa-search" style="color:#888; font-size:18px; margin-left:10px;"></i>
                 <input id="busca-input" type="text" placeholder="Digite nome, rua, número, CPF, telefone..." autocomplete="off">
                 <button id="busca-btnSearch" type="button">🔎 Buscar</button>
-            </div>
-
-            <!-- FILTROS -->
-            <div class="busca-filtros">
-                <div id="busca-resumo-count" class="busca-resumo"></div>
-                <div class="busca-filtros-linha">
-                    <select id="busca-select-rua" style="max-width:200px;">
-                        <option value="">🏘️ Todas as ruas</option>
-                    </select>
-                    <select id="busca-select-status">
-                        <option value="">📋 Status (pendentes)</option>
-                    </select>
-                    <select id="busca-select-tipo">
-                        <option value="">📦 Todos tipos</option>
-                    </select>
-                    <select id="busca-select-ano">
-                        <option value="">📅 Todos anos</option>
-                    </select>
-                </div>
-                <div id="ruasContainer" class="ruas-container"></div>
             </div>
 
             <!-- RESULTADOS -->
