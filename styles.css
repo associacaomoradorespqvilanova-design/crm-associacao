@@ -329,7 +329,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     transform: scale(1.1);
 }
 
-/* 🔥 ESTILOS DO MODAL DE BUSCA (Baseado no Google Sheets) */
+/* 🔥 ESTILOS DO MODAL DE BUSCA */
 .rua-chip {
     display: inline-flex;
     align-items: center;
@@ -518,6 +518,28 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     border: 2px solid #ffca28;
 }
 .editor-massa.active { display: block; }
+
+/* Filtros da busca */
+#busca-select-status, #busca-select-tipo, #busca-select-ano, #busca-select-rua {
+  background: white;
+  border: 1px solid #cfcfcf;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+#busca-select-status:hover, #busca-select-tipo:hover, #busca-select-ano:hover, #busca-select-rua:hover {
+  border-color: #4a7c2e;
+}
+.rua-chip.selected {
+  background: #4a7c2e;
+  color: white;
+  border-color: #4a7c2e;
+}
+.rua-chip.selected .rua-count {
+  color: #c8e6c9;
+}
 
 @media (max-width: 900px) {
     .grid-container { grid-template-columns: 1fr; }
