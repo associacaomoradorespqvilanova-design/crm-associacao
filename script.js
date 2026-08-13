@@ -162,7 +162,6 @@ async function renderizarAgenda() {
 
     sorted.forEach(item => {
         const tr = document.createElement('tr');
-        
         let dataFormatada = item.data || 'Inválido';
         let dataItem = new Date(item.data);
         if (!isNaN(dataItem.getTime())) {
@@ -433,7 +432,6 @@ function abrirModal(id) {
             document.getElementById('busca-input').value = '';
             document.getElementById('busca-input').focus();
 
-            // 🛡️ CRIA O ELEMENTO SE ELE NÃO EXISTIR NO HTML
             let resultadosDiv = document.getElementById('busca-resultados');
             if (!resultadosDiv) {
                 const modalBox = document.querySelector('#modal-busca .modal-box');
@@ -1786,7 +1784,6 @@ function executarBuscaPorNome(termo) {
     if (!buscaResultados) return;
     buscaResultados.innerHTML = '<div style="text-align:center; padding:20px; color:#888;">⏳ Buscando...</div>';
 
-    // 🔥 AQUI É A MUDANÇA: fetchFromGS ao invés de google.script.run
     fetchFromGS('pesquisarCartoes', { termo: termo })
         .then(resultado => {
             processarResultados(resultado || []);
