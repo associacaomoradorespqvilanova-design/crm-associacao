@@ -599,7 +599,7 @@ function contarIguaisPorEndereco(item) {
 function escapeHtml(v) { return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
 
 // ============================================================
-// ✨ EDITOR RÁPIDO COM NOVO DESIGN PREMIUM (CÓDIGO COMPLETO)
+// ✨ EDITOR RÁPIDO PREMIUM
 // ============================================================
 function abrirEditorBuscaRapido(linha) {
     const item = todosResultadosBusca.find(it => Number(it.linha) === Number(linha));
@@ -616,8 +616,8 @@ function abrirEditorBuscaRapido(linha) {
 
     editorArea.innerHTML = `
         <div id="editor-busca-${Number(linha)}">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 1px solid #e0f2e0; padding-bottom: 15px;">
-                <h4 style="margin:0;">✏️ Cartão Nº ${escapeHtml(item.numero || '-')} — ${escapeHtml(item.nome || '')}</h4>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px;">
+                <h4>✏️ Cartão Nº ${escapeHtml(item.numero || '-')} — ${escapeHtml(item.nome || '')}</h4>
                 <span id="posicao-span-busca-${Number(linha)}" class="posicao-badge">⏳ carregando...</span>
             </div>
 
@@ -633,13 +633,13 @@ function abrirEditorBuscaRapido(linha) {
             <div class="editor-grid">
                 <div class="editor-full">
                     <label>📍 ENDEREÇO COMPLETO</label>
-                    <input id="edit-end-busca-${Number(linha)}" value="${escapeHtml(item.endereco || '')}" style="${temOutros ? 'background:#fff3e0;border:2px solid #ff9800;' : ''}">
+                    <input id="edit-end-busca-${Number(linha)}" value="${escapeHtml(item.endereco || '')}" style="${temOutros ? 'background:#fffbeb;border:2px solid #f59e0b;' : ''}">
                     ${temOutros ? `
                         <div class="alerta-duplicidade">
-                            <span style="color:#e65100; font-weight:bold;">⚠️ Há ${qtdMesmoEndereco} cartões neste mesmo endereço!</span>
+                            <span style="color:#b45309; font-weight:bold; display:flex; align-items:center; gap:8px;"><span style="font-size:1.2rem;">⚠️</span> Há ${qtdMesmoEndereco} cartões neste mesmo endereço!</span>
                             <div>
-                                <button class="btn-sm" onclick="abrirListaMoradoresBusca('${escapeHtml(item.endereco || '')}', ${Number(linha)})" style="background:#2196f3; color:white; border:none; padding:5px 12px; border-radius:20px; cursor:pointer;">👥 VER MORADORES</button>
-                                <button class="btn-sm" onclick="abrirEdicaoMassivaBusca('${escapeHtml(chaveEndereco)}', ${Number(linha)})" style="background:#ff9800; color:white; border:none; padding:5px 12px; border-radius:20px; cursor:pointer;">✏️ EDITAR TODOS</button>
+                                <button class="btn-sm" onclick="abrirListaMoradoresBusca('${escapeHtml(item.endereco || '')}', ${Number(linha)})" style="background:#2563eb; color:white; border:none; padding:5px 14px; border-radius:30px; cursor:pointer;">👥 VER MORADORES</button>
+                                <button class="btn-sm" onclick="abrirEdicaoMassivaBusca('${escapeHtml(chaveEndereco)}', ${Number(linha)})" style="background:#ea580c; color:white; border:none; padding:5px 14px; border-radius:30px; cursor:pointer;">✏️ EDITAR TODOS</button>
                             </div>
                         </div>` : ''}
                 </div>
