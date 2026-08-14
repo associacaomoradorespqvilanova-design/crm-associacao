@@ -104,7 +104,6 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 /* 🔥 DESIGN PREMIUM SAAS (BUSCA E EDITOR RÁPIDO) */
 /* ============================================================ */
 
-/* Efeito de vidro (Glassmorphism) no modal */
 .busca-modal-container {
     background: rgba(255, 255, 255, 0.75);
     backdrop-filter: blur(20px);
@@ -112,15 +111,17 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     border-radius: 32px;
     border: 1px solid rgba(255, 255, 255, 0.8);
     box-shadow: 0 30px 60px rgba(0,0,0,0.1);
-    padding: 40px;
+    padding: 30px 35px;
     max-width: 960px;
     width: 95%;
-    max-height: 90vh;
-    overflow-y: auto;
+    max-height: 95vh; /* Para não precisar scroll na página inteira */
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto; /* Scroll apenas no modal, se necessário */
 }
-.busca-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 15px; }
-.busca-titulo { margin: 0; color: #1F4F2B; font-size: 28px; font-weight: 800; display: flex; align-items: center; gap: 12px; }
-.busca-subtitulo { margin: 8px 0 0 0; font-size: 14px; color: #555; }
+.busca-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+.busca-titulo { margin: 0; color: #1F4F2B; font-size: 26px; font-weight: 800; display: flex; align-items: center; gap: 12px; }
+.busca-subtitulo { margin: 5px 0 0 0; font-size: 13px; color: #555; }
 .busca-subtitulo strong { color: #d32f2f; }
 
 .busca-bar {
@@ -128,10 +129,10 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     align-items: center;
     background: #ffffff;
     border-radius: 60px;
-    padding: 8px 8px 8px 24px;
+    padding: 6px 6px 6px 24px;
     border: 2px solid #e2e8f0;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-bottom: 35px;
+    margin-bottom: 20px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.02);
 }
 .busca-bar:focus-within {
@@ -142,8 +143,8 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     flex: 1;
     border: none;
     background: transparent;
-    padding: 16px 10px;
-    font-size: 16px;
+    padding: 14px 10px;
+    font-size: 15px;
     font-weight: 500;
     outline: none;
     color: #1a202c;
@@ -152,48 +153,48 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     background: #1B4F1F;
     color: white;
     border: none;
-    padding: 14px 36px;
+    padding: 12px 28px;
     border-radius: 40px;
     font-weight: 700;
-    font-size: 15px;
+    font-size: 14px;
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
 }
 #busca-btnSearch:hover { background: #14532d; transform: scale(1.02); box-shadow: 0 4px 12px rgba(27, 79, 31, 0.3); }
 
-/* 🎨 CARDS DOS RESULTADOS (Premium) */
-.busca-resultados { display: flex; flex-direction: column; gap: 16px; max-height: 500px; overflow-y: auto; padding-right: 8px; }
+/* 🎨 CARDS DOS RESULTADOS (Mais curtos para caber mais) */
+.busca-resultados { display: flex; flex-direction: column; gap: 10px; max-height: 450px; flex: 1; overflow-y: auto; padding-right: 6px; }
 .busca-resultados::-webkit-scrollbar { width: 8px; }
 .busca-resultados::-webkit-scrollbar-thumb { background: #c8e6c9; border-radius: 8px; }
 .busca-resultados::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
 
 .busca-resultados .card {
     background: #ffffff;
-    border-radius: 16px;
-    padding: 18px 22px;
+    border-radius: 14px;
+    padding: 12px 16px; /* Altura reduzida */
     display: flex;
     align-items: center;
-    gap: 20px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+    gap: 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.04);
     border-left: 6px solid #2D6A30;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     cursor: pointer;
 }
 .busca-resultados .card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 35px rgba(0,0,0,0.07);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.06);
     border-left-color: #1B4F1F;
     background: #fafffc;
 }
 .busca-resultados .card .numero {
     background: #1B4F1F;
     color: #ffffff;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 800;
-    width: 44px;
-    height: 44px;
+    width: 38px; /* Tamanho reduzido */
+    height: 38px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -202,7 +203,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     box-shadow: 0 2px 8px rgba(27, 79, 31, 0.2);
 }
 .busca-resultados .card .nome {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
     color: #1a202c;
     flex: 2;
@@ -213,7 +214,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .busca-resultados .card .detalhes {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
     flex-wrap: wrap;
     justify-content: flex-end;
     flex: 3;
@@ -221,18 +222,18 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .busca-resultados .card .data-destaque {
     background: #f1f5f9;
     color: #475569;
-    padding: 4px 12px;
+    padding: 3px 10px;
     border-radius: 20px;
     font-weight: 600;
-    font-size: 12px;
+    font-size: 11px;
 }
 .busca-resultados .card .status-badge {
-    font-size: 11px; padding: 4px 14px; border-radius: 20px; font-weight: 700; text-transform: uppercase; background: #fef08a; color: #854d0e;
+    font-size: 10px; padding: 3px 12px; border-radius: 20px; font-weight: 700; text-transform: uppercase; background: #fef08a; color: #854d0e;
 }
 .busca-resultados .card .status-badge.bloqueado { background: #fee2e2; color: #991b1b; }
 .selo-container { display: flex; align-items: center; justify-content: center; }
 .selo {
-    background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; font-size: 10px; font-weight: 800; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;
+    background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; font-size: 9px; font-weight: 800; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;
     box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3); animation: pulsarSelo 1.8s ease-in-out infinite;
 }
 @keyframes pulsarSelo {
@@ -245,36 +246,69 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 #busca-editor-area {
     background: #ffffff;
     border-radius: 24px;
-    padding: 32px;
+    padding: 20px 24px; /* Reduzido para diminuir altura */
     border: 1px solid #e2e8f0;
     margin-top: 15px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.05);
     position: relative;
-    overflow: hidden;
+    overflow-y: auto;
+    max-height: calc(95vh - 200px); /* Para nunca dar scroll na página, apenas no editor */
 }
 #busca-editor-area h4 {
     color: #1B4F1F;
     font-weight: 800;
-    font-size: 20px;
+    font-size: 18px;
     margin: 0 0 10px 0;
     display: flex;
     align-items: center;
     gap: 12px;
 }
-#busca-editor-area .posicao-badge {
-    background: #f1f5f9;
-    color: #1e293b;
+#busca-editor-area .header-editor {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 12px;
+}
+.btn-voltar {
+    background: transparent;
+    border: 1px solid #cbd5e1;
+    color: #475569;
     padding: 6px 16px;
     border-radius: 40px;
-    font-weight: 600;
+    font-weight: 700;
     font-size: 12px;
+    cursor: pointer;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.btn-voltar:hover { background: #f1f5f9; border-color: #94a3b8; }
+
+.posicao-badge {
+    background: #f1f5f9;
+    color: #1e293b;
+    padding: 4px 14px;
+    border-radius: 40px;
+    font-weight: 600;
+    font-size: 11px;
     border: 1px solid #e2e8f0;
 }
+.posicao-badge-piscante {
+    animation: piscarPosicao 1.2s infinite;
+}
+@keyframes piscarPosicao {
+    0%, 100% { opacity: 1; background: #f1f5f9; border-color: #e2e8f0; }
+    50% { opacity: 0.4; background: #e2e8f0; border-color: #1B4F1F; }
+}
+
 #busca-editor-area .editor-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    margin-bottom: 20px;
+    gap: 14px;
+    margin-bottom: 14px;
 }
 #busca-editor-area .editor-full {
     grid-column: 1 / -1;
@@ -282,15 +316,15 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 #busca-editor-area label {
     display: block;
     font-weight: 700;
-    font-size: 12px;
+    font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: #475569;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 #busca-editor-area input, #busca-editor-area select {
     width: 100%;
-    padding: 14px 16px;
+    padding: 12px 14px;
     background: #ffffff;
     border: 2px solid #e2e8f0;
     border-radius: 12px;
@@ -304,20 +338,39 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     border-color: #2D6A30;
     box-shadow: 0 0 0 4px rgba(45, 106, 48, 0.08);
 }
+
+/* 🌟 NÚMERO DO CARTÃO EM DESTAQUE, PISCANTE E GIGANTE */
+#edit-num-busca {
+    font-size: 3.2rem !important;
+    font-weight: 900 !important;
+    text-align: center;
+    background: #f0fdf4;
+    border: 3px solid #1B4F1F;
+    border-radius: 12px;
+    color: #1B4F1F;
+    box-shadow: 0 0 20px rgba(27, 79, 31, 0.4);
+    animation: piscarNumero 1.5s infinite;
+    padding: 15px 0;
+}
+@keyframes piscarNumero {
+    0%, 100% { box-shadow: 0 0 20px rgba(27, 79, 31, 0.4); border-color: #1B4F1F; transform: scale(1); }
+    50% { box-shadow: 0 0 40px rgba(27, 79, 31, 0.7); border-color: #2D6A30; transform: scale(1.02); }
+}
+
 #busca-editor-area .btn-actions {
     display: flex;
     gap: 14px;
-    margin-top: 24px;
+    margin-top: 20px;
     flex-wrap: wrap;
     align-items: center;
     border-top: 1px solid #e2e8f0;
-    padding-top: 24px;
+    padding-top: 16px;
 }
 #busca-editor-area .btn-salvar {
     background: #1B4F1F;
     color: white;
     border: none;
-    padding: 14px 32px;
+    padding: 12px 28px;
     border-radius: 50px;
     font-weight: 700;
     font-size: 14px;
@@ -327,21 +380,21 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 #busca-editor-area .btn-salvar:hover { background: #14532d; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(27, 79, 31, 0.2); }
 #busca-editor-area .btn-entregue {
     background: linear-gradient(135deg, #16a34a, #15803d);
-    color: white; border: none; padding: 14px 32px; border-radius: 50px; font-weight: 700; font-size: 14px; cursor: pointer;
+    color: white; border: none; padding: 12px 28px; border-radius: 50px; font-weight: 700; font-size: 14px; cursor: pointer;
     box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3); animation: pulsarBtnEntrega 2s infinite;
 }
 @keyframes pulsarBtnEntrega {
     0% { transform: scale(1); box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3); }
-    50% { transform: scale(1.05); box-shadow: 0 6px 20px rgba(22, 163, 74, 0.4); }
+    50% { transform: scale(1.04); box-shadow: 0 6px 20px rgba(22, 163, 74, 0.4); }
     100% { transform: scale(1); box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3); }
 }
 #busca-editor-area .btn-cancelar {
     background: #ef4444;
-    color: white; border: none; padding: 14px 32px; border-radius: 50px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s;
+    color: white; border: none; padding: 12px 28px; border-radius: 50px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s;
 }
 #busca-editor-area .btn-cancelar:hover { background: #dc2626; transform: translateY(-2px); }
 .alerta-duplicidade {
-    background: #fffbeb; border: 1px solid #f59e0b; border-radius: 16px; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; margin-top: 12px; animation: piscarAlerta 2s ease-in-out infinite;
+    background: #fffbeb; border: 1px solid #f59e0b; border-radius: 16px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; margin-top: 10px; animation: piscarAlerta 2s ease-in-out infinite;
 }
 @keyframes piscarAlerta { 0%, 100% { background: #fffbeb; } 50% { background: #fef3c7; } }
 
@@ -357,7 +410,8 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
   .busca-modal-container { padding: 20px; }
   .busca-bar { flex-wrap: wrap; }
   #busca-btnSearch { width: 100%; margin-top: 10px; }
-  .busca-resultados .card { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .busca-resultados .card { flex-direction: column; align-items: flex-start; gap: 8px; }
   .busca-resultados .card .detalhes { justify-content: flex-start; width: 100%; flex-wrap: wrap; }
   #busca-editor-area .editor-grid { grid-template-columns: 1fr; }
+  #edit-num-busca { font-size: 2.5rem !important; }
 }
