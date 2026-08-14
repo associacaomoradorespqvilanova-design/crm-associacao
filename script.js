@@ -153,6 +153,29 @@ async function salvarAgenda() {
 async function deletarItemAgenda(id) { if (!confirm('Tem certeza que deseja excluir este compromisso?')) return; await postParaGoogleSheets('deletarAgenda', id); await renderizarAgenda(); }
 
 // ============================================================
+// AGENDA POPUP (CORRIGIDO - Função que estava faltando)
+// ============================================================
+function verificarProximaAgendaPopup() {
+    const hoje = new Date();
+    const proximos = state.dadosAgenda
+        .filter(item => new Date(item.data + 'T00:00:00') >= hoje)
+        .sort((a, b) => new Date(a.data) - new Date(b.data))
+        .slice(0, 2);
+    if (proximos.length > 0) {
+        const content = document.getElementById('popup-login-content');
+        if (!content) return;
+        let html = `<p><strong>Você tem os seguintes compromissos agendados:</strong></p><ul>`;
+        proximos.forEach(item => {
+            const dataFormatada = formatarDataBR(item.data);
+            html += `<li><strong>${dataFormatada}</strong> - ${item.nome} (${item.periodo})</li>`;
+        });
+        html += '</ul>';
+        content.innerHTML = html;
+        abrirModal('modal-popup-login');
+    }
+}
+
+// ============================================================
 // CARTÕES
 // ============================================================
 async function renderizarCartoes() {
@@ -352,19 +375,30 @@ function fecharModal(id){ const modal=document.getElementById(id); if(modal) mod
 function fecharComprovantePrint(){ const modal=document.getElementById('modal-comprovante-print'); if(modal) modal.style.display='none'; }
 
 // ============================================================
-// 🔥 BUSCA INTELIGENTE (Sem Filtros, com Data BR e Ordenação)
+// 🔥 BUSCA INTELIGENTE (Sem Filtros, com Data BR e Ordenação) - CORRIGIDA
 // ============================================================
 let todosResultadosBusca = []; let debounceTimerBusca = null; let buscaRequestController = null;
 let inputBusca = null; let btnBuscaSearch = null; let buscaResultados = null; let contadorBusca = null;
 
 function inicializarEventosBusca() {
+    // 🛑 CORREÇÃO CRÍTICA: Verifica se os elementos existem ANTES de atribuir, evitando erro de "null"
     inputBusca = document.getElementById('busca-input');
     btnBuscaSearch = document.getElementById('busca-btnSearch');
     buscaResultados = document.getElementById('busca-resultados');
     contadorBusca = document.getElementById('busca-contador');
-    if (!inputBusca) return;
-    if(btnBuscaSearch && !btnBuscaSearch.dataset.bound) { btnBuscaSearch.dataset.bound='true'; btnBuscaSearch.addEventListener('click', ()=>executarBusca()); }
-    if(!inputBusca.dataset.bound) { inputBusca.dataset.bound='true'; inputBusca.addEventListener('keydown', e=>{ if(e.key==='Enter'){e.preventDefault();executarBusca();} }); inputBusca.addEventListener('input', ()=>{ clearTimeout(debounceTimerBusca); debounceTimerBusca=setTimeout(executarBusca,450); }); }
+
+    // Se não existir (ex: tela de login), sai da função para não quebrar
+    if (!inputBusca || !btnBuscaSearch) return; 
+
+    if (!btnBuscaSearch.dataset.bound) { 
+        btnBuscaSearch.dataset.bound='true'; 
+        btnBuscaSearch.addEventListener('click', ()=>executarBusca()); 
+    }
+    if (!inputBusca.dataset.bound) { 
+        inputBusca.dataset.bound='true'; 
+        inputBusca.addEventListener('keydown', e=>{ if(e.key==='Enter'){e.preventDefault();executarBusca();} }); 
+        inputBusca.addEventListener('input', ()=>{ clearTimeout(debounceTimerBusca); debounceTimerBusca=setTimeout(executarBusca,450); }); 
+    }
 }
 
 function prepararModalBusca() {
@@ -383,7 +417,10 @@ function prepararModalBusca() {
 async function carregarTotalCartoesBusca() { if(!contadorBusca) return; contadorBusca.textContent='⏳ ...'; try{ const resp=await fetchFromGS('contarCartoesPendentes'); if(resp && resp.success) contadorBusca.textContent=`📦 ${resp.total} pendentes`; else { contadorBusca.textContent='⚠️ Erro'; console.error(resp); } } catch(erro){ console.error(erro); contadorBusca.textContent='⚠️ Erro'; } }
 
 async function executarBusca() {
-    const termo = inputBusca ? inputBusca.value.trim() : '';
+    // 🛑 CORREÇÃO CRÍTICA: Garante que o input não seja null antes de ler
+    if (!inputBusca) { return; } 
+
+    const termo = inputBusca.value.trim();
     if (!termo) { limparBusca(); return; }
 
     if(buscaRequestController) buscaRequestController.abort();
@@ -392,7 +429,6 @@ async function executarBusca() {
     if(buscaResultados){ buscaResultados.style.display='flex'; buscaResultados.innerHTML='<div style="text-align:center; padding:30px; color:#888;">⏳ Buscando...</div>'; }
 
     try {
-        // ENVIA APENAS O TERMO, FILTROS FORAM REMOVIDOS
         const resultado = await fetchFromGS('pesquisarCartoes', { termo }, buscaRequestController.signal);
         processarResultados(resultado);
     } catch(e) {
