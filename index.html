@@ -67,7 +67,7 @@
             </div>
             
             <div class="col-center">
-                <div class="logo-circle">
+                <div class="logo-circle spinning">
                     <img src="https://i.imgur.com/Txij9sk.png" alt="Logo">
                 </div>
                 <div class="menu-buttons">
@@ -104,7 +104,23 @@
     </div>
 
     <!-- ====================================================== -->
-    <!-- MODAL DE BUSCA COM SELETOR DE NOME/ENDEREÇO -->
+    <!-- MODAL DE AVISO DE PRÓXIMA AGENDA (NOVO) -->
+    <!-- ====================================================== -->
+    <div id="modal-popup-login" class="modal-overlay">
+        <div class="modal-box">
+            <span class="close-btn" onclick="fecharModal('modal-popup-login')">×</span>
+            <h3>📅 Próximos Compromissos</h3>
+            <div id="popup-login-content" style="text-align:center; padding:10px 0;">
+                <p style="color:#555;">Carregando compromissos...</p>
+            </div>
+            <div class="modal-actions" style="justify-content:center;">
+                <button class="btn-primary" onclick="fecharModal('modal-popup-login')" style="width:auto;">Ok, entendi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- MODAL DE BUSCA -->
     <!-- ====================================================== -->
     <div id="modal-busca" class="modal-overlay">
         <div class="modal-box modal-box-xl busca-modal-container">
@@ -118,15 +134,12 @@
             </div>
             
             <div class="busca-bar">
-                <!-- SELETOR DE TIPO DE BUSCA -->
                 <select id="busca-tipo" class="busca-tipo-select">
                     <option value="nome">👤 Nome</option>
                     <option value="endereco">🏠 Endereço</option>
                 </select>
-
                 <div class="busca-divider"></div>
-                
-                <i class="fas fa-search" style="color:#94a3b8; font-size:18px;"></i>
+                <i class="fas fa-search" style="color:#94a3b8; font-size:18px; margin-left:4px;"></i>
                 <input id="busca-input" type="text" placeholder="Digite nome, rua, número, CPF, telefone..." autocomplete="off">
                 <button id="busca-btnSearch" type="button">🔎 Buscar</button>
             </div>
