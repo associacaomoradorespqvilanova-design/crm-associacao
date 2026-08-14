@@ -100,45 +100,99 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .month .pendente { background:#ffe6e6 !important; color:#9b2c2c !important; }
 .stamp.show { display:block; text-align:center; font-size:32px; color:rgba(25,110,58,0.3); font-weight:900; margin-top:10px; }
 
-.busca-modal-container { background: #ffffff; border-radius: 24px; box-shadow: 0 30px 60px rgba(0,0,0,0.2); padding: 35px 40px; max-width: 1200px; width: 95%; max-height: 90vh; overflow-y: auto; }
-.busca-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 10px; }
-.busca-titulo { margin: 0; color: #196E3A; font-size: 24px; font-weight: 800; }
-.busca-subtitulo { margin: 5px 0 0 0; font-size: 13px; color: #555; }
-.busca-subtitulo strong { color: #d32f2f; }
-.busca-bar { display: flex; align-items: center; background: #f4f9f4; border-radius: 50px; padding: 4px 4px 4px 15px; border: 1px solid #e0f2e0; transition: 0.2s; margin-bottom: 25px; }
-.busca-bar:focus-within { border-color: #4a7c2e; box-shadow: 0 0 0 4px rgba(74,124,46,0.15); }
-#busca-input { flex: 1; border: none; background: transparent; padding: 12px 15px; font-size: 16px; outline: none; color: #222; }
-#busca-btnSearch { background: #196E3A; color: white; border: none; padding: 10px 28px; border-radius: 40px; font-weight: 700; font-size: 15px; cursor: pointer; transition: 0.2s; white-space: nowrap; }
-#busca-btnSearch:hover { background: #145a2e; transform: scale(1.02); }
+/* ============================================================ */
+/* 🔥 DESIGN PREMIUM DA BUSCA E EDITOR RÁPIDO (NOVO VISUAL) */
+/* ============================================================ */
 
-.busca-resultados { display: flex; flex-direction: column; gap: 14px; max-height: 450px; overflow-y: auto; padding-right: 8px; }
-.busca-resultados .card {
+.busca-modal-container {
     background: #ffffff;
-    border-radius: 12px;
-    padding: 14px 18px;
+    border-radius: 24px;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+    padding: 30px 35px;
+    max-width: 960px;
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+.busca-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 10px; }
+.busca-titulo { margin: 0; color: #196E3A; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; display: flex; align-items: center; gap: 10px; }
+.busca-subtitulo { margin: 5px 0 0 0; font-size: 14px; color: #555; }
+.busca-subtitulo strong { color: #d32f2f; }
+
+.busca-bar {
     display: flex;
     align-items: center;
-    gap: 16px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    border-left: 5px solid #4caf50;
+    background: #f7fcf7;
+    border-radius: 60px;
+    padding: 6px 6px 6px 20px;
+    border: 2px solid #e0f2e0;
     transition: all 0.3s ease;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+.busca-bar:focus-within {
+    border-color: #4a7c2e;
+    box-shadow: 0 4px 12px rgba(74,124,46,0.1);
+}
+#busca-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 14px 10px;
+    font-size: 16px;
+    font-weight: 500;
+    outline: none;
+    color: #222;
+}
+#busca-btnSearch {
+    background: #196E3A;
+    color: white;
+    border: none;
+    padding: 12px 32px;
+    border-radius: 40px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+}
+#busca-btnSearch:hover { background: #145a2e; transform: scale(1.02); }
+
+/* 🎨 CARDS DOS RESULTADOS */
+.busca-resultados { display: flex; flex-direction: column; gap: 14px; max-height: 500px; overflow-y: auto; padding-right: 8px; }
+.busca-resultados::-webkit-scrollbar { width: 8px; }
+.busca-resultados::-webkit-scrollbar-thumb { background: #c8e6c9; border-radius: 4px; }
+.busca-resultados::-webkit-scrollbar-track { background: #f5f5f5; border-radius: 4px; }
+
+.busca-resultados .card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+    border-left: 6px solid #4caf50;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
     cursor: pointer;
 }
 .busca-resultados .card:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.08);
     border-left-color: #196E3A;
     background: #fafffc;
 }
 .busca-resultados .card .numero {
     background: #e8f5e9;
     color: #1b5e20;
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 900;
-    padding: 4px 12px;
-    border-radius: 8px;
-    min-width: 40px;
+    padding: 6px 14px;
+    border-radius: 12px;
+    min-width: 48px;
     text-align: center;
+    border: 1px solid rgba(27, 94, 32, 0.1);
 }
 .busca-resultados .card .nome {
     font-size: 16px;
@@ -152,7 +206,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .busca-resultados .card .detalhes {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     flex-wrap: wrap;
     justify-content: flex-end;
     flex: 3;
@@ -160,56 +214,125 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .busca-resultados .card .data-destaque {
     background: #e3f2fd;
     color: #0d47a1;
-    padding: 3px 10px;
-    border-radius: 16px;
+    padding: 4px 12px;
+    border-radius: 20px;
     font-weight: 600;
     font-size: 12px;
 }
 .busca-resultados .card .status-badge {
-    font-size: 11px; padding: 3px 12px; border-radius: 12px; font-weight: 700; text-transform: uppercase; background: #ffcc02; color: #000;
+    font-size: 11px; padding: 4px 14px; border-radius: 20px; font-weight: 700; text-transform: uppercase; background: #ffcc02; color: #1a1a1a;
 }
 .busca-resultados .card .status-badge.bloqueado { background: #b71c1c; color: white; }
-
 .selo-container { display: flex; align-items: center; justify-content: center; }
 .selo {
-    background: #ff9800; color: #fff; font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;
-    box-shadow: 0 2px 6px rgba(255, 152, 0, 0.3); animation: pulsarSelo 1.8s ease-in-out infinite;
+    background: linear-gradient(135deg, #ff9800, #f57c00); color: #fff; font-size: 10px; font-weight: 800; padding: 3px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3); animation: pulsarSelo 1.8s ease-in-out infinite;
 }
 @keyframes pulsarSelo {
     0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.3); }
     70% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(255, 152, 0, 0); }
     100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
 }
-.alerta-duplicidade {
-    background: #fff3e0; border: 1px solid #ff9800; border-radius: 8px; padding: 8px 14px;
-    display: flex; justify-content: space-between; align-items: center; margin-top: 10px;
-    animation: piscarAlerta 2s ease-in-out infinite;
+
+/* 🚨 DESIGN DO EDITOR RÁPIDO */
+#busca-editor-area {
+    background: #fafffc;
+    border-radius: 20px;
+    padding: 25px;
+    border: 2px solid #e0f2e0;
+    margin-top: 10px;
+    box-shadow: inset 0 4px 12px rgba(0,0,0,0.02);
 }
-@keyframes piscarAlerta {
-    0%, 100% { background: #fff3e0; border-color: #ff9800; }
-    50% { background: #ffe0b2; border-color: #f57c00; }
+#busca-editor-area h4 {
+    color: #196E3A;
+    font-weight: 700;
+    font-size: 18px;
+    margin: 0 0 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
-.botao-entregue {
-    background: linear-gradient(135deg, #00c853, #009624); color: white; border: none; padding: 8px 20px;
-    border-radius: 40px; font-weight: 700; font-size: 14px; cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 200, 80, 0.3); animation: pulsarBtnEntrega 2s infinite;
+#busca-editor-area .posicao-badge {
+    background: #e8f5e9;
+    color: #2e7d32;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 12px;
+    border: 1px solid #c8e6c9;
+}
+#busca-editor-area .editor-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+#busca-editor-area .editor-full {
+    grid-column: 1 / -1;
+}
+#busca-editor-area label {
+    display: block;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #4a7c2e;
+    margin-bottom: 6px;
+}
+#busca-editor-area input, #busca-editor-area select {
+    width: 100%;
+    padding: 12px 14px;
+    background: #ffffff;
+    border: 1px solid #e8f5e9;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    outline: none;
+    transition: 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+#busca-editor-area input:focus, #busca-editor-area select:focus {
+    border-color: #4a7c2e;
+    box-shadow: 0 0 0 4px rgba(74,124,46,0.12);
+}
+#busca-editor-area .btn-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+#busca-editor-area .btn-salvar {
+    background: #2e7d32;
+    color: white;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 40px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+#busca-editor-area .btn-salvar:hover { background: #1b5e20; transform: scale(1.02); }
+#busca-editor-area .btn-entregue {
+    background: linear-gradient(135deg, #00c853, #009624);
+    color: white; border: none; padding: 12px 28px; border-radius: 40px; font-weight: 700; font-size: 14px; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 200, 80, 0.3); animation: pulsarBtnEntrega 2s infinite;
 }
 @keyframes pulsarBtnEntrega {
-    0% { transform: scale(1); box-shadow: 0 4px 12px rgba(0, 200, 80, 0.3); }
-    50% { transform: scale(1.05); box-shadow: 0 6px 18px rgba(0, 200, 80, 0.5); }
-    100% { transform: scale(1); box-shadow: 0 4px 12px rgba(0, 200, 80, 0.3); }
+    0% { transform: scale(1); box-shadow: 0 4px 14px rgba(0, 200, 80, 0.3); }
+    50% { transform: scale(1.03); box-shadow: 0 6px 20px rgba(0, 200, 80, 0.5); }
+    100% { transform: scale(1); box-shadow: 0 4px 14px rgba(0, 200, 80, 0.3); }
 }
-.botao-entregue:hover { transform: scale(1.08) !important; box-shadow: 0 8px 25px rgba(0, 200, 80, 0.7); }
-
-.suggestions-box { background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; z-index: 10; }
-.suggestions-box::-webkit-scrollbar { width: 6px; }
-.suggestions-box::-webkit-scrollbar-thumb { background: #7baa48; border-radius: 4px; }
-.suggestion-item { padding: 10px 12px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; transition: 0.2s; }
-.suggestion-item:hover { background: #7baa48; color: #fff; }
-.suggestion-item small { display: block; font-size: 11px; color: #666; margin-top: 2px; }
-.suggestion-item:hover small { color: #eee; }
-.input-field-print { position: absolute; font-size: 13px; padding: 2px 4px; z-index: 1; font-weight: bold; background: transparent; border: none; border-bottom: 1px solid #aaa; outline: none; color: black; text-transform: uppercase; box-sizing: border-box; }
-.input-field-print:focus { border-bottom: 2px solid #4a7c2e; }
+#busca-editor-area .btn-cancelar {
+    background: #f44336;
+    color: white; border: none; padding: 12px 28px; border-radius: 40px; font-weight: 700; font-size: 14px; cursor: pointer; transition: 0.2s;
+}
+#busca-editor-area .btn-cancelar:hover { background: #d32f2f; }
+.alerta-duplicidade {
+    background: #fff3e0; border: 1px solid #ff9800; border-radius: 12px; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; margin: 12px 0; animation: piscarAlerta 2s ease-in-out infinite;
+}
+@keyframes piscarAlerta { 0%, 100% { background: #fff3e0; } 50% { background: #ffe0b2; } }
 
 @media (max-width: 900px) {
   .grid-container { grid-template-columns: 1fr; }
@@ -225,4 +348,5 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
   #busca-btnSearch { width: 100%; margin-top: 10px; }
   .busca-resultados .card { flex-direction: column; align-items: flex-start; gap: 8px; }
   .busca-resultados .card .detalhes { justify-content: flex-start; width: 100%; flex-wrap: wrap; }
+  #busca-editor-area .editor-grid { grid-template-columns: 1fr; }
 }
