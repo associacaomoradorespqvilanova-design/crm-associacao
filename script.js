@@ -1,7 +1,7 @@
 // ============================================================
 // CONFIGURAÇÃO DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbyaMArUtd9IYxy5zE0v0_wBv1aPcDCY004Re5RkdqwTTqUdIDvfytWBZ_uF7_ALDBFCWA/exec";
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwZ9WdiSeiuPU43UoLIs7t-l9s0vcqYIPqpfoZpwEyKSSjYsOVmrHmCWdXSbHc-RqfAtw/exec";
 
 // ============================================================
 // GET VIA JSONP
@@ -223,7 +223,7 @@ function limparCamposNomeEndereco() { document.querySelectorAll('#mult-lista-ent
 async function enviarTodasEntregas() { if(!validarCampos())return; const entregas = coletarDadosParaEnvio(); if(entregas.length===0){alert('Adicione pelo menos uma entrega válida!');return;} const btnEnviar = document.getElementById('btnEnviarMulti'); btnEnviar.innerText='Enviando...'; btnEnviar.disabled=true; const statusDiv = document.getElementById('mult-status-message'); statusDiv.style.display='none'; await postParaGoogleSheets('salvarLoteCartoesEntrega', entregas); statusDiv.style.display='block'; statusDiv.style.background='#e8f5e9'; statusDiv.style.color='#2e7d32'; statusDiv.style.border='2px solid #a5d6a7'; statusDiv.innerText=`✅ ${entregas.length} registro(s) salvos com sucesso!`; limparCamposNomeEndereco(); const nomes = document.querySelectorAll('#mult-lista-entregas .nome-input'); if(nomes.length>0) nomes[0].focus(); btnEnviar.innerText='Enviar Tudo'; btnEnviar.disabled=false; }
 
 // ============================================================
-// CESTA BÁSICA (REVERTIDA PARA O ORIGINAL - LISTA SIMPLES)
+// CESTA BÁSICA
 // ============================================================
 function normalizeString(s) { if(!s&&s!==0)return""; return s.toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').toLowerCase().trim(); }
 function headerToId(lbl) { if(!lbl&&lbl!==0)lbl=""; return lbl.toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_+|_+$/g,'').replace(/_+/g,'_').toUpperCase(); }
@@ -236,7 +236,6 @@ function editarTiposCestaUI() { const e=document.getElementById('cesta-tipos-edi
 function fecharEditorTipos() { const e=document.getElementById('cesta-tipos-editor'); if(e) e.style.display='none'; }
 async function salvarTiposCesta() { const input=document.getElementById('cesta-tipos-input'); const tipos=input.value.trim().split(',').map(t=>t.trim().toUpperCase()).filter(t=>t); await postParaGoogleSheets('salvarTiposCesta',{tipos}); alert("✅ Tipos de cesta atualizados!"); await carregarTiposCesta(); fecharEditorTipos(); renderizarPendentesCestaHome(); }
 
-// ⛔ FUNÇÃO REVERTIDA: Não usa mais grid de cards
 async function renderizarPendentesCestaHome() {
     try {
         const list = await fetchFromGS('listarPendentesMesAtual');
@@ -352,7 +351,7 @@ function fecharModal(id){ const modal=document.getElementById(id); if(modal) mod
 function fecharComprovantePrint(){ const modal=document.getElementById('modal-comprovante-print'); if(modal) modal.style.display='none'; }
 
 // ============================================================
-// 🔥 BUSCA INTELIGENTE (Sem Filtros, com Data BR e Ordenação)
+// 🔥 BUSCA INTELIGENTE (Front-end apenas para renderizar)
 // ============================================================
 let todosResultadosBusca = []; let debounceTimerBusca = null; let buscaRequestController = null;
 let inputBusca = null; let btnBuscaSearch = null; let buscaResultados = null; let contadorBusca = null;
@@ -364,7 +363,11 @@ function inicializarEventosBusca() {
     contadorBusca = document.getElementById('busca-contador');
     if (!inputBusca) return;
     if(btnBuscaSearch && !btnBuscaSearch.dataset.bound) { btnBuscaSearch.dataset.bound='true'; btnBuscaSearch.addEventListener('click', ()=>executarBusca()); }
-    if(!inputBusca.dataset.bound) { inputBusca.dataset.bound='true'; inputBusca.addEventListener('keydown', e=>{ if(e.key==='Enter'){e.preventDefault();executarBusca();} }); inputBusca.addEventListener('input', ()=>{ clearTimeout(debounceTimerBusca); debounceTimerBusca=setTimeout(executarBusca,450); }); }
+    if(!inputBusca.dataset.bound) {
+        inputBusca.dataset.bound='true';
+        inputBusca.addEventListener('keydown', e=>{ if(e.key==='Enter'){e.preventDefault();executarBusca();} });
+        inputBusca.addEventListener('input', ()=>{ clearTimeout(debounceTimerBusca); debounceTimerBusca=setTimeout(executarBusca,450); });
+    }
 }
 
 function prepararModalBusca() {
@@ -392,7 +395,6 @@ async function executarBusca() {
     if(buscaResultados){ buscaResultados.style.display='flex'; buscaResultados.innerHTML='<div style="text-align:center; padding:30px; color:#888;">⏳ Buscando...</div>'; }
 
     try {
-        // ENVIA APENAS O TERMO, FILTROS FORAM REMOVIDOS
         const resultado = await fetchFromGS('pesquisarCartoes', { termo }, buscaRequestController.signal);
         processarResultados(resultado);
     } catch(e) {
