@@ -1,7 +1,7 @@
 // ============================================================
 // CONFIGURAÇÃO DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzS4xIIZJQ4ZhX6SEnGM8ZaIYbcXj7I0stF79ogvkeSjmMIbhTG0FFJz5hcNFMQ2U3q4A/exec";
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzrp2gRUpd3O2TGP0tcJYiY5oCqJS-Ra--IYIA__BGMumlKNiOtMJTz-gg7XUM3pTbs/exec";
 
 // ============================================================
 // GET VIA JSONP
@@ -246,7 +246,7 @@ function limparCamposNomeEndereco() { document.querySelectorAll('#mult-lista-ent
 async function enviarTodasEntregas() { if(!validarCampos())return; const entregas = coletarDadosParaEnvio(); if(entregas.length===0){alert('Adicione pelo menos uma entrega válida!');return;} const btnEnviar = document.getElementById('btnEnviarMulti'); btnEnviar.innerText='Enviando...'; btnEnviar.disabled=true; const statusDiv = document.getElementById('mult-status-message'); statusDiv.style.display='none'; await postParaGoogleSheets('salvarLoteCartoesEntrega', entregas); statusDiv.style.display='block'; statusDiv.style.background='#e8f5e9'; statusDiv.style.color='#2e7d32'; statusDiv.style.border='2px solid #a5d6a7'; statusDiv.innerText=`✅ ${entregas.length} registro(s) salvos com sucesso!`; limparCamposNomeEndereco(); const nomes = document.querySelectorAll('#mult-lista-entregas .nome-input'); if(nomes.length>0) nomes[0].focus(); btnEnviar.innerText='Enviar Tudo'; btnEnviar.disabled=false; }
 
 // ============================================================
-// CESTA BÁSICA (REVERTIDA PARA O ORIGINAL - LISTA SIMPLES)
+// CESTA BÁSICA
 // ============================================================
 function normalizeString(s) { if(!s&&s!==0)return""; return s.toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').toLowerCase().trim(); }
 function headerToId(lbl) { if(!lbl&&lbl!==0)lbl=""; return lbl.toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_+|_+$/g,'').replace(/_+/g,'_').toUpperCase(); }
@@ -259,7 +259,6 @@ function editarTiposCestaUI() { const e=document.getElementById('cesta-tipos-edi
 function fecharEditorTipos() { const e=document.getElementById('cesta-tipos-editor'); if(e) e.style.display='none'; }
 async function salvarTiposCesta() { const input=document.getElementById('cesta-tipos-input'); const tipos=input.value.trim().split(',').map(t=>t.trim().toUpperCase()).filter(t=>t); await postParaGoogleSheets('salvarTiposCesta',{tipos}); alert("✅ Tipos de cesta atualizados!"); await carregarTiposCesta(); fecharEditorTipos(); renderizarPendentesCestaHome(); }
 
-// ⛔ FUNÇÃO REVERTIDA: Não usa mais grid de cards
 async function renderizarPendentesCestaHome() {
     try {
         const list = await fetchFromGS('listarPendentesMesAtual');
@@ -375,97 +374,153 @@ function fecharModal(id){ const modal=document.getElementById(id); if(modal) mod
 function fecharComprovantePrint(){ const modal=document.getElementById('modal-comprovante-print'); if(modal) modal.style.display='none'; }
 
 // ============================================================
-// 🔥 BUSCA INTELIGENTE (Sem Filtros, com Data BR e Ordenação) - CORRIGIDA
+// 🔥 BUSCA INTELIGENTE (CORRIGIDA, USANDO VAR E COM SEGURANÇA)
 // ============================================================
-let todosResultadosBusca = []; let debounceTimerBusca = null; let buscaRequestController = null;
-let inputBusca = null; let btnBuscaSearch = null; let buscaResultados = null; let contadorBusca = null;
+// Substituído 'let' por 'var' para evitar o erro de TDZ
+var todosResultadosBusca = []; 
+var debounceTimerBusca = null; 
+var buscaRequestController = null;
+var inputBusca = null; 
+var btnBuscaSearch = null; 
+var buscaResultados = null; 
+var contadorBusca = null;
 
 function inicializarEventosBusca() {
-    // 🛑 CORREÇÃO CRÍTICA: Verifica se os elementos existem ANTES de atribuir, evitando erro de "null"
     inputBusca = document.getElementById('busca-input');
     btnBuscaSearch = document.getElementById('busca-btnSearch');
     buscaResultados = document.getElementById('busca-resultados');
     contadorBusca = document.getElementById('busca-contador');
 
-    // Se não existir (ex: tela de login), sai da função para não quebrar
+    // Segurança: verifica se existe antes de continuar
     if (!inputBusca || !btnBuscaSearch) return; 
 
-    if (!btnBuscaSearch.dataset.bound) { 
-        btnBuscaSearch.dataset.bound='true'; 
-        btnBuscaSearch.addEventListener('click', ()=>executarBusca()); 
+    // Verifica se o elemento existe antes de acessar a propriedade 'dataset'
+    if (btnBuscaSearch && !btnBuscaSearch.dataset.bound) {
+        btnBuscaSearch.dataset.bound = 'true';
+        btnBuscaSearch.addEventListener('click', () => executarBusca());
     }
-    if (!inputBusca.dataset.bound) { 
-        inputBusca.dataset.bound='true'; 
-        inputBusca.addEventListener('keydown', e=>{ if(e.key==='Enter'){e.preventDefault();executarBusca();} }); 
-        inputBusca.addEventListener('input', ()=>{ clearTimeout(debounceTimerBusca); debounceTimerBusca=setTimeout(executarBusca,450); }); 
+    if (inputBusca && !inputBusca.dataset.bound) {
+        inputBusca.dataset.bound = 'true';
+        inputBusca.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                executarBusca();
+            }
+        });
+        inputBusca.addEventListener('input', () => {
+            clearTimeout(debounceTimerBusca);
+            debounceTimerBusca = setTimeout(executarBusca, 450);
+        });
     }
 }
 
 function prepararModalBusca() {
-    setTimeout(async()=>{
-        if(!inputBusca) inicializarEventosBusca();
-        if(inputBusca){ inputBusca.value=''; inputBusca.focus(); }
+    setTimeout(async() => {
+        inputBusca = document.getElementById('busca-input');
+        btnBuscaSearch = document.getElementById('busca-btnSearch');
+        buscaResultados = document.getElementById('busca-resultados');
+        contadorBusca = document.getElementById('busca-contador');
+
+        if (!inputBusca) {
+            inicializarEventosBusca();
+        }
+
+        if (inputBusca) {
+            inputBusca.value = '';
+            inputBusca.focus();
+        }
+
         todosResultadosBusca = [];
-        if(contadorBusca) contadorBusca.textContent = '⏳ ...';
+        if (contadorBusca) contadorBusca.textContent = '⏳ ...';
+        
         const editorArea = document.getElementById('busca-editor-area');
-        if(editorArea){ editorArea.style.display='none'; editorArea.innerHTML=''; }
-        if(buscaResultados){ buscaResultados.style.display='flex'; buscaResultados.innerHTML='<div style="text-align:center; padding:40px; color:#999;">🔎 Digite algo para iniciar a busca</div>'; }
+        if (editorArea) {
+            editorArea.style.display = 'none';
+            editorArea.innerHTML = '';
+        }
+        
+        if (buscaResultados) {
+            buscaResultados.style.display = 'flex';
+            buscaResultados.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">🔎 Digite algo para iniciar a busca</div>';
+        }
         carregarTotalCartoesBusca();
     }, 100);
 }
 
-async function carregarTotalCartoesBusca() { if(!contadorBusca) return; contadorBusca.textContent='⏳ ...'; try{ const resp=await fetchFromGS('contarCartoesPendentes'); if(resp && resp.success) contadorBusca.textContent=`📦 ${resp.total} pendentes`; else { contadorBusca.textContent='⚠️ Erro'; console.error(resp); } } catch(erro){ console.error(erro); contadorBusca.textContent='⚠️ Erro'; } }
+async function carregarTotalCartoesBusca() { 
+    if (!contadorBusca) return; 
+    contadorBusca.textContent = '⏳ ...'; 
+    try { 
+        const resp = await fetchFromGS('contarCartoesPendentes'); 
+        if (resp && resp.success) contadorBusca.textContent = `📦 ${resp.total} pendentes`; 
+        else { 
+            contadorBusca.textContent = '⚠️ Erro'; 
+            console.error(resp); 
+        } 
+    } catch (erro) { 
+        console.error(erro); 
+        contadorBusca.textContent = '⚠️ Erro'; 
+    } 
+}
 
 async function executarBusca() {
-    // 🛑 CORREÇÃO CRÍTICA: Garante que o input não seja null antes de ler
-    if (!inputBusca) { return; } 
-
+    if (!inputBusca) {
+        inputBusca = document.getElementById('busca-input');
+        if (!inputBusca) return;
+    }
     const termo = inputBusca.value.trim();
     if (!termo) { limparBusca(); return; }
 
-    if(buscaRequestController) buscaRequestController.abort();
+    if (buscaRequestController) buscaRequestController.abort();
     buscaRequestController = new AbortController();
 
-    if(buscaResultados){ buscaResultados.style.display='flex'; buscaResultados.innerHTML='<div style="text-align:center; padding:30px; color:#888;">⏳ Buscando...</div>'; }
+    if (buscaResultados) {
+        buscaResultados.style.display = 'flex';
+        buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">⏳ Buscando...</div>';
+    }
 
     try {
+        // O GS agora faz a busca exata pelo início do nome
         const resultado = await fetchFromGS('pesquisarCartoes', { termo }, buscaRequestController.signal);
         processarResultados(resultado);
-    } catch(e) {
-        if(e.name === 'AbortError') return; console.error(e);
-        if(buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#d32f2f;">❌ Erro na busca</div>';
-    } finally { buscaRequestController = null; }
+    } catch (e) {
+        if (e.name === 'AbortError') return; 
+        console.error(e);
+        if (buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#d32f2f;">❌ Erro na busca</div>';
+    } finally { 
+        buscaRequestController = null; 
+    }
 }
 
 function processarResultados(resposta) {
     todosResultadosBusca = resposta.resultados || [];
-    if(contadorBusca) contadorBusca.textContent = `📦 ${resposta.total} pendente(s)`;
+    if (contadorBusca) contadorBusca.textContent = `📦 ${resposta.total} pendente(s)`;
     renderizarResultados();
 }
 
 function renderizarResultados() {
-    if(!buscaResultados) buscaResultados = document.getElementById('busca-resultados');
-    if(!buscaResultados) return;
+    if (!buscaResultados) buscaResultados = document.getElementById('busca-resultados');
+    if (!buscaResultados) return;
 
     let exibir = todosResultadosBusca;
 
     // 🚀 ORDENAÇÃO: MAIS RECENTES PRIMEIRO
-    exibir.sort((a,b) => {
+    exibir.sort((a, b) => {
         const parseDate = (str) => {
-            if(!str) return 0;
+            if (!str) return 0;
             let d = new Date(str);
-            if(!isNaN(d.getTime())) return d.getTime();
+            if (!isNaN(d.getTime())) return d.getTime();
             const p = String(str).split('/');
-            if(p.length === 3) {
-                d = new Date(p[2], p[1]-1, p[0]);
-                if(!isNaN(d.getTime())) return d.getTime();
+            if (p.length === 3) {
+                d = new Date(p[2], p[1] - 1, p[0]);
+                if (!isNaN(d.getTime())) return d.getTime();
             }
             return 0;
         };
         return parseDate(b.data) - parseDate(a.data);
     });
 
-    if(!exibir.length) {
+    if (!exibir.length) {
         buscaResultados.innerHTML = '<div style="text-align:center; padding:25px; color:#999;">Nenhum pendente encontrado.</div>';
         return;
     }
@@ -474,7 +529,7 @@ function renderizarResultados() {
     exibir.forEach(item => {
         const qtdEndereco = contarIguaisPorEndereco(item);
         const multiIcon = qtdEndereco > 1 ? `<span style="background:#e3f2fd; padding:2px 8px; border-radius:12px; margin-left:5px;">👥 ${qtdEndereco}</span>` : '';
-        const statusClass = String(item.status||'').toUpperCase().trim() === 'BLOQUEADO' ? 'bloqueado' : '';
+        const statusClass = String(item.status || '').toUpperCase().trim() === 'BLOQUEADO' ? 'bloqueado' : '';
 
         html += `
             <div class="card" onclick="abrirEditorBuscaRapido(${Number(item.linha)})">
@@ -494,12 +549,12 @@ function renderizarResultados() {
 
 function limparBusca() {
     clearTimeout(debounceTimerBusca);
-    if(buscaRequestController){ buscaRequestController.abort(); buscaRequestController=null; }
+    if (buscaRequestController) { buscaRequestController.abort(); buscaRequestController = null; }
     todosResultadosBusca = [];
-    if(buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">Digite algo para buscar.</div>';
-    if(contadorBusca) contadorBusca.textContent = '⏳ ...';
+    if (buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">Digite algo para buscar.</div>';
+    if (contadorBusca) contadorBusca.textContent = '⏳ ...';
     const editorArea = document.getElementById('busca-editor-area');
-    if(editorArea){ editorArea.style.display='none'; editorArea.innerHTML=''; }
+    if (editorArea) { editorArea.style.display = 'none'; editorArea.innerHTML = ''; }
     carregarTotalCartoesBusca();
 }
 
@@ -510,21 +565,21 @@ function contarIguaisPorEndereco(item) {
     const eNorm = normalizarEndereco(item.endereco);
     return todosResultadosBusca.filter(it => normalizarEndereco(it.endereco) === eNorm).length;
 }
-function escapeHtml(v) { return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+function escapeHtml(v) { return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
 
 // ============================================================
 // EDITOR RÁPIDO
 // ============================================================
 function abrirEditorBuscaRapido(linha) {
     const item = todosResultadosBusca.find(it => Number(it.linha) === Number(linha));
-    if(!item) return;
+    if (!item) return;
     const qtdMesmoEndereco = contarIguaisPorEndereco(item);
     const temOutros = qtdMesmoEndereco > 1;
     const chaveEndereco = normalizarEndereco(item.endereco);
     const numeroBloco = item.numero;
     const editorArea = document.getElementById('busca-editor-area');
     const resultadosDiv = document.getElementById('busca-resultados');
-    if(!editorArea || !resultadosDiv) return;
+    if (!editorArea || !resultadosDiv) return;
     editorArea.style.display = 'block';
     resultadosDiv.style.display = 'none';
 
@@ -559,23 +614,172 @@ function abrirEditorBuscaRapido(linha) {
             </div>
         </div>`;
 
-    if(numeroBloco) {
+    if (numeroBloco) {
         fetchFromGS('obterPosicaoNoBlocoBackend', { numeroBloco, linhaAtual: Number(linha) })
-            .then(result => { const span=document.getElementById(`posicao-span-busca-${Number(linha)}`); if(!span)return; if(result.success && result.posicao!==null) span.textContent=`📌 Posição: ${result.posicao} de ${result.total} (bloco ${numeroBloco})`; else if(result.total===0) span.textContent=`📌 Sem outros cartões no bloco ${numeroBloco}`; else span.textContent='📌 Posição: não disponível'; })
-            .catch(()=>{ const span=document.getElementById(`posicao-span-busca-${Number(linha)}`); if(span) span.textContent='📌 Erro ao carregar posição'; });
-    } else { const span=document.getElementById(`posicao-span-busca-${Number(linha)}`); if(span) span.textContent='📌 Bloco não informado'; }
+            .then(result => {
+                const span = document.getElementById(`posicao-span-busca-${Number(linha)}`);
+                if (!span) return;
+                if (result.success && result.posicao !== null) {
+                    span.textContent = `📌 Posição: ${result.posicao} de ${result.total} (bloco ${numeroBloco})`;
+                } else if (result.total === 0) {
+                    span.textContent = `📌 Sem outros cartões no bloco ${numeroBloco}`;
+                } else {
+                    span.textContent = '📌 Posição: não disponível';
+                }
+            })
+            .catch(() => {
+                const span = document.getElementById(`posicao-span-busca-${Number(linha)}`);
+                if (span) span.textContent = '📌 Erro ao carregar posição';
+            });
+    } else {
+        const span = document.getElementById(`posicao-span-busca-${Number(linha)}`);
+        if (span) span.textContent = '📌 Bloco não informado';
+    }
 }
 
-function cancelarEdicaoBusca(linha) { const editorArea = document.getElementById('busca-editor-area'); const resultadosDiv = document.getElementById('busca-resultados'); if(editorArea){editorArea.style.display='none';editorArea.innerHTML='';} if(resultadosDiv)resultadosDiv.style.display='flex'; }
+function cancelarEdicaoBusca(linha) {
+    const editorArea = document.getElementById('busca-editor-area');
+    const resultadosDiv = document.getElementById('busca-resultados');
+    if (editorArea) {
+        editorArea.style.display = 'none';
+        editorArea.innerHTML = '';
+    }
+    if (resultadosDiv) resultadosDiv.style.display = 'flex';
+}
 
-window.salvarEdicaoBusca = async function(linha) { const itemOriginal = todosResultadosBusca.find(it=>Number(it.linha)===Number(linha))||{}; const get=id=>document.getElementById(id)?.value; const dados={ nome:get(`edit-nome-busca-${Number(linha)}`)||itemOriginal.nome||'', data:get(`edit-data-busca-${Number(linha)}`)||itemOriginal.data||'', quantidade:itemOriginal.quantidade||1, obs:itemOriginal.obs||'', tipo:itemOriginal.tipo||'CARTÃO', status:itemOriginal.status||'', numero:get(`edit-num-busca-${Number(linha)}`)||itemOriginal.numero||'', endereco:get(`edit-end-busca-${Number(linha)}`)||itemOriginal.endereco||'', cpf:get(`edit-cpf-busca-${Number(linha)}`)||itemOriginal.cpf||'', entregueA:get(`edit-entrega-busca-${Number(linha)}`)||itemOriginal.entregueA||'', dataEntrega:itemOriginal.dataEntrega||'', telefone:get(`edit-tel-busca-${Number(linha)}`)||itemOriginal.telefone||'' }; try{ await postParaGoogleSheets('atualizarCartao',{linha,dados}); alert('✅ Dados salvos com sucesso!'); cancelarEdicaoBusca(linha); executarBusca(); }catch(erro){alert('❌ Erro ao salvar: '+erro.message);} };
+window.salvarEdicaoBusca = async function (linha) {
+    const itemOriginal = todosResultadosBusca.find(it => Number(it.linha) === Number(linha)) || {};
+    const get = id => document.getElementById(id)?.value;
+    const dados = {
+        nome: get(`edit-nome-busca-${Number(linha)}`) || itemOriginal.nome || '',
+        data: get(`edit-data-busca-${Number(linha)}`) || itemOriginal.data || '',
+        quantidade: itemOriginal.quantidade || 1,
+        obs: itemOriginal.obs || '',
+        tipo: itemOriginal.tipo || 'CARTÃO',
+        status: itemOriginal.status || '',
+        numero: get(`edit-num-busca-${Number(linha)}`) || itemOriginal.numero || '',
+        endereco: get(`edit-end-busca-${Number(linha)}`) || itemOriginal.endereco || '',
+        cpf: get(`edit-cpf-busca-${Number(linha)}`) || itemOriginal.cpf || '',
+        entregueA: get(`edit-entrega-busca-${Number(linha)}`) || itemOriginal.entregueA || '',
+        dataEntrega: itemOriginal.dataEntrega || '',
+        telefone: get(`edit-tel-busca-${Number(linha)}`) || itemOriginal.telefone || ''
+    };
+    try {
+        await postParaGoogleSheets('atualizarCartao', { linha, dados });
+        alert('✅ Dados salvos com sucesso!');
+        cancelarEdicaoBusca(linha);
+        executarBusca();
+    } catch (erro) {
+        alert('❌ Erro ao salvar: ' + erro.message);
+    }
+};
 
-window.confirmarEntregaBusca = function(linha) { const itemOriginal = todosResultadosBusca.find(item=>Number(item.linha)===Number(linha)); if(!itemOriginal)return; const nomeQuemRecebeu = prompt(`📦 PARA QUEM FOI ENTREGUE O CARTÃO DE ${itemOriginal.nome}?`); if(!nomeQuemRecebeu||nomeQuemRecebeu.trim()===''){alert('Entrega cancelada.');return;} const hoje=new Date(); const dataFormatada=`${String(hoje.getDate()).padStart(2,'0')}/${String(hoje.getMonth()+1).padStart(2,'0')}/${hoje.getFullYear()}`; const telRecebedor=prompt('📞 Qual o telefone de quem recebeu? (Opcional)', ''); finalizarEntregaBusca(linha,nomeQuemRecebeu.trim(),dataFormatada,telRecebedor); };
+window.confirmarEntregaBusca = function (linha) {
+    const itemOriginal = todosResultadosBusca.find(item => Number(item.linha) === Number(linha));
+    if (!itemOriginal) return;
+    const nomeQuemRecebeu = prompt(`📦 PARA QUEM FOI ENTREGUE O CARTÃO DE ${itemOriginal.nome}?`);
+    if (!nomeQuemRecebeu || nomeQuemRecebeu.trim() === '') {
+        alert('Entrega cancelada.');
+        return;
+    }
+    const hoje = new Date();
+    const dataFormatada = `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}/${hoje.getFullYear()}`;
+    const telRecebedor = prompt('📞 Qual o telefone de quem recebeu? (Opcional)', '');
+    finalizarEntregaBusca(linha, nomeQuemRecebeu.trim(), dataFormatada, telRecebedor);
+};
 
-async function finalizarEntregaBusca(linha,nomeEntregueA,dataEntrega,telefoneAdicional) { const get=id=>document.getElementById(id)?.value; const dados={ nome:get(`edit-nome-busca-${Number(linha)}`)||'', data:get(`edit-data-busca-${Number(linha)}`)||'', quantidade:1, obs:'', tipo:'CARTÃO', status:'ENTREGUE', numero:get(`edit-num-busca-${Number(linha)}`)||'', endereco:get(`edit-end-busca-${Number(linha)}`)||'', cpf:get(`edit-cpf-busca-${Number(linha)}`)||'', entregueA:nomeEntregueA, dataEntrega:dataEntrega, telefone:(telefoneAdicional&&telefoneAdicional.trim()!=='')?telefoneAdicional.trim():'' }; try{ await postParaGoogleSheets('atualizarCartao',{linha,dados}); alert('✅ Cartão marcado como ENTREGUE com sucesso!'); cancelarEdicaoBusca(linha); executarBusca(); }catch(erro){alert('❌ Erro: '+erro.message);} }
+async function finalizarEntregaBusca(linha, nomeEntregueA, dataEntrega, telefoneAdicional) {
+    const get = id => document.getElementById(id)?.value;
+    const dados = {
+        nome: get(`edit-nome-busca-${Number(linha)}`) || '',
+        data: get(`edit-data-busca-${Number(linha)}`) || '',
+        quantidade: 1,
+        obs: '',
+        tipo: 'CARTÃO',
+        status: 'ENTREGUE',
+        numero: get(`edit-num-busca-${Number(linha)}`) || '',
+        endereco: get(`edit-end-busca-${Number(linha)}`) || '',
+        cpf: get(`edit-cpf-busca-${Number(linha)}`) || '',
+        entregueA: nomeEntregueA,
+        dataEntrega: dataEntrega,
+        telefone: (telefoneAdicional && telefoneAdicional.trim() !== '') ? telefoneAdicional.trim() : ''
+    };
+    try {
+        await postParaGoogleSheets('atualizarCartao', { linha, dados });
+        alert('✅ Cartão marcado como ENTREGUE com sucesso!');
+        cancelarEdicaoBusca(linha);
+        executarBusca();
+    } catch (erro) {
+        alert('❌ Erro: ' + erro.message);
+    }
+}
 
-function abrirListaMoradoresBusca(enderecoOriginal, linhaAtual) { const enderecoNorm=normalizarEndereco(enderecoOriginal); const cartoes=todosResultadosBusca.filter(item=>normalizarEndereco(item.endereco)===enderecoNorm); if(!cartoes.length)return; let listaHtml='<ul style="list-style:none; padding:0; margin:10px 0; max-height:200px; overflow:auto;">'; cartoes.forEach(cartao=>{ const isAtual=Number(cartao.linha)===Number(linhaAtual); listaHtml+=`<li style="margin:4px 0; padding:6px; background:${isAtual?'#e3f2fd':'#f9f9f9'}; border-radius:6px; display:flex; justify-content:space-between;"><div><strong>${escapeHtml(cartao.nome)}</strong><br><small>📍 Nº ${escapeHtml(cartao.numero||'-')}</small></div>${isAtual?'<span style="font-size:12px; background:#2196f3; color:white; padding:2px 8px; border-radius:12px;">ATUAL</span>':''}</li>`; }); listaHtml+='</ul>'; const editorArea=document.getElementById('busca-editor-area'); if(!editorArea)return; editorArea.innerHTML=`<h4>👥 Moradores do endereço</h4><p style="background:#e8f5e9; padding:6px; border-radius:6px;">📍 ${escapeHtml(enderecoOriginal)}</p>${listaHtml}<button class="btn-cancelar" onclick="cancelarEdicaoBusca(${Number(linhaAtual)})">Fechar</button>`; }
+function abrirListaMoradoresBusca(enderecoOriginal, linhaAtual) {
+    const enderecoNorm = normalizarEndereco(enderecoOriginal);
+    const cartoes = todosResultadosBusca.filter(item => normalizarEndereco(item.endereco) === enderecoNorm);
+    if (!cartoes.length) return;
+    let listaHtml = '<ul style="list-style:none; padding:0; margin:10px 0; max-height:200px; overflow:auto;">';
+    cartoes.forEach(cartao => {
+        const isAtual = Number(cartao.linha) === Number(linhaAtual);
+        listaHtml += `
+            <li style="margin:4px 0; padding:6px; background:${isAtual ? '#e3f2fd' : '#f9f9f9'}; border-radius:6px; display:flex; justify-content:space-between;">
+                <div><strong>${escapeHtml(cartao.nome)}</strong><br><small>📍 Nº ${escapeHtml(cartao.numero || '-')}</small></div>
+                ${isAtual ? '<span style="font-size:12px; background:#2196f3; color:white; padding:2px 8px; border-radius:12px;">ATUAL</span>' : ''}
+            </li>`;
+    });
+    listaHtml += '</ul>';
+    const editorArea = document.getElementById('busca-editor-area');
+    if (!editorArea) return;
+    editorArea.innerHTML = `
+        <h4>👥 Moradores do endereço</h4>
+        <p style="background:#e8f5e9; padding:6px; border-radius:6px;">📍 ${escapeHtml(enderecoOriginal)}</p>
+        ${listaHtml}
+        <button class="btn-cancelar" onclick="cancelarEdicaoBusca(${Number(linhaAtual)})">Fechar</button>`;
+}
 
-function abrirEdicaoMassivaBusca(chaveEndereco, linhaAtual) { const cartoes=todosResultadosBusca.filter(it=>normalizarEndereco(it.endereco)===chaveEndereco); if(cartoes.length<=1)return; const linhas=cartoes.map(it=>Number(it.linha)); const nomes=[...new Set(cartoes.map(it=>it.nome))]; const editorArea=document.getElementById('busca-editor-area'); if(!editorArea)return; editorArea.style.display='block'; editorArea.innerHTML=`<div id="editorMassaBusca" class="editor-massa active"><h4>✏️ Edição Massiva (${linhas.length} cartões)</h4><p>📍 ${escapeHtml(cartoes[0].endereco||'')} — ${escapeHtml(nomes.join(', '))}</p><label>Status</label><select id="massa-status-busca"><option value="">Manter atual</option><option value="ENTREGUE">ENTREGUE</option><option value="BLOQUEADO">BLOQUEADO</option></select><label>Data Entrega</label><input id="massa-dataentrega-busca" placeholder="dd/mm/yyyy"><label>CPF</label><input id="massa-cpf-busca" placeholder="CPF para todos"><label>Entregue Á</label><input id="massa-entrega-busca" placeholder="Entregue Á para todos"><label>Telefone</label><input id="massa-telefone-busca" placeholder="Telefone para todos"><div style="display:flex; gap:8px; margin-top:12px;"><button class="btn-salvar" onclick='salvarEdicaoMassivaBusca(${JSON.stringify(linhas)})'>Salvar em todos</button><button class="btn-cancelar" onclick="cancelarEdicaoBusca(${Number(linhaAtual)})">Cancelar</button></div></div>`; }
+function abrirEdicaoMassivaBusca(chaveEndereco, linhaAtual) {
+    const cartoes = todosResultadosBusca.filter(it => normalizarEndereco(it.endereco) === chaveEndereco);
+    if (cartoes.length <= 1) return;
+    const linhas = cartoes.map(it => Number(it.linha));
+    const nomes = [...new Set(cartoes.map(it => it.nome))];
+    const editorArea = document.getElementById('busca-editor-area');
+    if (!editorArea) return;
+    editorArea.style.display = 'block';
+    editorArea.innerHTML = `
+        <div id="editorMassaBusca" class="editor-massa active">
+            <h4>✏️ Edição Massiva (${linhas.length} cartões)</h4>
+            <p>📍 ${escapeHtml(cartoes[0].endereco || '')} — ${escapeHtml(nomes.join(', '))}</p>
+            <label>Status</label>
+            <select id="massa-status-busca"><option value="">Manter atual</option><option value="ENTREGUE">ENTREGUE</option><option value="BLOQUEADO">BLOQUEADO</option></select>
+            <label>Data Entrega</label><input id="massa-dataentrega-busca" placeholder="dd/mm/yyyy">
+            <label>CPF</label><input id="massa-cpf-busca" placeholder="CPF para todos">
+            <label>Entregue Á</label><input id="massa-entrega-busca" placeholder="Entregue Á para todos">
+            <label>Telefone</label><input id="massa-telefone-busca" placeholder="Telefone para todos">
+            <div style="display:flex; gap:8px; margin-top:12px;">
+                <button class="btn-salvar" onclick='salvarEdicaoMassivaBusca(${JSON.stringify(linhas)})'>Salvar em todos</button>
+                <button class="btn-cancelar" onclick="cancelarEdicaoBusca(${Number(linhaAtual)})">Cancelar</button>
+            </div>
+        </div>`;
+}
 
-async function salvarEdicaoMassivaBusca(linhas) { const dados={}; const status=document.getElementById('massa-status-busca')?.value; const dataEntrega=document.getElementById('massa-dataentrega-busca')?.value.trim(); const cpf=document.getElementById('massa-cpf-busca')?.value.trim(); const entregueA=document.getElementById('massa-entrega-busca')?.value.trim(); const telefone=document.getElementById('massa-telefone-busca')?.value.trim(); if(status)dados.status=status; if(dataEntrega)dados.dataEntrega=dataEntrega; if(cpf)dados.cpf=cpf; if(entregueA)dados.entregueA=entregueA; if(telefone)dados.telefone=telefone; try{ await postParaGoogleSheets('atualizarMultiplosCartoes',{linhas,dados}); alert('✅ Edição massiva salva com sucesso!'); cancelarEdicaoBusca(linhas[0]); executarBusca(); }catch(erro){alert('Erro: '+erro.message);} }
+async function salvarEdicaoMassivaBusca(linhas) {
+    const dados = {};
+    const status = document.getElementById('massa-status-busca')?.value;
+    const dataEntrega = document.getElementById('massa-dataentrega-busca')?.value.trim();
+    const cpf = document.getElementById('massa-cpf-busca')?.value.trim();
+    const entregueA = document.getElementById('massa-entrega-busca')?.value.trim();
+    const telefone = document.getElementById('massa-telefone-busca')?.value.trim();
+    if (status) dados.status = status;
+    if (dataEntrega) dados.dataEntrega = dataEntrega;
+    if (cpf) dados.cpf = cpf;
+    if (entregueA) dados.entregueA = entregueA;
+    if (telefone) dados.telefone = telefone;
+    try {
+        await postParaGoogleSheets('atualizarMultiplosCartoes', { linhas, dados });
+        alert('✅ Edição massiva salva com sucesso!');
+        cancelarEdicaoBusca(linhas[0]);
+        executarBusca();
+    } catch (erro) {
+        alert('Erro: ' + erro.message);
+    }
+}
