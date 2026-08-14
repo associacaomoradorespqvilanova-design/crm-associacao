@@ -1,7 +1,7 @@
 // ============================================================
 // CONFIGURAÇÃO DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbybGa7HLLn0TJZHWqAsBCAGidWBDcnkKUI79t3M87zROwKT7qKsO_PYJQk9qU3xgtjuug/exec";
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwb7u0uQIAg_8vev9OjTN6y6zkIj7og1CVBRAY7kccG9HNZOyyXBsQQ-kndbd5qgan5tQ/exec";
 
 // ============================================================
 // GET VIA JSONP
@@ -82,7 +82,6 @@ function login() {
     } else errorBox.style.display = 'block';
 }
 
-// 🛡️ PROTEÇÃO CONTRA TRAVAMENTO DOS BOTÕES NO LOGIN
 function loginSuccess() {
     try {
         document.getElementById('login-screen').style.display = 'none';
@@ -90,11 +89,10 @@ function loginSuccess() {
         updateClock(); 
         carregarDashboard();
         
-        // Atrasa o popup e usa try-catch para não travar os cliques se algo der errado
+        // Atrasa o popup
         setTimeout(() => {
             try {
                 verificarProximaAgendaPopup();
-                // Fecha o popup automaticamente após 8 segundos se o usuário não clicar
                 setTimeout(() => {
                     try { fecharModal('modal-popup-login'); } catch(e) {}
                 }, 8000);
@@ -158,7 +156,7 @@ async function carregarDashboard() {
 }
 
 // ============================================================
-// 📅 AGENDA (com Badge "!" piscante)
+// 📅 AGENDA
 // ============================================================
 function renderizarAgendaComDados(dadosAgenda) {
     const tbody = document.getElementById('agenda-list');
@@ -175,8 +173,6 @@ function renderizarAgendaComDados(dadosAgenda) {
         if (!isNaN(dataItem.getTime())) { 
             dataItem.setHours(0,0,0,0); 
             diffDays = Math.ceil((dataItem - hoje)/(1000*60*60*24)); 
-            
-            // 🔥 Adiciona o badge "!" se for hoje ou amanhã
             if (diffDays === 0 || diffDays === 1) {
                 badgeHtml = `<span class="badge-urgente" title="Dia do evento!">!</span>`;
                 tr.className = 'highlight-row pulse-row';
@@ -199,9 +195,6 @@ function renderizarAgendaComDados(dadosAgenda) {
     if (tbody.children.length === 0) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Nenhum compromisso futuro agendado.</td></tr>';
 }
 
-// ============================================================
-// 📅 MODAL DE AVISO DA PRÓXIMA AGENDA
-// ============================================================
 function verificarProximaAgendaPopup() {
     const hoje = new Date();
     hoje.setHours(0,0,0,0);
@@ -292,7 +285,7 @@ async function adicionarResponsavel() { const input = document.getElementById('n
 async function deletarResponsavel(nome) { if(!confirm(`Remover o responsável "${nome}" da lista?`)) return; await postParaGoogleSheets('deletarResponsavel', nome); carregarDashboard(); }
 
 // ============================================================
-// ADC CARTÕES
+// ADC CARTÕES (Múltiplas Entregas)
 // ============================================================
 let contadorEntregas = 0;
 function abrirModal(id) {
@@ -317,7 +310,7 @@ function limparCamposNomeEndereco() { document.querySelectorAll('#mult-lista-ent
 async function enviarTodasEntregas() { if(!validarCampos())return; const entregas = coletarDadosParaEnvio(); if(entregas.length===0){alert('Adicione pelo menos uma entrega válida!');return;} const btnEnviar = document.getElementById('btnEnviarMulti'); if(!btnEnviar)return; btnEnviar.innerText='Enviando...'; btnEnviar.disabled=true; const statusDiv = document.getElementById('mult-status-message'); if(statusDiv) statusDiv.style.display='none'; await postParaGoogleSheets('salvarLoteCartoesEntrega', entregas); if(statusDiv){ statusDiv.style.display='block'; statusDiv.style.background='#e8f5e9'; statusDiv.style.color='#2e7d32'; statusDiv.style.border='2px solid #a5d6a7'; statusDiv.innerText=`✅ ${entregas.length} registro(s) salvos com sucesso!`; } limparCamposNomeEndereco(); const nomes = document.querySelectorAll('#mult-lista-entregas .nome-input'); if(nomes.length>0) nomes[0].focus(); btnEnviar.innerText='Enviar Tudo'; btnEnviar.disabled=false; }
 
 // ============================================================
-// CESTA
+// CESTA BÁSICA
 // ============================================================
 function normalizeString(s) { if(!s&&s!==0)return""; return s.toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').toLowerCase().trim(); }
 function headerToId(lbl) { if(!lbl&&lbl!==0)lbl=""; return lbl.toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_+|_+$/g,'').replace(/_+/g,'_').toUpperCase(); }
@@ -405,9 +398,240 @@ if(btnSaveCesta){
 async function gerarCarteirinha(){const nome=document.getElementById('cesta-search').value.trim();if(!nome){alert("Busque um morador antes de gerar a carteirinha.");return;}const qrContainer=document.getElementById('card-qrcode');if(!qrContainer)return;qrContainer.innerHTML='';document.getElementById('card-nome').innerText=nome;try{cestaState.qrCodeInstance=new QRCode(qrContainer,{text:nome,width:75,height:75,colorDark:"#4a7c2e",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.H});}catch(e){alert("Erro ao gerar QR Code");return;}setTimeout(async()=>{try{const cardDiv=document.getElementById('carteirinha-print-area');const canvas=await html2canvas(cardDiv,{scale:2});const{jsPDF}=window.jspdf;const pdf=new jsPDF('l','mm','a6');const imgData=canvas.toDataURL('image/jpeg',0.95);pdf.addImage(imgData,'JPEG',0,0,148,105);const pdfBlob=pdf.output('blob');window.open(URL.createObjectURL(pdfBlob),'_blank');}catch(error){console.error(error);alert("Erro ao gerar a imagem da carteirinha.");}},300);}
 
 // ============================================================
-// CURRÍCULO (Mantido original)
+// CURRÍCULO (CORRIGIDO E COMPLETO)
 // ============================================================
-function handlePhotoUpload(event) { ... } // (código original omitido por brevidade na resposta, mas mantido no arquivo completo)
+function handlePhotoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const img = new Image();
+        img.onload = function () {
+            const canvas = document.createElement('canvas');
+            const targetWidth = 300;
+            const targetHeight = 400;
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            const ctx = canvas.getContext('2d');
+            const aspectRatio = targetWidth / targetHeight;
+            let srcWidth = img.width;
+            let srcHeight = img.height;
+            let srcX = 0;
+            let srcY = 0;
+            const imgRatio = srcWidth / srcHeight;
+            if (imgRatio > aspectRatio) {
+                srcWidth = srcHeight * aspectRatio;
+                srcX = (img.width - srcWidth) / 2;
+            } else {
+                srcHeight = srcWidth / aspectRatio;
+                srcY = (img.height - srcHeight) / 2;
+            }
+            ctx.drawImage(img, srcX, srcY, srcWidth, srcHeight, 0, 0, targetWidth, targetHeight);
+            state.fotoBase64 = canvas.toDataURL('image/jpeg');
+            const preview = document.getElementById('cv-photo-preview');
+            preview.src = state.fotoBase64;
+            preview.style.display = 'block';
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+async function buscarCEP() {
+    let cep = document.getElementById('cv-cep').value.replace(/\D/g, '');
+    if (cep.length !== 8) return;
+    try {
+        const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        const data = await response.json();
+        if (!data.erro) {
+            document.getElementById('cv-logradouro').value = data.logradouro;
+            document.getElementById('cv-bairro').value = data.bairro;
+            document.getElementById('cv-cidade').value = `${data.localidade} - ${data.uf}`;
+        } else {
+            alert("CEP não encontrado.");
+        }
+    } catch (error) {
+        console.error("Erro ao buscar CEP", error);
+    }
+}
+
+function adicionarTelefone() {
+    if (state.telefoneCount < 3) {
+        state.telefoneCount++;
+        document.getElementById(`cv-tel-container-${state.telefoneCount}`).style.display = 'block';
+        if (state.telefoneCount === 3) document.getElementById('btn-add-tel').style.display = 'none';
+    }
+}
+
+function adicionarCurso() {
+    if (state.cursoCount >= 3) {
+        alert("Você já atingiu o limite máximo de 3 cursos para caber em 1 única folha A4.");
+        return;
+    }
+    const container = document.getElementById('cursos-container');
+    const id = `curso-${Date.now()}`;
+    const html = `
+        <div class="dynamic-item" id="${id}">
+            <button class="remove-btn" onclick="removerItem('${id}')">×</button>
+            <div class="grid-cv">
+                <div><label style="font-size:12px;">Curso</label><input type="text" class="input-curso" placeholder="Ex: Administração"></div>
+                <div><label style="font-size:12px;">Instituição</label><input type="text" class="input-inst" placeholder="Ex: UNESP"></div>
+            </div>
+            <div class="grid-cv full"><label style="font-size:12px;">Período</label><input type="text" class="input-periodo" placeholder="Ex: 2018 - 2022"></div>
+        </div>`;
+    container.insertAdjacentHTML('beforeend', html);
+    state.cursoCount++;
+}
+
+function adicionarExperiencia() {
+    if (state.expCount >= 6) {
+        alert("Você já atingiu o limite máximo de 6 experiências para caber em 1 única folha A4.");
+        return;
+    }
+    const container = document.getElementById('exp-container');
+    const id = `exp-${Date.now()}`;
+    const html = `
+        <div class="dynamic-item" id="${id}">
+            <button class="remove-btn" onclick="removerItem('${id}')">×</button>
+            <div class="grid-cv">
+                <div><label style="font-size:12px;">Empresa</label><input type="text" class="input-empresa" placeholder="Ex: Tech Solutions"></div>
+                <div><label style="font-size:12px;">Função</label><input type="text" class="input-funcao" placeholder="Ex: Assistente Administrativo"></div>
+            </div>
+            <div class="grid-cv full"><label style="font-size:12px;">Período</label><input type="text" class="input-periodo-exp" placeholder="Ex: Jan/2020 - Dez/2022"></div>
+        </div>`;
+    container.insertAdjacentHTML('beforeend', html);
+    state.expCount++;
+}
+
+function removerItem(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (id.startsWith('curso-')) state.cursoCount--;
+    if (id.startsWith('exp-')) state.expCount--;
+    el.remove();
+}
+
+async function gerarCurriculo() {
+    const nome = document.getElementById('cv-nome').value;
+    if (!nome) {
+        alert("Por favor, preencha pelo menos o Nome Completo.");
+        return;
+    }
+    const templateSelecionado = document.getElementById('cv-template').value;
+    const tel1 = document.getElementById('cv-tel-1').value;
+    const tel2 = document.getElementById('cv-tel-2').value;
+    const tel3 = document.getElementById('cv-tel-3').value;
+    const email = document.getElementById('cv-email').value;
+    const logradouro = document.getElementById('cv-logradouro').value;
+    const numero = document.getElementById('cv-numero').value;
+    const bairro = document.getElementById('cv-bairro').value;
+    const cidade = document.getElementById('cv-cidade').value;
+    const objetivo = document.getElementById('cv-objetivo').value;
+    const habilidades = document.getElementById('cv-habilidades').value;
+
+    let endereco = `${logradouro}, ${numero}`;
+    if (bairro) endereco += ` - ${bairro}`;
+    if (cidade) endereco += ` - ${cidade}`;
+
+    const tels = [tel1, tel2, tel3].filter(t => t.trim() !== '');
+    const cursosNodes = document.querySelectorAll('#cursos-container .dynamic-item');
+    const cursos = [];
+    cursosNodes.forEach(node => {
+        const curso = node.querySelector('.input-curso').value || 'Curso não informado';
+        const inst = node.querySelector('.input-inst').value || 'Instituição não informada';
+        const periodo = node.querySelector('.input-periodo').value || 'Período não informado';
+        cursos.push({ curso, inst, periodo });
+    });
+    const expNodes = document.querySelectorAll('#exp-container .dynamic-item');
+    const experiencias = [];
+    expNodes.forEach(node => {
+        const empresa = node.querySelector('.input-empresa').value || 'Empresa não informada';
+        const funcao = node.querySelector('.input-funcao').value || 'Função não informada';
+        const periodo = node.querySelector('.input-periodo-exp').value || 'Período não informado';
+        experiencias.push({ empresa, funcao, periodo });
+    });
+
+    document.getElementById('pdf-nome').innerText = nome;
+    document.getElementById('pdf-tel').innerText = tels.length > 0 ? tels.join(' / ') : '(Não informado)';
+    document.getElementById('pdf-email').innerText = email || '(Não informado)';
+    document.getElementById('pdf-endereco').innerText = endereco || '(Não informado)';
+    document.getElementById('pdf-objetivo').innerText = objetivo || 'Não informado.';
+
+    const pdfPhoto = document.getElementById('pdf-photo');
+    if (state.fotoBase64) {
+        pdfPhoto.src = state.fotoBase64;
+        pdfPhoto.style.display = 'block';
+    } else {
+        pdfPhoto.style.display = 'none';
+    }
+
+    const pdfSkills = document.getElementById('pdf-habilidades');
+    pdfSkills.innerHTML = '';
+    if (habilidades.trim() !== '') {
+        const skillList = habilidades.split(',').map(s => s.trim()).filter(s => s !== '');
+        skillList.forEach(skill => {
+            const li = document.createElement('li');
+            li.innerText = skill;
+            pdfSkills.appendChild(li);
+        });
+    } else {
+        pdfSkills.innerHTML = '<li>Não informado.</li>';
+    }
+
+    const pdfCursos = document.getElementById('pdf-cursos');
+    pdfCursos.innerHTML = '';
+    if (cursos.length === 0) {
+        pdfCursos.innerHTML = '<p style="font-size:12px; color:#888;">Nenhum curso informado.</p>';
+    } else {
+        cursos.forEach(c => {
+            const div = document.createElement('div');
+            div.className = 'pdf-entry';
+            div.innerHTML = `<div class="pdf-entry-title">${c.curso}</div><div class="pdf-entry-sub">${c.inst}</div><div class="pdf-entry-period">${c.periodo}</div>`;
+            pdfCursos.appendChild(div);
+        });
+    }
+
+    const pdfExp = document.getElementById('pdf-experiencias');
+    pdfExp.innerHTML = '';
+    if (experiencias.length === 0) {
+        pdfExp.innerHTML = '<p style="font-size:12px; color:#888;">Nenhuma experiência informada.</p>';
+    } else {
+        experiencias.forEach(exp => {
+            const div = document.createElement('div');
+            div.className = 'pdf-entry';
+            div.innerHTML = `<div class="pdf-entry-title">${exp.empresa}</div><div class="pdf-entry-sub">${exp.funcao}</div><div class="pdf-entry-period">${exp.periodo}</div>`;
+            pdfExp.appendChild(div);
+        });
+    }
+
+    const pdfLayout = document.getElementById('cv-pdf-layout');
+    pdfLayout.className = `template-${templateSelecionado}`;
+    pdfLayout.style.display = 'block';
+
+    try {
+        const canvas = await html2canvas(pdfLayout, { scale: 2, useCORS: true, logging: false });
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgProps = pdf.getImageProperties(imgData);
+        const imgW = imgProps.width;
+        const imgH = imgProps.height;
+        const scaleX = pdfWidth / imgW;
+        const scaleY = pdfHeight / imgH;
+        const finalScale = Math.min(scaleX, scaleY);
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgW * finalScale, imgH * finalScale);
+        const pdfBlob = pdf.output('blob');
+        window.open(URL.createObjectURL(pdfBlob), '_blank');
+        pdfLayout.style.display = 'none';
+        fecharModal('modal-curriculo');
+    } catch (error) {
+        console.error("Erro ao gerar PDF:", error);
+        alert("Ocorreu um erro ao gerar o currículo.");
+        pdfLayout.style.display = 'none';
+    }
+}
 
 // ============================================================
 // COMPROVANTE E SUGESTÕES
@@ -437,7 +661,7 @@ function fecharModal(id){ const modal=document.getElementById(id); if(modal) mod
 function fecharComprovantePrint(){ const modal=document.getElementById('modal-comprovante-print'); if(modal) modal.style.display='none'; }
 
 // ============================================================
-// 🔥 BUSCA INTELIGENTE (Mantida intacta e funcional)
+// 🔥 BUSCA INTELIGENTE (Sem Filtros, com Data BR e Ordenação)
 // ============================================================
 var todosResultadosBusca = []; 
 var debounceTimerBusca = null; 
@@ -565,7 +789,7 @@ function contarIguaisPorEndereco(item) { const eNorm = normalizarEndereco(item.e
 function escapeHtml(v) { return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
 
 // ============================================================
-// ✨ EDITOR RÁPIDO PREMIUM
+// ✨ EDITOR RÁPIDO PREMIUM COM BOTÃO VOLTAR, POSIÇÃO PISCANTE E NÚMERO GIGANTE
 // ============================================================
 function abrirEditorBuscaRapido(linha) {
     const item = todosResultadosBusca.find(it => Number(it.linha) === Number(linha));
