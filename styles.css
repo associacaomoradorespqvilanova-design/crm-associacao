@@ -129,7 +129,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     align-items: center;
     background: #ffffff;
     border-radius: 60px;
-    padding: 6px 6px 6px 24px;
+    padding: 6px 6px 6px 10px;
     border: 2px solid #e2e8f0;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     margin-bottom: 20px;
@@ -139,6 +139,32 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     border-color: #2D6A30;
     box-shadow: 0 0 0 4px rgba(45, 106, 48, 0.1);
 }
+
+/* 🔥 SELETOR DE TIPO DE BUSCA (NOME / ENDEREÇO) */
+.busca-tipo-select {
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1B4F1F;
+    outline: none;
+    cursor: pointer;
+    padding: 4px 4px 4px 0;
+    margin-left: 6px;
+    appearance: none;
+    -webkit-appearance: none;
+    font-family: 'Montserrat', sans-serif;
+}
+.busca-tipo-select option { color: #1e293b; font-weight: 500; background: #ffffff; }
+
+.busca-divider {
+    width: 1px;
+    height: 30px;
+    background-color: #e2e8f0;
+    margin: 0 12px;
+    flex-shrink: 0;
+}
+
 #busca-input {
     flex: 1;
     border: none;
@@ -160,6 +186,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
+    margin-left: 4px;
 }
 #busca-btnSearch:hover { background: #14532d; transform: scale(1.02); box-shadow: 0 4px 12px rgba(27, 79, 31, 0.3); }
 
@@ -172,7 +199,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .busca-resultados .card {
     background: #ffffff;
     border-radius: 12px;
-    padding: 8px 12px; /* Reduzido para caber mais */
+    padding: 8px 12px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -191,9 +218,9 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .busca-resultados .card .numero {
     background: #1B4F1F;
     color: #ffffff;
-    font-size: 13px; /* Texto menor */
+    font-size: 13px;
     font-weight: 800;
-    width: 30px; /* Círculo menor */
+    width: 30px;
     height: 30px;
     display: flex;
     align-items: center;
@@ -203,7 +230,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     box-shadow: 0 2px 6px rgba(27, 79, 31, 0.2);
 }
 .busca-resultados .card .nome {
-    font-size: 13px; /* Fonte menor */
+    font-size: 13px;
     font-weight: 700;
     color: #1a202c;
     flex: 2;
@@ -214,7 +241,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .busca-resultados .card .detalhes {
     display: flex;
     align-items: center;
-    gap: 6px; /* Espaço menor */
+    gap: 6px;
     flex-wrap: wrap;
     justify-content: flex-end;
     flex: 3;
@@ -339,7 +366,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     box-shadow: 0 0 0 4px rgba(45, 106, 48, 0.08);
 }
 
-/* 🌟 NÚMERO DO CARTÃO EM DESTAQUE, PISCANTE E GIGANTE (CORRIGIDO COM CLASSE) */
+/* 🌟 NÚMERO DO CARTÃO EM DESTAQUE, PISCANTE E GIGANTE */
 .campo-numero {
     font-size: 3.5rem !important;
     font-weight: 900 !important;
