@@ -1,7 +1,7 @@
 // ============================================================
 // CONFIGURAÇÃO DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbybGa7HLLn0TJZHWqAsBCAGidWBDcnkKUI79t3M87zROwKT7qKsO_PYJQk9qU3xgtjuug/exec";
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzrp2gRUpd3O2TGP0tcJYiY5oCqJS-Ra--IYIA__BGMumlKNiOtMJTz-gg7XUM3pTbs/exec";
 
 // ============================================================
 // GET VIA JSONP
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(() => {
         const dashboard = document.getElementById('dashboard-screen');
         if (dashboard && dashboard.style.display !== 'none') renderizarPendentesCestaHome();
-    }, 20000);
+    }, 45000);
     inicializarEventosBusca();
 });
 
@@ -85,7 +85,12 @@ function login() {
 function loginSuccess() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('dashboard-screen').style.display = 'block';
-    updateClock(); renderizarTabelas(); renderizarPendentesCestaHome(); verificarProximaAgendaPopup();
+    updateClock(); 
+    carregarDashboard();
+    // 🔥 Chama o modal de aviso da agenda após carregar os dados
+    setTimeout(() => {
+        verificarProximaAgendaPopup();
+    }, 600);
 }
 
 function logout() {
@@ -115,59 +120,102 @@ document.addEventListener('keydown', function (e) {
     if (comprovante && comprovante.style.display === 'flex') fecharComprovantePrint();
 });
 
-async function renderizarTabelas() { await renderizarAgenda(); await renderizarCartoes(); }
+// ============================================================
+// 🚀 CARREGAR DASHBOARD
+// ============================================================
+async function carregarDashboard() {
+    try {
+        const dados = await fetchFromGS('carregarDashboard');
+        state.dadosAgenda = dados.agenda || [];
+        state.dadosCartoes = dados.cartoes || [];
+        state.responsaveis = dados.responsaveis || [];
+
+        renderizarAgendaComDados(state.dadosAgenda);
+        renderizarCartoesComDados(state.dadosCartoes, state.responsaveis);
+        renderizarPendentesCestaHome();
+        
+        if (dados.totalPendentes) {
+            const contador = document.getElementById('busca-contador');
+            if(contador) contador.textContent = `📦 ${dados.totalPendentes.total} pendentes`;
+        }
+    } catch(e) {
+        console.error("Erro ao carregar dashboard unificado:", e);
+    }
+}
 
 // ============================================================
-// AGENDA
+// 📅 AGENDA (com Badge "!" piscante)
 // ============================================================
-async function renderizarAgenda() {
-    const resp = await fetchFromGS('listarAgenda');
-    state.dadosAgenda = resp.itens || [];
+function renderizarAgendaComDados(dadosAgenda) {
     const tbody = document.getElementById('agenda-list');
     if (!tbody) return;
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     tbody.innerHTML = '';
-    const sorted = [...state.dadosAgenda].sort((a, b) => new Date(a.data) - new Date(b.data));
+    const sorted = [...dadosAgenda].sort((a, b) => new Date(a.data) - new Date(b.data));
     sorted.forEach(item => {
         const tr = document.createElement('tr');
         let dataFormatada = formatarDataBR(item.data);
         let dataItem = new Date(item.data);
         let diffDays = 999;
-        if (!isNaN(dataItem.getTime())) { dataItem.setHours(0,0,0,0); diffDays = Math.ceil((dataItem - hoje)/(1000*60*60*24)); }
-        if (diffDays === 0 || diffDays === 1) { tr.className = 'highlight-row pulse-row'; } 
-        else if (diffDays < 0) return;
-        tr.innerHTML = `<td>${dataFormatada}</td><td>${item.periodo||''}</td><td style="font-weight:600;">${item.nome||''}</td><td>${item.endereco||''}</td><td style="white-space:nowrap;">${item.telefone||''}</td><td><button class="btn-edit" onclick="deletarItemAgenda(${item.id})" title="Excluir" style="color:#ff4757;">🗑️</button></td>`;
+        let badgeHtml = '';
+        if (!isNaN(dataItem.getTime())) { 
+            dataItem.setHours(0,0,0,0); 
+            diffDays = Math.ceil((dataItem - hoje)/(1000*60*60*24)); 
+            
+            // 🔥 Adiciona o badge "!" se for hoje ou amanhã
+            if (diffDays === 0 || diffDays === 1) {
+                badgeHtml = `<span class="badge-urgente" title="Dia do evento!">!</span>`;
+                tr.className = 'highlight-row pulse-row';
+            } 
+            else if (diffDays < 0) return;
+        }
+        tr.innerHTML = `
+            <td>${dataFormatada}</td>
+            <td>${item.periodo||''}</td>
+            <td style="font-weight:600;">${item.nome||''}</td>
+            <td>${item.endereco||''}</td>
+            <td style="white-space:nowrap;">${item.telefone||''}</td>
+            <td>
+                ${badgeHtml}
+                <button class="btn-edit" onclick="deletarItemAgenda(${item.id})" title="Excluir" style="color:#ff4757;">🗑️</button>
+            </td>
+        `;
         tbody.appendChild(tr);
     });
     if (tbody.children.length === 0) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Nenhum compromisso futuro agendado.</td></tr>';
 }
 
-async function salvarAgenda() {
-    const nome = document.getElementById('ag-nome').value, data = document.getElementById('ag-data').value, periodo = document.getElementById('ag-periodo').value, endereco = document.getElementById('ag-end').value, telefone = document.getElementById('ag-tel').value;
-    if (!nome || !data) { alert("Preencha pelo menos o Nome e a Data."); return; }
-    await postParaGoogleSheets('salvarAgenda', { id: Date.now(), nome, data, periodo, endereco, telefone });
-    fecharModal('modal-agenda'); await renderizarAgenda();
-    document.getElementById('ag-nome').value = ''; document.getElementById('ag-data').value = ''; document.getElementById('ag-periodo').value = ''; document.getElementById('ag-end').value = ''; document.getElementById('ag-tel').value = '';
-}
-
-async function deletarItemAgenda(id) { if (!confirm('Tem certeza que deseja excluir este compromisso?')) return; await postParaGoogleSheets('deletarAgenda', id); await renderizarAgenda(); }
-
 // ============================================================
-// AGENDA POPUP
+// 📅 MODAL DE AVISO DA PRÓXIMA AGENDA
 // ============================================================
 function verificarProximaAgendaPopup() {
     const hoje = new Date();
+    hoje.setHours(0,0,0,0);
     const proximos = state.dadosAgenda
-        .filter(item => new Date(item.data + 'T00:00:00') >= hoje)
+        .filter(item => {
+            const d = new Date(item.data);
+            d.setHours(0,0,0,0);
+            return d >= hoje;
+        })
         .sort((a, b) => new Date(a.data) - new Date(b.data))
         .slice(0, 2);
+
     if (proximos.length > 0) {
         const content = document.getElementById('popup-login-content');
         if (!content) return;
-        let html = `<p><strong>Você tem os seguintes compromissos agendados:</strong></p><ul>`;
+        let html = `<p><strong>Você tem os seguintes compromissos agendados:</strong></p><ul style="list-style:none; padding:0; text-align:left; max-width:300px; margin:10px auto;">`;
         proximos.forEach(item => {
             const dataFormatada = formatarDataBR(item.data);
-            html += `<li><strong>${dataFormatada}</strong> - ${item.nome} (${item.periodo})</li>`;
+            let isUrgent = '';
+            const dItem = new Date(item.data);
+            dItem.setHours(0,0,0,0);
+            const diffDays = Math.ceil((dItem - hoje)/(1000*60*60*24));
+            if(diffDays === 0) isUrgent = ' 🔴 HOJE!';
+            else if(diffDays === 1) isUrgent = ' ⚠️ AMANHÃ!';
+            
+            html += `<li style="background:#f8f9fa; padding:10px; margin-bottom:8px; border-radius:8px; border-left:4px solid #4a7c2e;">
+                <strong>${dataFormatada}${isUrgent}</strong><br>${item.nome} (${item.periodo})
+            </li>`;
         });
         html += '</ul>';
         content.innerHTML = html;
@@ -175,23 +223,29 @@ function verificarProximaAgendaPopup() {
     }
 }
 
+async function salvarAgenda() {
+    const nome = document.getElementById('ag-nome').value, data = document.getElementById('ag-data').value, periodo = document.getElementById('ag-periodo').value, endereco = document.getElementById('ag-end').value, telefone = document.getElementById('ag-tel').value;
+    if (!nome || !data) { alert("Preencha pelo menos o Nome e a Data."); return; }
+    await postParaGoogleSheets('salvarAgenda', { id: Date.now(), nome, data, periodo, endereco, telefone });
+    fecharModal('modal-agenda'); carregarDashboard();
+    document.getElementById('ag-nome').value = ''; document.getElementById('ag-data').value = ''; document.getElementById('ag-periodo').value = ''; document.getElementById('ag-end').value = ''; document.getElementById('ag-tel').value = '';
+}
+
+async function deletarItemAgenda(id) { if (!confirm('Tem certeza que deseja excluir este compromisso?')) return; await postParaGoogleSheets('deletarAgenda', id); carregarDashboard(); }
+
 // ============================================================
 // CARTÕES
 // ============================================================
-async function renderizarCartoes() {
-    const resp = await fetchFromGS('listarCartoes');
-    state.dadosCartoes = resp.itens || [];
-    const respNomes = await fetchFromGS('listarResponsaveis');
-    state.responsaveis = respNomes.nomes || [];
+function renderizarCartoesComDados(dadosCartoes, dadosResponsaveis) {
     const select = document.getElementById('card-responsavel');
-    if (select) { select.innerHTML = '<option value="">Selecione um responsável</option>'; state.responsaveis.forEach(nome => { const nomeLimpo = String(nome).replace(/^"|"$/g,'').replace(/^'|'$/g,''); select.innerHTML += `<option value="${nomeLimpo}">${nomeLimpo}</option>`; }); }
-    const nomesOrdenados = state.responsaveis.map(n => n.replace(/^"|"$/g,'').replace(/^'|'$/g,''));
+    if (select) { select.innerHTML = '<option value="">Selecione um responsável</option>'; dadosResponsaveis.forEach(nome => { const nomeLimpo = String(nome).replace(/^"|"$/g,'').replace(/^'|'$/g,''); select.innerHTML += `<option value="${nomeLimpo}">${nomeLimpo}</option>`; }); }
+    const nomesOrdenados = dadosResponsaveis.map(n => n.replace(/^"|"$/g,'').replace(/^'|'$/g,''));
     const thead = document.getElementById('cards-header');
     if (thead) { let headerHtml = '<tr><th>DATA</th>'; if(nomesOrdenados.length > 0) nomesOrdenados.forEach(nome => { headerHtml += `<th style="text-align:center;">${nome}</th>`; }); else headerHtml += '<th style="text-align:center;">RESPONSÁVEIS</th>'; headerHtml += '<th style="text-align:center;">TOTAL DIA</th><th>AÇÕES</th></tr>'; thead.innerHTML = headerHtml; }
     const tbody = document.getElementById('cards-list'); if (!tbody) return; tbody.innerHTML = '';
-    const totais = {}; state.dadosCartoes.forEach(item => { if (!totais[item.responsavel]) totais[item.responsavel] = 0; totais[item.responsavel] += Number(item.qtd)||0; });
+    const totais = {}; dadosCartoes.forEach(item => { if (!totais[item.responsavel]) totais[item.responsavel] = 0; totais[item.responsavel] += Number(item.qtd)||0; });
     const agrupado = {};
-    state.dadosCartoes.forEach(item => {
+    dadosCartoes.forEach(item => {
         let dataObj = new Date(item.data);
         if (isNaN(dataObj.getTime())) { const partes = String(item.data || '').split('/'); if (partes.length === 3) dataObj = new Date(partes[2], partes[1]-1, partes[0]); }
         if (isNaN(dataObj.getTime())) return;
@@ -215,18 +269,15 @@ async function renderizarCartoes() {
     if(htmlTotais) { htmlTotais += `<span>Total Geral: <span style="font-weight:700; color:#4a7c2e;">${totalGeral}</span></span>`; totaisDiv.innerHTML = htmlTotais; totaisDiv.style.display = 'flex'; } else { totaisDiv.style.display = 'none'; }
 }
 
-async function excluirMesCartao(data) { let dataStr = data; if(data.includes('/')) { const partes = data.split('/'); if(partes.length===3) dataStr = `${partes[2]}-${partes[1]}-${partes[0]}`; } const dataObj = new Date(dataStr + 'T00:00:00'); if(isNaN(dataObj.getTime())) { alert("Data inválida"); return; } const mes = dataObj.getMonth()+1; const ano = dataObj.getFullYear(); if(!confirm(`Excluir TODOS os cartões do mês ${mes}/${ano}?`)) return; await postParaGoogleSheets('deletarMesGeral', { mes, ano }); await renderizarCartoes(); }
+async function excluirMesCartao(data) { let dataStr = data; if(data.includes('/')) { const partes = data.split('/'); if(partes.length===3) dataStr = `${partes[2]}-${partes[1]}-${partes[0]}`; } const dataObj = new Date(dataStr + 'T00:00:00'); if(isNaN(dataObj.getTime())) { alert("Data inválida"); return; } const mes = dataObj.getMonth()+1; const ano = dataObj.getFullYear(); if(!confirm(`Excluir TODOS os cartões do mês ${mes}/${ano}?`)) return; await postParaGoogleSheets('deletarMesGeral', { mes, ano }); carregarDashboard(); }
 
-async function salvarCartoes() { const responsavel = document.getElementById('card-responsavel').value; const qtd = parseInt(document.getElementById('card-qtd').value); const data = document.getElementById('card-data').value; if(!responsavel || !qtd || !data) { alert("Preencha o Responsável, Quantidade e Data."); return; } await postParaGoogleSheets('salvarCartao', { id: Date.now(), responsavel, qtd, data }); fecharModal('modal-cartoes'); await renderizarCartoes(); document.getElementById('card-qtd').value = ''; document.getElementById('card-data').value = ''; }
+async function salvarCartoes() { const responsavel = document.getElementById('card-responsavel').value; const qtd = parseInt(document.getElementById('card-qtd').value); const data = document.getElementById('card-data').value; if(!responsavel || !qtd || !data) { alert("Preencha o Responsável, Quantidade e Data."); return; } await postParaGoogleSheets('salvarCartao', { id: Date.now(), responsavel, qtd, data }); fecharModal('modal-cartoes'); carregarDashboard(); document.getElementById('card-qtd').value = ''; document.getElementById('card-data').value = ''; }
 
-async function adicionarResponsavel() { const input = document.getElementById('novo-responsavel-input'); let nome = input.value.trim(); nome = nome.replace(/^"|"$/g,'').replace(/^'|'$/g,''); if(!nome) { alert("Digite um nome."); return; } await postParaGoogleSheets('salvarResponsavel', nome); input.value = ''; await renderizarCartoes(); await carregarListaResponsaveisNoModal(); }
-
-async function carregarListaResponsaveisNoModal() { const resp = await fetchFromGS('listarResponsaveis'); state.responsaveis = resp.nomes || []; const container = document.getElementById('lista-responsaveis-cadastrados'); if(!container) return; container.innerHTML = ''; state.responsaveis.forEach(nome => { const nomeLimpo = String(nome).replace(/^"|"$/g,'').replace(/^'|'$/g,''); const span = document.createElement('span'); span.style.cssText = 'background:#eafde8; padding:3px 10px; border-radius:12px; font-size:12px; display:flex; align-items:center; gap:5px;'; const texto = document.createElement('span'); texto.textContent = nomeLimpo; const botao = document.createElement('button'); botao.textContent = '×'; botao.onclick = () => deletarResponsavel(nomeLimpo); botao.style.cssText = 'border:none; background:transparent; color:#ff4757; font-weight:bold; cursor:pointer;'; span.appendChild(texto); span.appendChild(botao); container.appendChild(span); }); }
-
-async function deletarResponsavel(nome) { if(!confirm(`Remover o responsável "${nome}" da lista?`)) return; await postParaGoogleSheets('deletarResponsavel', nome); await renderizarCartoes(); await carregarListaResponsaveisNoModal(); }
+async function adicionarResponsavel() { const input = document.getElementById('novo-responsavel-input'); let nome = input.value.trim(); nome = nome.replace(/^"|"$/g,'').replace(/^'|'$/g,''); if(!nome) { alert("Digite um nome."); return; } await postParaGoogleSheets('salvarResponsavel', nome); input.value = ''; carregarDashboard(); }
+async function deletarResponsavel(nome) { if(!confirm(`Remover o responsável "${nome}" da lista?`)) return; await postParaGoogleSheets('deletarResponsavel', nome); carregarDashboard(); }
 
 // ============================================================
-// ADC CARTÕES (Múltiplas Entregas)
+// ADC CARTÕES
 // ============================================================
 let contadorEntregas = 0;
 function abrirModal(id) {
@@ -251,7 +302,7 @@ function limparCamposNomeEndereco() { document.querySelectorAll('#mult-lista-ent
 async function enviarTodasEntregas() { if(!validarCampos())return; const entregas = coletarDadosParaEnvio(); if(entregas.length===0){alert('Adicione pelo menos uma entrega válida!');return;} const btnEnviar = document.getElementById('btnEnviarMulti'); if(!btnEnviar)return; btnEnviar.innerText='Enviando...'; btnEnviar.disabled=true; const statusDiv = document.getElementById('mult-status-message'); if(statusDiv) statusDiv.style.display='none'; await postParaGoogleSheets('salvarLoteCartoesEntrega', entregas); if(statusDiv){ statusDiv.style.display='block'; statusDiv.style.background='#e8f5e9'; statusDiv.style.color='#2e7d32'; statusDiv.style.border='2px solid #a5d6a7'; statusDiv.innerText=`✅ ${entregas.length} registro(s) salvos com sucesso!`; } limparCamposNomeEndereco(); const nomes = document.querySelectorAll('#mult-lista-entregas .nome-input'); if(nomes.length>0) nomes[0].focus(); btnEnviar.innerText='Enviar Tudo'; btnEnviar.disabled=false; }
 
 // ============================================================
-// CESTA BÁSICA
+// CESTA
 // ============================================================
 function normalizeString(s) { if(!s&&s!==0)return""; return s.toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').toLowerCase().trim(); }
 function headerToId(lbl) { if(!lbl&&lbl!==0)lbl=""; return lbl.toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_+|_+$/g,'').replace(/_+/g,'_').toUpperCase(); }
@@ -378,36 +429,10 @@ function formatarCPFPrint(i){ i.value=i.value.replace(/\D/g,'').replace(/(\d{3})
 function formatarRGPrint(i){ i.value=i.value.replace(/\D/g,'').replace(/(\d{1,2})(\d{3})(\d{3})(\d{1})$/,'$1.$2.$3-$4'); }
 function autoBuscarCEP(el){ const cep=el.value.replace(/\D/g,''); if(cep.length===8) buscarCEPPrint(); }
 function autoBuscarCPF(el){ const cpf=el.value.replace(/\D/g,''); if(cpf.length===11){ if(state.lastSearchedCPF!==cpf){state.lastSearchedCPF=cpf;buscarCPFPrint();} }else{state.lastSearchedCPF='';} }
-async function abrirComprovantePrint(tipo){ 
-    state.tipoComprovanteAtual = tipo; 
-    const menu = document.getElementById('menu-comprovante');
-    if(menu) menu.style.display = 'none';
-    const bgImage = tipo === 'assinatura' ? "https://i.imgur.com/lFhk0Hq.png" : "https://i.imgur.com/l47wlMJ.png";
-    const comprovanteBg = document.getElementById('comprovante-bg');
-    if(comprovanteBg) comprovanteBg.style.backgroundImage = `url('${bgImage}')`;
-    const modal = document.getElementById('modal-comprovante-print');
-    if(modal) modal.style.display = 'flex';
-    const idsLimpar = ['print-nome','print-endereco','print-numero_endereco','print-complemento','print-cep','print-bairro','print-uf','print-nacionalidade','print-estado_civil','print-cpf','print-rg'];
-    idsLimpar.forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
-    const emissor = document.getElementById('print-emissor');
-    if(emissor) emissor.value = 'DETRAN/RJ';
-    const proprias = ['print-propria', 'print-alugada', 'print-emprestada'];
-    proprias.forEach(id => { const chk = document.getElementById(id); if(chk) chk.checked = false; });
-    const m = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
-    const h = new Date();
-    const printData = document.getElementById("print-data");
-    if(printData) printData.value = `${String(h.getDate()).padStart(2,'0')} DE ${m[h.getMonth()]}`;
-    const printAno = document.getElementById("print-ano");
-    if(printAno) printAno.value = h.getFullYear();
-    try { 
-        const dados = await fetchFromGS('getNumero'); 
-        const numeroEl = document.getElementById('print-numero');
-        if(numeroEl) numeroEl.value = dados.numero || '0000001'; 
-    } catch(e){ console.error(e); alert("Erro ao buscar o número da declaração."); const numeroEl = document.getElementById('print-numero'); if(numeroEl) numeroEl.value = '0000001'; } 
-}
-async function buscarCEPPrint(){ const cep=document.getElementById('print-cep').value.replace(/\D/g,''); if(cep.length!==8){alert("CEP inválido");return;} try{ const resp=await fetch(`https://viacep.com.br/ws/${cep}/json/`); const dados=await resp.json(); if(dados.erro){alert("CEP não encontrado na API dos Correios");return;} const enderecoEl = document.getElementById('print-endereco'); if(enderecoEl) enderecoEl.value=(dados.logradouro||'').toUpperCase(); const bairro=(dados.bairro||'').toUpperCase(); const cidade=(dados.localidade||'').toUpperCase(); const bairroEl = document.getElementById('print-bairro'); if(bairroEl) bairroEl.value=bairro+'/'+cidade; const ufEl = document.getElementById('print-uf'); if(ufEl) ufEl.value=(dados.uf||'').toUpperCase(); }catch(e){console.error(e);alert("Erro de conexão ao buscar o CEP.");} }
-async function buscarCPFPrint(){ const cpf=document.getElementById('print-cpf').value.replace(/\D/g,''); if(cpf.length!==11){alert("CPF inválido");return;} try{ const r=await fetchFromGS('buscarCPF',{cpf}); if(r.erro){alert("ERRO DO APPS SCRIPT: "+r.erro);return;} if(!r.encontrado){alert("CPF NÃO LOCALIZADO na planilha.");return;} const d=r.dados; const nomeEl = document.getElementById('print-nome'); if(nomeEl) nomeEl.value=d.nome||''; const enderecoEl = document.getElementById('print-endereco'); if(enderecoEl) enderecoEl.value=d.endereco||''; const numEndEl = document.getElementById('print-numero_endereco'); if(numEndEl) numEndEl.value=d.numero_endereco||''; const complEl = document.getElementById('print-complemento'); if(complEl) complEl.value=d.complemento||''; const cepEl = document.getElementById('print-cep'); if(cepEl) cepEl.value=d.cep||''; const bairroEl = document.getElementById('print-bairro'); if(bairroEl) bairroEl.value=d.bairro||''; const ufEl = document.getElementById('print-uf'); if(ufEl) ufEl.value=d.uf||''; const nacEl = document.getElementById('print-nacionalidade'); if(nacEl) nacEl.value=d.nacionalidade||''; const civilEl = document.getElementById('print-estado_civil'); if(civilEl) civilEl.value=d.estado_civil||''; const cpfEl = document.getElementById('print-cpf'); if(cpfEl) cpfEl.value=d.cpf||''; const rgEl = document.getElementById('print-rg'); if(rgEl) rgEl.value=d.rg||''; const emissorEl = document.getElementById('print-emissor'); if(emissorEl) emissorEl.value=d.emissor||''; const propEl = document.getElementById('print-propria'); if(propEl) propEl.checked=d.propria||false; const alugEl = document.getElementById('print-alugada'); if(alugEl) alugEl.checked=d.alugada||false; const empEl = document.getElementById('print-emprestada'); if(empEl) empEl.checked=d.emprestada||false; }catch(e){console.error(e);alert("Erro de comunicação: "+e.message);} }
-function detectarGeneroENacionalidadeComprovante(){ const nomeInput=document.getElementById('print-nome'); const nome=nomeInput.value.trim().toUpperCase(); if(nome.length<2)return; const primeiroNome=nome.split(' ')[0].toLowerCase(); let genero='MASCULINO'; const excecoesMasculinas=['joaquim','luca','noa','nicola']; if(excecoesMasculinas.includes(primeiroNome))genero='MASCULINO'; else if(['mar','luz','flor','marjorie','alice','constance'].includes(primeiroNome))genero='FEMININO'; else if(primeiroNome.endsWith('a')||primeiroNome.endsWith('e')||primeiroNome.endsWith('i')||primeiroNome.endsWith('ad')||primeiroNome.endsWith('ra')||primeiroNome.endsWith('na')||primeiroNome.endsWith('la')||primeiroNome.endsWith('da')||primeiroNome.endsWith('ia'))genero='FEMININO'; else genero='MASCULINO'; if(genero==='FEMININO'){ const nacEl = document.getElementById('print-nacionalidade'); if(nacEl) nacEl.value='BRASILEIRA'; const civilEl = document.getElementById('print-estado_civil'); if(civilEl) civilEl.value='SOLTEIRA'; }else{ const nacEl = document.getElementById('print-nacionalidade'); if(nacEl) nacEl.value='BRASILEIRO'; const civilEl = document.getElementById('print-estado_civil'); if(civilEl) civilEl.value='SOLTEIRO'; } }
+async function abrirComprovantePrint(tipo){ state.tipoComprovanteAtual=tipo; const menu=document.getElementById('menu-comprovante'); if(menu) menu.style.display='none'; const bgImage=tipo==='assinatura'?"https://i.imgur.com/lFhk0Hq.png":"https://i.imgur.com/l47wlMJ.png"; const comprovanteBg=document.getElementById('comprovante-bg'); if(comprovanteBg) comprovanteBg.style.backgroundImage=`url('${bgImage}')`; const modal=document.getElementById('modal-comprovante-print'); if(modal) modal.style.display='flex'; const idsLimpar=['print-nome','print-endereco','print-numero_endereco','print-complemento','print-cep','print-bairro','print-uf','print-nacionalidade','print-estado_civil','print-cpf','print-rg']; idsLimpar.forEach(id=>{const el=document.getElementById(id); if(el) el.value='';}); const emissor=document.getElementById('print-emissor'); if(emissor) emissor.value='DETRAN/RJ'; const proprias=['print-propria','print-alugada','print-emprestada']; proprias.forEach(id=>{const chk=document.getElementById(id); if(chk) chk.checked=false;}); const m=["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"]; const h=new Date(); const printData=document.getElementById("print-data"); if(printData) printData.value=`${String(h.getDate()).padStart(2,'0')} DE ${m[h.getMonth()]}`; const printAno=document.getElementById("print-ano"); if(printAno) printAno.value=h.getFullYear(); try{ const dados=await fetchFromGS('getNumero'); const numeroEl=document.getElementById('print-numero'); if(numeroEl) numeroEl.value=dados.numero||'0000001'; }catch(e){console.error(e);alert("Erro ao buscar o número da declaração."); const numeroEl=document.getElementById('print-numero'); if(numeroEl) numeroEl.value='0000001'; } }
+async function buscarCEPPrint(){ const cep=document.getElementById('print-cep').value.replace(/\D/g,''); if(cep.length!==8){alert("CEP inválido");return;} try{ const resp=await fetch(`https://viacep.com.br/ws/${cep}/json/`); const dados=await resp.json(); if(dados.erro){alert("CEP não encontrado na API dos Correios");return;} const enderecoEl=document.getElementById('print-endereco'); if(enderecoEl) enderecoEl.value=(dados.logradouro||'').toUpperCase(); const bairro=(dados.bairro||'').toUpperCase(); const cidade=(dados.localidade||'').toUpperCase(); const bairroEl=document.getElementById('print-bairro'); if(bairroEl) bairroEl.value=bairro+'/'+cidade; const ufEl=document.getElementById('print-uf'); if(ufEl) ufEl.value=(dados.uf||'').toUpperCase(); }catch(e){console.error(e);alert("Erro de conexão ao buscar o CEP.");} }
+async function buscarCPFPrint(){ const cpf=document.getElementById('print-cpf').value.replace(/\D/g,''); if(cpf.length!==11){alert("CPF inválido");return;} try{ const r=await fetchFromGS('buscarCPF',{cpf}); if(r.erro){alert("ERRO DO APPS SCRIPT: "+r.erro);return;} if(!r.encontrado){alert("CPF NÃO LOCALIZADO na planilha.");return;} const d=r.dados; const nomeEl=document.getElementById('print-nome'); if(nomeEl) nomeEl.value=d.nome||''; const enderecoEl=document.getElementById('print-endereco'); if(enderecoEl) enderecoEl.value=d.endereco||''; const numEndEl=document.getElementById('print-numero_endereco'); if(numEndEl) numEndEl.value=d.numero_endereco||''; const complEl=document.getElementById('print-complemento'); if(complEl) complEl.value=d.complemento||''; const cepEl=document.getElementById('print-cep'); if(cepEl) cepEl.value=d.cep||''; const bairroEl=document.getElementById('print-bairro'); if(bairroEl) bairroEl.value=d.bairro||''; const ufEl=document.getElementById('print-uf'); if(ufEl) ufEl.value=d.uf||''; const nacEl=document.getElementById('print-nacionalidade'); if(nacEl) nacEl.value=d.nacionalidade||''; const civilEl=document.getElementById('print-estado_civil'); if(civilEl) civilEl.value=d.estado_civil||''; const cpfEl=document.getElementById('print-cpf'); if(cpfEl) cpfEl.value=d.cpf||''; const rgEl=document.getElementById('print-rg'); if(rgEl) rgEl.value=d.rg||''; const emissorEl=document.getElementById('print-emissor'); if(emissorEl) emissorEl.value=d.emissor||''; const propEl=document.getElementById('print-propria'); if(propEl) propEl.checked=d.propria||false; const alugEl=document.getElementById('print-alugada'); if(alugEl) alugEl.checked=d.alugada||false; const empEl=document.getElementById('print-emprestada'); if(empEl) empEl.checked=d.emprestada||false; }catch(e){console.error(e);alert("Erro de comunicação: "+e.message);} }
+function detectarGeneroENacionalidadeComprovante(){ const nomeInput=document.getElementById('print-nome'); const nome=nomeInput.value.trim().toUpperCase(); if(nome.length<2)return; const primeiroNome=nome.split(' ')[0].toLowerCase(); let genero='MASCULINO'; const excecoesMasculinas=['joaquim','luca','noa','nicola']; if(excecoesMasculinas.includes(primeiroNome))genero='MASCULINO'; else if(['mar','luz','flor','marjorie','alice','constance'].includes(primeiroNome))genero='FEMININO'; else if(primeiroNome.endsWith('a')||primeiroNome.endsWith('e')||primeiroNome.endsWith('i')||primeiroNome.endsWith('ad')||primeiroNome.endsWith('ra')||primeiroNome.endsWith('na')||primeiroNome.endsWith('la')||primeiroNome.endsWith('da')||primeiroNome.endsWith('ia'))genero='FEMININO'; else genero='MASCULINO'; if(genero==='FEMININO'){ const nacEl=document.getElementById('print-nacionalidade'); if(nacEl) nacEl.value='BRASILEIRA'; const civilEl=document.getElementById('print-estado_civil'); if(civilEl) civilEl.value='SOLTEIRA'; }else{ const nacEl=document.getElementById('print-nacionalidade'); if(nacEl) nacEl.value='BRASILEIRO'; const civilEl=document.getElementById('print-estado_civil'); if(civilEl) civilEl.value='SOLTEIRO'; } }
 let debounceTimerEndereco; let enderecoCache={}; let searchController=null;
 function buscarSugestoesEndereco(){ const input=document.getElementById('print-endereco'); const container=document.getElementById('address-suggestions'); if(!container) return; const queryOriginal=input.value.trim().toUpperCase(); if(searchController){searchController.abort();searchController=null;} clearTimeout(debounceTimerEndereco); if(queryOriginal.length<2){container.style.display='none';return;} if(enderecoCache[queryOriginal]){exibirSugestoes(container,enderecoCache[queryOriginal]);return;} debounceTimerEndereco=setTimeout(async()=>{ try{ container.innerHTML='<div class="suggestion-item" style="text-align:center;color:#888;cursor:default;">🔍 Buscando...</div>'; container.style.display='block'; searchController=new AbortController(); const resultados=await fetchFromGS('buscarEnderecos',{q:removerAcentos(queryOriginal)},searchController.signal); const querySemAcento=removerAcentos(queryOriginal); const resultadosFiltrados=(resultados||[]).filter(item=>{ const enderecoSemAcento=removerAcentos(String(item.endereco||'').toUpperCase()); return enderecoSemAcento.startsWith(querySemAcento)||enderecoSemAcento.includes(querySemAcento); }); enderecoCache[queryOriginal]=resultadosFiltrados; exibirSugestoes(container,resultadosFiltrados); }catch(e){if(e.name!=='AbortError'){console.warn("Erro ao buscar endereços:",e);container.style.display='none';}}finally{searchController=null;} },100); }
 function exibirSugestoes(container,resultados){ if(!container) return; container.innerHTML=''; if(!resultados||resultados.length===0){container.style.display='none';return;} resultados.forEach(item=>{ const div=document.createElement('div'); div.className='suggestion-item'; const strong=document.createElement('strong'); strong.textContent=item.endereco||''; const small=document.createElement('small'); small.textContent=`${item.bairro||''} - ${item.uf||''} (CEP: ${item.cep||'N/I'})`; div.appendChild(strong); div.appendChild(small); div.onclick=()=>{ document.getElementById('print-endereco').value=item.endereco||''; const bairro=(item.bairro||'').toUpperCase(); const cidade=(item.cidade||'').toUpperCase(); document.getElementById('print-bairro').value=bairro+'/'+cidade; document.getElementById('print-uf').value=item.uf||''; document.getElementById('print-cep').value=item.cep||''; container.style.display='none'; }; container.appendChild(div); }); container.style.display='block'; }
@@ -417,62 +442,42 @@ function gerarHTMLImpressaoCRM(v){ return `<!DOCTYPE html><html><head><style>bod
 async function salvarDadosComprovante(){ const dados=[document.getElementById('print-numero').value,document.getElementById('print-data').value,document.getElementById('print-ano').value,document.getElementById('print-nome').value.toUpperCase(),document.getElementById('print-endereco').value.toUpperCase(),document.getElementById('print-numero_endereco').value.toUpperCase(),document.getElementById('print-complemento').value.toUpperCase(),document.getElementById('print-cep').value,document.getElementById('print-bairro').value.toUpperCase(),document.getElementById('print-uf').value.toUpperCase(),document.getElementById('print-nacionalidade').value.toUpperCase(),document.getElementById('print-estado_civil').value.toUpperCase(),document.getElementById('print-cpf').value,document.getElementById('print-rg').value,document.getElementById('print-emissor').value.toUpperCase(),document.getElementById('print-propria').checked?"Casa Própria":"",document.getElementById('print-alugada').checked?"Alugada":"",document.getElementById('print-emprestada').checked?"Emprestada":""]; await postParaGoogleSheets('salvarDeclaracao',dados); }
 async function salvarApenas(){ const btn=document.querySelector('#modal-comprovante-print .btn-save'); if(!btn)return; btn.innerText='Salvando...'; btn.disabled=true; try{ await salvarDadosComprovante(); alert("Dados salvos com sucesso!"); fecharComprovantePrint(); }catch(e){alert("Erro ao salvar: "+e.message);}finally{btn.innerText='💾 Salvar';btn.disabled=false;} }
 async function salvarEImprimir(){ const btn=document.querySelector('#modal-comprovante-print .btn-print'); if(!btn)return; btn.innerText='Salvando...'; btn.disabled=true; try{ await salvarDadosComprovante(); const v=obterValoresComprovante(); let htmlPrint=gerarHTMLImpressaoCRM(v); htmlPrint=htmlPrint.replace('</body>',`<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},800);});<\/script></body>`); const win=window.open('','_blank'); if(win){win.document.write(htmlPrint);win.document.close();win.focus();}else{alert("Pop-up bloqueado! Permita pop-ups.");} fecharComprovantePrint(); }catch(e){alert("Erro ao salvar e imprimir: "+e.message);}finally{btn.innerText='🖨️ Imprimir';btn.disabled=false;} }
-function fecharModal(id){ 
-    const modal = document.getElementById(id);
-    if (modal) modal.classList.remove('active'); 
-}
+function fecharModal(id){ const modal=document.getElementById(id); if(modal) modal.classList.remove('active'); }
 function fecharComprovantePrint(){ const modal=document.getElementById('modal-comprovante-print'); if(modal) modal.style.display='none'; }
 
 // ============================================================
-// 🔥 BUSCA INTELIGENTE (CORRIGIDA E COM BUSCA POR ENDEREÇO)
+// 🔥 BUSCA INTELIGENTE
 // ============================================================
 var todosResultadosBusca = []; 
 var debounceTimerBusca = null; 
 var buscaRequestController = null;
-
-// 🟢 Todas as variáveis da busca usando 'var' para evitar TDZ
 var inputBusca = null; 
 var btnBuscaSearch = null; 
 var buscaResultados = null; 
 var contadorBusca = null;
-var buscaTipoSelect = null; // NOVO: Seletor de Nome/Endereço
+var buscaTipoSelect = null; 
 
 function inicializarEventosBusca() {
     inputBusca = document.getElementById('busca-input');
     btnBuscaSearch = document.getElementById('busca-btnSearch');
     buscaResultados = document.getElementById('busca-resultados');
     contadorBusca = document.getElementById('busca-contador');
-    buscaTipoSelect = document.getElementById('busca-tipo'); // NOVO
-
+    buscaTipoSelect = document.getElementById('busca-tipo');
     if (!inputBusca || !btnBuscaSearch) return; 
-
-    // Atualizar placeholder ao trocar o tipo de busca
     if (buscaTipoSelect) {
         buscaTipoSelect.addEventListener('change', function() {
-            if (this.value === 'endereco') {
-                inputBusca.placeholder = "Digite o nome da rua ou endereço...";
-            } else {
-                inputBusca.placeholder = "Digite nome, rua, número, CPF, telefone...";
-            }
+            if (this.value === 'endereco') inputBusca.placeholder = "Digite o nome da rua ou endereço...";
+            else inputBusca.placeholder = "Digite nome, rua, número, CPF, telefone...";
         });
     }
-
     if (btnBuscaSearch && !btnBuscaSearch.dataset.bound) {
         btnBuscaSearch.dataset.bound = 'true';
         btnBuscaSearch.addEventListener('click', () => executarBusca());
     }
     if (inputBusca && !inputBusca.dataset.bound) {
         inputBusca.dataset.bound = 'true';
-        inputBusca.addEventListener('keydown', e => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                executarBusca();
-            }
-        });
-        inputBusca.addEventListener('input', () => {
-            clearTimeout(debounceTimerBusca);
-            debounceTimerBusca = setTimeout(executarBusca, 450);
-        });
+        inputBusca.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); executarBusca(); } });
+        inputBusca.addEventListener('input', () => { clearTimeout(debounceTimerBusca); debounceTimerBusca = setTimeout(executarBusca, 450); });
     }
 }
 
@@ -482,28 +487,18 @@ function prepararModalBusca() {
         btnBuscaSearch = document.getElementById('busca-btnSearch');
         buscaResultados = document.getElementById('busca-resultados');
         contadorBusca = document.getElementById('busca-contador');
-        buscaTipoSelect = document.getElementById('busca-tipo'); // NOVO
-        
-        if (!inputBusca) {
-            inicializarEventosBusca();
-        }
+        buscaTipoSelect = document.getElementById('busca-tipo');
+        if (!inputBusca) inicializarEventosBusca();
         if (inputBusca) {
             inputBusca.value = '';
             inputBusca.focus();
-            // Resetar placeholder padrão
-            if (buscaTipoSelect && buscaTipoSelect.value === 'endereco') {
-                inputBusca.placeholder = "Digite o nome da rua ou endereço...";
-            } else {
-                inputBusca.placeholder = "Digite nome, rua, número, CPF, telefone...";
-            }
+            if (buscaTipoSelect && buscaTipoSelect.value === 'endereco') inputBusca.placeholder = "Digite o nome da rua ou endereço...";
+            else inputBusca.placeholder = "Digite nome, rua, número, CPF, telefone...";
         }
         todosResultadosBusca = [];
         if (contadorBusca) contadorBusca.textContent = '⏳ ...';
         const editorArea = document.getElementById('busca-editor-area');
-        if (editorArea) {
-            editorArea.style.display = 'none';
-            editorArea.innerHTML = '';
-        }
+        if (editorArea) { editorArea.style.display = 'none'; editorArea.innerHTML = ''; }
         if (buscaResultados) {
             buscaResultados.style.display = 'flex';
             buscaResultados.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">🔎 Digite algo para iniciar a busca</div>';
@@ -512,91 +507,36 @@ function prepararModalBusca() {
     }, 100);
 }
 
-async function carregarTotalCartoesBusca() { 
-    if (!contadorBusca) return; 
-    contadorBusca.textContent = '⏳ ...'; 
-    try { 
-        const resp = await fetchFromGS('contarCartoesPendentes'); 
-        if (resp && resp.success) contadorBusca.textContent = `📦 ${resp.total} pendentes`; 
-        else { 
-            contadorBusca.textContent = '⚠️ Erro'; 
-            console.error(resp); 
-        } 
-    } catch (erro) { 
-        console.error(erro); 
-        contadorBusca.textContent = '⚠️ Erro'; 
-    } 
-}
+async function carregarTotalCartoesBusca() { if (!contadorBusca) return; contadorBusca.textContent = '⏳ ...'; try { const resp=await fetchFromGS('contarCartoesPendentes'); if(resp && resp.success) contadorBusca.textContent=`📦 ${resp.total} pendentes`; else { contadorBusca.textContent='⚠️ Erro'; console.error(resp); } } catch(erro){ console.error(erro); contadorBusca.textContent='⚠️ Erro'; } }
 
 async function executarBusca() {
-    if (!inputBusca) {
-        inputBusca = document.getElementById('busca-input');
-        if (!inputBusca) return;
-    }
+    if (!inputBusca) { inputBusca = document.getElementById('busca-input'); if (!inputBusca) return; }
     const termo = inputBusca.value.trim();
     if (!termo) { limparBusca(); return; }
-
     if (buscaRequestController) buscaRequestController.abort();
     buscaRequestController = new AbortController();
-
-    if (buscaResultados) {
-        buscaResultados.style.display = 'flex';
-        buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">⏳ Buscando...</div>';
-    }
-
-    // 🟢 Lógica de Parâmetros: Nome ou Endereço
-    let params = { termo: '' }; // Inicializa o termo vazio
+    if (buscaResultados) { buscaResultados.style.display = 'flex'; buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">⏳ Buscando...</div>'; }
+    let params = { termo: '' };
     const tipo = buscaTipoSelect ? buscaTipoSelect.value : 'nome';
-
-    if (tipo === 'endereco') {
-        // Se for busca por Endereço, envia o filtro rua
-        params = { termo: '', rua: termo };
-    } else {
-        // Se for busca por Nome, envia o termo normal
-        params = { termo: termo };
-    }
-
+    if (tipo === 'endereco') params = { termo: '', rua: termo };
+    else params = { termo: termo };
     try {
         const resultado = await fetchFromGS('pesquisarCartoes', params, buscaRequestController.signal);
         processarResultados(resultado);
-    } catch (e) {
-        if (e.name === 'AbortError') return; 
-        console.error(e);
-        if (buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#d32f2f;">❌ Erro na busca</div>';
-    } finally { 
-        buscaRequestController = null; 
-    }
+    } catch (e) { if (e.name === 'AbortError') return; console.error(e); if (buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#d32f2f;">❌ Erro na busca</div>'; } finally { buscaRequestController = null; }
 }
 
-function processarResultados(resposta) {
-    todosResultadosBusca = resposta.resultados || [];
-    if (contadorBusca) contadorBusca.textContent = `📦 ${resposta.total} pendente(s)`;
-    renderizarResultados();
-}
+function processarResultados(resposta) { todosResultadosBusca = resposta.resultados || []; if(contadorBusca) contadorBusca.textContent = `📦 ${resposta.total} pendente(s)`; renderizarResultados(); }
 
 function renderizarResultados() {
     if (!buscaResultados) buscaResultados = document.getElementById('busca-resultados');
     if (!buscaResultados) return;
     let exibir = todosResultadosBusca;
-    // 🚀 ORDENAÇÃO: MAIS RECENTES PRIMEIRO
     exibir.sort((a, b) => {
-        const parseDate = (str) => {
-            if (!str) return 0;
-            let d = new Date(str);
-            if (!isNaN(d.getTime())) return d.getTime();
-            const p = String(str).split('/');
-            if (p.length === 3) {
-                d = new Date(p[2], p[1] - 1, p[0]);
-                if (!isNaN(d.getTime())) return d.getTime();
-            }
-            return 0;
-        };
+        const parseDate = (str) => { if (!str) return 0; let d = new Date(str); if (!isNaN(d.getTime())) return d.getTime(); const p = String(str).split('/'); if (p.length === 3) { d = new Date(p[2], p[1] - 1, p[0]); if (!isNaN(d.getTime())) return d.getTime(); } return 0; };
         return parseDate(b.data) - parseDate(a.data);
     });
-    if (!exibir.length) {
-        buscaResultados.innerHTML = '<div style="text-align:center; padding:25px; color:#999;">Nenhum pendente encontrado.</div>';
-        return;
-    }
+    if (!exibir.length) { buscaResultados.innerHTML = '<div style="text-align:center; padding:25px; color:#999;">Nenhum pendente encontrado.</div>'; return; }
     let html = '';
     exibir.forEach(item => {
         const qtdEndereco = contarIguaisPorEndereco(item);
@@ -629,17 +569,12 @@ function limparBusca() {
     carregarTotalCartoesBusca();
 }
 
-function normalizarEndereco(endereco) {
-    return String(endereco || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-}
-function contarIguaisPorEndereco(item) {
-    const eNorm = normalizarEndereco(item.endereco);
-    return todosResultadosBusca.filter(it => normalizarEndereco(it.endereco) === eNorm).length;
-}
+function normalizarEndereco(endereco) { return String(endereco || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
+function contarIguaisPorEndereco(item) { const eNorm = normalizarEndereco(item.endereco); return todosResultadosBusca.filter(it => normalizarEndereco(it.endereco) === eNorm).length; }
 function escapeHtml(v) { return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
 
 // ============================================================
-// ✨ EDITOR RÁPIDO PREMIUM COM BOTÃO VOLTAR, POSIÇÃO PISCANTE E NÚMERO GIGANTE
+// ✨ EDITOR RÁPIDO PREMIUM
 // ============================================================
 function abrirEditorBuscaRapido(linha) {
     const item = todosResultadosBusca.find(it => Number(it.linha) === Number(linha));
@@ -728,10 +663,7 @@ function abrirEditorBuscaRapido(linha) {
 function cancelarEdicaoBusca(linha) {
     const editorArea = document.getElementById('busca-editor-area');
     const resultadosDiv = document.getElementById('busca-resultados');
-    if (editorArea) {
-        editorArea.style.display = 'none';
-        editorArea.innerHTML = '';
-    }
+    if (editorArea) { editorArea.style.display = 'none'; editorArea.innerHTML = ''; }
     if (resultadosDiv) resultadosDiv.style.display = 'flex';
 }
 
@@ -766,10 +698,7 @@ window.confirmarEntregaBusca = function (linha) {
     const itemOriginal = todosResultadosBusca.find(item => Number(item.linha) === Number(linha));
     if (!itemOriginal) return;
     const nomeQuemRecebeu = prompt(`📦 PARA QUEM FOI ENTREGUE O CARTÃO DE ${itemOriginal.nome}?`);
-    if (!nomeQuemRecebeu || nomeQuemRecebeu.trim() === '') {
-        alert('Entrega cancelada.');
-        return;
-    }
+    if (!nomeQuemRecebeu || nomeQuemRecebeu.trim() === '') { alert('Entrega cancelada.'); return; }
     const hoje = new Date();
     const dataFormatada = `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}/${hoje.getFullYear()}`;
     const telRecebedor = prompt('📞 Qual o telefone de quem recebeu? (Opcional)', '');
