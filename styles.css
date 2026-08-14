@@ -129,18 +129,19 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     align-items: center;
     background: #ffffff;
     border-radius: 60px;
-    padding: 6px 6px 6px 10px;
+    padding: 6px 6px 6px 16px;
     border: 2px solid #e2e8f0;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     margin-bottom: 20px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    flex-wrap: nowrap;
 }
 .busca-bar:focus-within {
     border-color: #2D6A30;
     box-shadow: 0 0 0 4px rgba(45, 106, 48, 0.1);
 }
 
-/* 🔥 SELETOR DE TIPO DE BUSCA (NOME / ENDEREÇO) */
+/* 🔥 SELETOR DE TIPO DE BUSCA CORRIGIDO */
 .busca-tipo-select {
     border: none;
     background: transparent;
@@ -149,8 +150,10 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     color: #1B4F1F;
     outline: none;
     cursor: pointer;
-    padding: 4px 4px 4px 0;
-    margin-left: 6px;
+    padding: 4px 8px 4px 4px;
+    flex-shrink: 0;
+    max-width: 140px;
+    white-space: nowrap;
     appearance: none;
     -webkit-appearance: none;
     font-family: 'Montserrat', sans-serif;
@@ -161,12 +164,13 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     width: 1px;
     height: 30px;
     background-color: #e2e8f0;
-    margin: 0 12px;
+    margin: 0 8px;
     flex-shrink: 0;
 }
 
 #busca-input {
     flex: 1;
+    min-width: 50px; /* Garante que o input encolha o mínimo possível */
     border: none;
     background: transparent;
     padding: 14px 10px;
@@ -186,6 +190,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
+    flex-shrink: 0;
     margin-left: 4px;
 }
 #busca-btnSearch:hover { background: #14532d; transform: scale(1.02); box-shadow: 0 4px 12px rgba(27, 79, 31, 0.3); }
