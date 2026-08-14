@@ -599,7 +599,7 @@ function contarIguaisPorEndereco(item) {
 function escapeHtml(v) { return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
 
 // ============================================================
-// ✨ EDITOR RÁPIDO PREMIUM
+// ✨ EDITOR RÁPIDO PREMIUM COM BOTÃO VOLTAR, POSIÇÃO PISCANTE E NÚMERO GIGANTE
 // ============================================================
 function abrirEditorBuscaRapido(linha) {
     const item = todosResultadosBusca.find(it => Number(it.linha) === Number(linha));
@@ -616,9 +616,10 @@ function abrirEditorBuscaRapido(linha) {
 
     editorArea.innerHTML = `
         <div id="editor-busca-${Number(linha)}">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px;">
-                <h4>✏️ Cartão Nº ${escapeHtml(item.numero || '-')} — ${escapeHtml(item.nome || '')}</h4>
-                <span id="posicao-span-busca-${Number(linha)}" class="posicao-badge">⏳ carregando...</span>
+            <div class="header-editor">
+                <button class="btn-voltar" onclick="cancelarEdicaoBusca(${Number(linha)})">← Voltar</button>
+                <h4 style="margin:0; flex:1; text-align:center;">✏️ Cartão Nº ${escapeHtml(item.numero || '-')} — ${escapeHtml(item.nome || '')}</h4>
+                <span id="posicao-span-busca-${Number(linha)}" class="posicao-badge posicao-badge-piscante">📌 carregando...</span>
             </div>
 
             <div class="editor-grid">
@@ -627,7 +628,7 @@ function abrirEditorBuscaRapido(linha) {
             </div>
 
             <div class="editor-grid">
-                <div class="editor-full"><label>🔢 NÚMERO DO CARTÃO</label><input id="edit-num-busca-${Number(linha)}" class="campo-numero" value="${escapeHtml(item.numero || '')}"></div>
+                <div class="editor-full"><label>🔢 NÚMERO DO CARTÃO (Identificação)</label><input id="edit-num-busca-${Number(linha)}" class="campo-numero" value="${escapeHtml(item.numero || '')}" readonly></div>
             </div>
 
             <div class="editor-grid">
