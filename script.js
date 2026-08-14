@@ -1,7 +1,7 @@
 // ============================================================
 // CONFIGURAÇÃO DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbxeOYOTaFYD_SMHnOIu01C3OKDIDnUQ312eE6RIOZ2FcdZcl-KXvu0USb5Lqm14EhnWIQ/exec";
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwZ9WdiSeiuPU43UoLIs7t-l9s0vcqYIPqpfoZpwEyKSSjYsOVmrHmCWdXSbHc-RqfAtw/exec";
 
 // ============================================================
 // GET VIA JSONP
@@ -363,11 +363,7 @@ function inicializarEventosBusca() {
     contadorBusca = document.getElementById('busca-contador');
     if (!inputBusca) return;
     if(btnBuscaSearch && !btnBuscaSearch.dataset.bound) { btnBuscaSearch.dataset.bound='true'; btnBuscaSearch.addEventListener('click', ()=>executarBusca()); }
-    if(!inputBusca.dataset.bound) {
-        inputBusca.dataset.bound='true';
-        inputBusca.addEventListener('keydown', e=>{ if(e.key==='Enter'){e.preventDefault();executarBusca();} });
-        inputBusca.addEventListener('input', ()=>{ clearTimeout(debounceTimerBusca); debounceTimerBusca=setTimeout(executarBusca,450); });
-    }
+    if(!inputBusca.dataset.bound) { inputBusca.dataset.bound='true'; inputBusca.addEventListener('keydown', e=>{ if(e.key==='Enter'){e.preventDefault();executarBusca();} }); inputBusca.addEventListener('input', ()=>{ clearTimeout(debounceTimerBusca); debounceTimerBusca=setTimeout(executarBusca,450); }); }
 }
 
 function prepararModalBusca() {
