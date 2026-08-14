@@ -153,7 +153,7 @@ async function salvarAgenda() {
 async function deletarItemAgenda(id) { if (!confirm('Tem certeza que deseja excluir este compromisso?')) return; await postParaGoogleSheets('deletarAgenda', id); await renderizarAgenda(); }
 
 // ============================================================
-// AGENDA POPUP (CORRIGIDO - Função que estava faltando)
+// AGENDA POPUP
 // ============================================================
 function verificarProximaAgendaPopup() {
     const hoje = new Date();
@@ -599,7 +599,7 @@ function contarIguaisPorEndereco(item) {
 function escapeHtml(v) { return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
 
 // ============================================================
-// EDITOR RÁPIDO
+// ✨ EDITOR RÁPIDO COM NOVO DESIGN PREMIUM (CÓDIGO COMPLETO)
 // ============================================================
 function abrirEditorBuscaRapido(linha) {
     const item = todosResultadosBusca.find(it => Number(it.linha) === Number(linha));
@@ -613,36 +613,54 @@ function abrirEditorBuscaRapido(linha) {
     if (!editorArea || !resultadosDiv) return;
     editorArea.style.display = 'block';
     resultadosDiv.style.display = 'none';
+
     editorArea.innerHTML = `
         <div id="editor-busca-${Number(linha)}">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <h4 style="margin:0;">✏️ Cartão Nº ${escapeHtml(item.numero||'-')} — ${escapeHtml(item.nome||'')}</h4>
-                <span id="posicao-span-busca-${Number(linha)}" style="background:#2e7d32; color:white; padding:2px 8px; border-radius:20px; font-size:12px;">⏳ carregando...</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 1px solid #e0f2e0; padding-bottom: 15px;">
+                <h4 style="margin:0;">✏️ Cartão Nº ${escapeHtml(item.numero || '-')} — ${escapeHtml(item.nome || '')}</h4>
+                <span id="posicao-span-busca-${Number(linha)}" class="posicao-badge">⏳ carregando...</span>
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                <div><label>Nome</label><input id="edit-nome-busca-${Number(linha)}" value="${escapeHtml(item.nome||'')}"></div>
+
+            <div class="editor-grid">
+                <div><label>Nome</label><input id="edit-nome-busca-${Number(linha)}" value="${escapeHtml(item.nome || '')}"></div>
                 <div><label>📅 Data</label><input id="edit-data-busca-${Number(linha)}" value="${escapeHtml(formatarDataBR(item.data))}" placeholder="dd/mm/yyyy"></div>
-                <div style="grid-column:span 2;"><label>🔢 NÚMERO DO CARTÃO</label><input id="edit-num-busca-${Number(linha)}" class="campo-numero" value="${escapeHtml(item.numero||'')}"></div>
-                <div style="grid-column:span 2;"><label>📍 ENDEREÇO COMPLETO</label><input id="edit-end-busca-${Number(linha)}" value="${escapeHtml(item.endereco||'')}" style="${temOutros?'background:#fff3e0;border:2px solid #ff9800;':''}">
+            </div>
+
+            <div class="editor-grid">
+                <div class="editor-full"><label>🔢 NÚMERO DO CARTÃO</label><input id="edit-num-busca-${Number(linha)}" class="campo-numero" value="${escapeHtml(item.numero || '')}"></div>
+            </div>
+
+            <div class="editor-grid">
+                <div class="editor-full">
+                    <label>📍 ENDEREÇO COMPLETO</label>
+                    <input id="edit-end-busca-${Number(linha)}" value="${escapeHtml(item.endereco || '')}" style="${temOutros ? 'background:#fff3e0;border:2px solid #ff9800;' : ''}">
                     ${temOutros ? `
                         <div class="alerta-duplicidade">
                             <span style="color:#e65100; font-weight:bold;">⚠️ Há ${qtdMesmoEndereco} cartões neste mesmo endereço!</span>
                             <div>
-                                <button class="btn-sm" onclick="abrirListaMoradoresBusca('${escapeHtml(item.endereco||'')}', ${Number(linha)})" style="background:#2196f3; color:white;">👥 VER MORADORES</button>
-                                <button class="btn-sm" onclick="abrirEdicaoMassivaBusca('${escapeHtml(chaveEndereco)}', ${Number(linha)})" style="background:#ff9800; color:white;">✏️ EDITAR TODOS</button>
+                                <button class="btn-sm" onclick="abrirListaMoradoresBusca('${escapeHtml(item.endereco || '')}', ${Number(linha)})" style="background:#2196f3; color:white; border:none; padding:5px 12px; border-radius:20px; cursor:pointer;">👥 VER MORADORES</button>
+                                <button class="btn-sm" onclick="abrirEdicaoMassivaBusca('${escapeHtml(chaveEndereco)}', ${Number(linha)})" style="background:#ff9800; color:white; border:none; padding:5px 12px; border-radius:20px; cursor:pointer;">✏️ EDITAR TODOS</button>
                             </div>
                         </div>` : ''}
                 </div>
-                <div><label>CPF</label><input id="edit-cpf-busca-${Number(linha)}" value="${escapeHtml(item.cpf||'')}"></div>
-                <div><label>Entregue Á</label><input id="edit-entrega-busca-${Number(linha)}" value="${escapeHtml(item.entregueA||'')}"></div>
-                <div><label>Telefone</label><input id="edit-tel-busca-${Number(linha)}" value="${escapeHtml(item.telefone||'')}"></div>
             </div>
-            <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap;">
-                <button class="btn-salvar" style="background:#4a7c2e; color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer; transition:0.2s;" onclick="salvarEdicaoBusca(${Number(linha)})">💾 Salvar</button>
-                <button class="botao-entregue" onclick="confirmarEntregaBusca(${Number(linha)})">✅ ENTREGUE</button>
-                <button class="btn-cancelar" style="background:#f44336; color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer;" onclick="cancelarEdicaoBusca(${Number(linha)})">Cancelar</button>
+
+            <div class="editor-grid">
+                <div><label>CPF</label><input id="edit-cpf-busca-${Number(linha)}" value="${escapeHtml(item.cpf || '')}"></div>
+                <div><label>Entregue À</label><input id="edit-entrega-busca-${Number(linha)}" value="${escapeHtml(item.entregueA || '')}"></div>
+            </div>
+
+            <div class="editor-grid">
+                <div><label>Telefone</label><input id="edit-tel-busca-${Number(linha)}" value="${escapeHtml(item.telefone || '')}"></div>
+            </div>
+
+            <div class="btn-actions">
+                <button class="btn-salvar" onclick="salvarEdicaoBusca(${Number(linha)})">💾 Salvar</button>
+                <button class="btn-entregue" onclick="confirmarEntregaBusca(${Number(linha)})">✅ ENTREGUE</button>
+                <button class="btn-cancelar" onclick="cancelarEdicaoBusca(${Number(linha)})">Cancelar</button>
             </div>
         </div>`;
+
     if (numeroBloco) {
         fetchFromGS('obterPosicaoNoBlocoBackend', { numeroBloco, linhaAtual: Number(linha) })
             .then(result => {
