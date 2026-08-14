@@ -1,7 +1,7 @@
 // ============================================================
 // CONFIGURAÇÃO DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzjw3liJsehr3KBjovgDyHrWjmmfpa1DUvSyk47NTRTF9qPofskfOnBc_YH3fTCmXrIBQ/exec";
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzrp2gRUpd3O2TGP0tcJYiY5oCqJS-Ra--IYIA__BGMumlKNiOtMJTz-gg7XUM3pTbs/exec";
 
 // ============================================================
 // GET VIA JSONP
@@ -424,22 +424,39 @@ function fecharModal(id){
 function fecharComprovantePrint(){ const modal=document.getElementById('modal-comprovante-print'); if(modal) modal.style.display='none'; }
 
 // ============================================================
-// 🔥 BUSCA INTELIGENTE (CORRIGIDA, USANDO VAR E COM SEGURANÇA)
+// 🔥 BUSCA INTELIGENTE (CORRIGIDA E COM BUSCA POR ENDEREÇO)
 // ============================================================
 var todosResultadosBusca = []; 
 var debounceTimerBusca = null; 
 var buscaRequestController = null;
+
+// 🟢 Todas as variáveis da busca usando 'var' para evitar TDZ
 var inputBusca = null; 
 var btnBuscaSearch = null; 
 var buscaResultados = null; 
 var contadorBusca = null;
+var buscaTipoSelect = null; // NOVO: Seletor de Nome/Endereço
 
 function inicializarEventosBusca() {
     inputBusca = document.getElementById('busca-input');
     btnBuscaSearch = document.getElementById('busca-btnSearch');
     buscaResultados = document.getElementById('busca-resultados');
     contadorBusca = document.getElementById('busca-contador');
+    buscaTipoSelect = document.getElementById('busca-tipo'); // NOVO
+
     if (!inputBusca || !btnBuscaSearch) return; 
+
+    // Atualizar placeholder ao trocar o tipo de busca
+    if (buscaTipoSelect) {
+        buscaTipoSelect.addEventListener('change', function() {
+            if (this.value === 'endereco') {
+                inputBusca.placeholder = "Digite o nome da rua ou endereço...";
+            } else {
+                inputBusca.placeholder = "Digite nome, rua, número, CPF, telefone...";
+            }
+        });
+    }
+
     if (btnBuscaSearch && !btnBuscaSearch.dataset.bound) {
         btnBuscaSearch.dataset.bound = 'true';
         btnBuscaSearch.addEventListener('click', () => executarBusca());
@@ -465,12 +482,20 @@ function prepararModalBusca() {
         btnBuscaSearch = document.getElementById('busca-btnSearch');
         buscaResultados = document.getElementById('busca-resultados');
         contadorBusca = document.getElementById('busca-contador');
+        buscaTipoSelect = document.getElementById('busca-tipo'); // NOVO
+        
         if (!inputBusca) {
             inicializarEventosBusca();
         }
         if (inputBusca) {
             inputBusca.value = '';
             inputBusca.focus();
+            // Resetar placeholder padrão
+            if (buscaTipoSelect && buscaTipoSelect.value === 'endereco') {
+                inputBusca.placeholder = "Digite o nome da rua ou endereço...";
+            } else {
+                inputBusca.placeholder = "Digite nome, rua, número, CPF, telefone...";
+            }
         }
         todosResultadosBusca = [];
         if (contadorBusca) contadorBusca.textContent = '⏳ ...';
@@ -510,14 +535,29 @@ async function executarBusca() {
     }
     const termo = inputBusca.value.trim();
     if (!termo) { limparBusca(); return; }
+
     if (buscaRequestController) buscaRequestController.abort();
     buscaRequestController = new AbortController();
+
     if (buscaResultados) {
         buscaResultados.style.display = 'flex';
         buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">⏳ Buscando...</div>';
     }
+
+    // 🟢 Lógica de Parâmetros: Nome ou Endereço
+    let params = { termo: '' }; // Inicializa o termo vazio
+    const tipo = buscaTipoSelect ? buscaTipoSelect.value : 'nome';
+
+    if (tipo === 'endereco') {
+        // Se for busca por Endereço, envia o filtro rua
+        params = { termo: '', rua: termo };
+    } else {
+        // Se for busca por Nome, envia o termo normal
+        params = { termo: termo };
+    }
+
     try {
-        const resultado = await fetchFromGS('pesquisarCartoes', { termo }, buscaRequestController.signal);
+        const resultado = await fetchFromGS('pesquisarCartoes', params, buscaRequestController.signal);
         processarResultados(resultado);
     } catch (e) {
         if (e.name === 'AbortError') return; 
