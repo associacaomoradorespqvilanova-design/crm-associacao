@@ -1,5 +1,5 @@
 // ============================================================
-// CONFIGURAÃ‡ÃƒO DA API
+// CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
 const URL_API_GS = "https://script.google.com/macros/s/AKfycbwwRSOJ9M5xTegU-981obWZJaXILqRBSrkFpwOwkOx318GxZIeFXKd6QmFToa8S0BtAAQ/exec";
 
@@ -28,13 +28,13 @@ async function postParaGoogleSheets(acao, dados = {}) {
     formData.append('acao', acao);
     formData.append('dados', JSON.stringify(dados));
     await fetch(URL_API_GS, { method: 'POST', body: formData, mode: 'no-cors' });
-    // Qualquer gravaÃ§Ã£o pode alterar os resultados; evita mostrar dados antigos.
+    // Qualquer grava\u00E7\u00E3o pode alterar os resultados; evita mostrar dados antigos.
     if (typeof buscaCacheMemoria !== 'undefined' && buscaCacheMemoria) buscaCacheMemoria.clear();
     if (typeof buscaUltimaConsulta !== 'undefined') buscaUltimaConsulta = null;
 }
 
 // ============================================================
-// UTILITÃRIO DE DATA - PADRÃƒO BRASILEIRO (dd/mm/yyyy)
+// UTILIT\u00C1RIO DE DATA - PADR\u00C3O BRASILEIRO (dd/mm/yyyy)
 // ============================================================
 function formatarDataBR(valor) {
     if (!valor) return "";
@@ -62,7 +62,7 @@ const state = {
 };
 
 // ============================================================
-// INICIALIZAÃ‡ÃƒO
+// INICIALIZA\u00C7\u00C3O
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     const savedUser = localStorage.getItem('crm_user');
@@ -104,7 +104,7 @@ function loginSuccess() {
             }
         }, 600);
     } catch (e) {
-        console.error("Erro crÃ­tico no login:", e);
+        console.error("Erro cr\u00EDtico no login:", e);
     }
 }
 
@@ -136,7 +136,7 @@ document.addEventListener('keydown', function (e) {
 });
 
 // ============================================================
-// ðŸš€ CARREGAR DASHBOARD
+// \uD83D\uDE80 CARREGAR DASHBOARD
 // ============================================================
 async function carregarDashboard() {
     try {
@@ -151,7 +151,7 @@ async function carregarDashboard() {
         
         if (dados.totalPendentes) {
             const contador = document.getElementById('busca-contador');
-            if(contador) contador.textContent = `ðŸ“¦ ${dados.totalPendentes.total} pendentes`;
+            if(contador) contador.textContent = `\uD83D\uDCE6 ${dados.totalPendentes.total} pendentes`;
         }
     } catch(e) {
         console.error("Erro ao carregar dashboard unificado:", e);
@@ -159,7 +159,7 @@ async function carregarDashboard() {
 }
 
 // ============================================================
-// ðŸ“… AGENDA
+// \uD83D\uDCC5 AGENDA
 // ============================================================
 function renderizarAgendaComDados(dadosAgenda) {
     const tbody = document.getElementById('agenda-list');
@@ -190,7 +190,7 @@ function renderizarAgendaComDados(dadosAgenda) {
             <td style="white-space:nowrap;">${item.telefone||''}</td>
             <td>
                 ${badgeHtml}
-                <button class="btn-edit" onclick="deletarItemAgenda(${item.id})" title="Excluir" style="color:#ff4757;">ðŸ—‘ï¸</button>
+                <button class="btn-edit" onclick="deletarItemAgenda(${item.id})" title="Excluir" style="color:#ff4757;">\uD83D\uDDD1\uFE0F</button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -214,15 +214,15 @@ function verificarProximaAgendaPopup() {
     if (proximos.length > 0) {
         const content = document.getElementById('popup-login-content');
         if (!content) return;
-        let html = `<p><strong>VocÃª tem os seguintes compromissos agendados:</strong></p><ul style="list-style:none; padding:0; text-align:left; max-width:300px; margin:10px auto;">`;
+        let html = `<p><strong>Voc\u00EA tem os seguintes compromissos agendados:</strong></p><ul style="list-style:none; padding:0; text-align:left; max-width:300px; margin:10px auto;">`;
         proximos.forEach(item => {
             const dataFormatada = formatarDataBR(item.data);
             let isUrgent = '';
             const dItem = new Date(item.data);
             dItem.setHours(0,0,0,0);
             const diffDays = Math.ceil((dItem - hoje)/(1000*60*60*24));
-            if(diffDays === 0) isUrgent = ' ðŸ”´ HOJE!';
-            else if(diffDays === 1) isUrgent = ' âš ï¸ AMANHÃƒ!';
+            if(diffDays === 0) isUrgent = ' \uD83D\uDD34 HOJE!';
+            else if(diffDays === 1) isUrgent = ' \u26A0\uFE0F AMANH\u00C3!';
             
             html += `<li style="background:#f8f9fa; padding:10px; margin-bottom:8px; border-radius:8px; border-left:4px solid #4a7c2e;">
                 <strong>${dataFormatada}${isUrgent}</strong><br>${item.nome} (${item.periodo})
@@ -245,14 +245,14 @@ async function salvarAgenda() {
 async function deletarItemAgenda(id) { if (!confirm('Tem certeza que deseja excluir este compromisso?')) return; await postParaGoogleSheets('deletarAgenda', id); carregarDashboard(); }
 
 // ============================================================
-// CARTÃ•ES
+// CART\u00D5ES
 // ============================================================
 function renderizarCartoesComDados(dadosCartoes, dadosResponsaveis) {
     const select = document.getElementById('card-responsavel');
-    if (select) { select.innerHTML = '<option value="">Selecione um responsÃ¡vel</option>'; dadosResponsaveis.forEach(nome => { const nomeLimpo = String(nome).replace(/^"|"$/g,'').replace(/^'|'$/g,''); select.innerHTML += `<option value="${nomeLimpo}">${nomeLimpo}</option>`; }); }
+    if (select) { select.innerHTML = '<option value="">Selecione um respons\u00E1vel</option>'; dadosResponsaveis.forEach(nome => { const nomeLimpo = String(nome).replace(/^"|"$/g,'').replace(/^'|'$/g,''); select.innerHTML += `<option value="${nomeLimpo}">${nomeLimpo}</option>`; }); }
     const nomesOrdenados = dadosResponsaveis.map(n => n.replace(/^"|"$/g,'').replace(/^'|'$/g,''));
     const thead = document.getElementById('cards-header');
-    if (thead) { let headerHtml = '<tr><th>DATA</th>'; if(nomesOrdenados.length > 0) nomesOrdenados.forEach(nome => { headerHtml += `<th style="text-align:center;">${nome}</th>`; }); else headerHtml += '<th style="text-align:center;">RESPONSÃVEIS</th>'; headerHtml += '<th style="text-align:center;">TOTAL DIA</th><th>AÃ‡Ã•ES</th></tr>'; thead.innerHTML = headerHtml; }
+    if (thead) { let headerHtml = '<tr><th>DATA</th>'; if(nomesOrdenados.length > 0) nomesOrdenados.forEach(nome => { headerHtml += `<th style="text-align:center;">${nome}</th>`; }); else headerHtml += '<th style="text-align:center;">RESPONS\u00C1VEIS</th>'; headerHtml += '<th style="text-align:center;">TOTAL DIA</th><th>A\u00C7\u00D5ES</th></tr>'; thead.innerHTML = headerHtml; }
     const tbody = document.getElementById('cards-list'); if (!tbody) return; tbody.innerHTML = '';
     const totais = {}; dadosCartoes.forEach(item => { if (!totais[item.responsavel]) totais[item.responsavel] = 0; totais[item.responsavel] += Number(item.qtd)||0; });
     const agrupado = {};
@@ -270,25 +270,25 @@ function renderizarCartoesComDados(dadosCartoes, dadosResponsaveis) {
         const dataFormatada = formatarDataBR(data);
         let totalDia = 0; let colunasHtml = '';
         nomesOrdenados.forEach(nome => { const qtd = valores[nome] || 0; if(qtd>0) colunasHtml += `<td style="text-align:center;"><strong>${qtd}</strong></td>`; else colunasHtml += '<td style="text-align:center; color:#ccc;">-</td>'; totalDia += Number(qtd)||0; });
-        tr.innerHTML = `<td>${dataFormatada}</td>${colunasHtml}<td style="color:#4a7c2e; font-weight:700; text-align:center;">${totalDia}</td><td><button class="btn-edit" onclick="excluirMesCartao('${data}')" title="Excluir MÃªs" style="color:#ff4757;">ðŸ“†ðŸ—‘ï¸</button></td>`;
+        tr.innerHTML = `<td>${dataFormatada}</td>${colunasHtml}<td style="color:#4a7c2e; font-weight:700; text-align:center;">${totalDia}</td><td><button class="btn-edit" onclick="excluirMesCartao('${data}')" title="Excluir M\u00EAs" style="color:#ff4757;">\uD83D\uDCC6\uD83D\uDDD1\uFE0F</button></td>`;
         tbody.appendChild(tr);
     }
-    if(tbody.children.length===0) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Nenhum registro de cartÃ£o.</td></tr>';
+    if(tbody.children.length===0) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Nenhum registro de cart\u00E3o.</td></tr>';
     const totaisDiv = document.getElementById('totais-gerais'); if(!totaisDiv) return;
     let htmlTotais = ''; let totalGeral = 0;
     nomesOrdenados.forEach(nome => { if(totais[nome]) { htmlTotais += `<span>Total ${nome}: <span style="font-weight:700;">${totais[nome]}</span></span>`; totalGeral += Number(totais[nome])||0; } });
     if(htmlTotais) { htmlTotais += `<span>Total Geral: <span style="font-weight:700; color:#4a7c2e;">${totalGeral}</span></span>`; totaisDiv.innerHTML = htmlTotais; totaisDiv.style.display = 'flex'; } else { totaisDiv.style.display = 'none'; }
 }
 
-async function excluirMesCartao(data) { let dataStr = data; if(data.includes('/')) { const partes = data.split('/'); if(partes.length===3) dataStr = `${partes[2]}-${partes[1]}-${partes[0]}`; } const dataObj = new Date(dataStr + 'T00:00:00'); if(isNaN(dataObj.getTime())) { alert("Data invÃ¡lida"); return; } const mes = dataObj.getMonth()+1; const ano = dataObj.getFullYear(); if(!confirm(`Excluir TODOS os cartÃµes do mÃªs ${mes}/${ano}?`)) return; await postParaGoogleSheets('deletarMesGeral', { mes, ano }); carregarDashboard(); }
+async function excluirMesCartao(data) { let dataStr = data; if(data.includes('/')) { const partes = data.split('/'); if(partes.length===3) dataStr = `${partes[2]}-${partes[1]}-${partes[0]}`; } const dataObj = new Date(dataStr + 'T00:00:00'); if(isNaN(dataObj.getTime())) { alert("Data inv\u00E1lida"); return; } const mes = dataObj.getMonth()+1; const ano = dataObj.getFullYear(); if(!confirm(`Excluir TODOS os cart\u00F5es do m\u00EAs ${mes}/${ano}?`)) return; await postParaGoogleSheets('deletarMesGeral', { mes, ano }); carregarDashboard(); }
 
-async function salvarCartoes() { const responsavel = document.getElementById('card-responsavel').value; const qtd = parseInt(document.getElementById('card-qtd').value); const data = document.getElementById('card-data').value; if(!responsavel || !qtd || !data) { alert("Preencha o ResponsÃ¡vel, Quantidade e Data."); return; } await postParaGoogleSheets('salvarCartao', { id: Date.now(), responsavel, qtd, data }); fecharModal('modal-cartoes'); carregarDashboard(); document.getElementById('card-qtd').value = ''; document.getElementById('card-data').value = ''; }
+async function salvarCartoes() { const responsavel = document.getElementById('card-responsavel').value; const qtd = parseInt(document.getElementById('card-qtd').value); const data = document.getElementById('card-data').value; if(!responsavel || !qtd || !data) { alert("Preencha o Respons\u00E1vel, Quantidade e Data."); return; } await postParaGoogleSheets('salvarCartao', { id: Date.now(), responsavel, qtd, data }); fecharModal('modal-cartoes'); carregarDashboard(); document.getElementById('card-qtd').value = ''; document.getElementById('card-data').value = ''; }
 
 async function adicionarResponsavel() { const input = document.getElementById('novo-responsavel-input'); let nome = input.value.trim(); nome = nome.replace(/^"|"$/g,'').replace(/^'|'$/g,''); if(!nome) { alert("Digite um nome."); return; } await postParaGoogleSheets('salvarResponsavel', nome); input.value = ''; carregarDashboard(); }
-async function deletarResponsavel(nome) { if(!confirm(`Remover o responsÃ¡vel "${nome}" da lista?`)) return; await postParaGoogleSheets('deletarResponsavel', nome); carregarDashboard(); }
+async function deletarResponsavel(nome) { if(!confirm(`Remover o respons\u00E1vel "${nome}" da lista?`)) return; await postParaGoogleSheets('deletarResponsavel', nome); carregarDashboard(); }
 
 // ============================================================
-// ADC CARTÃ•ES (MÃºltiplas Entregas)
+// ADC CART\u00D5ES (M\u00FAltiplas Entregas)
 // ============================================================
 let contadorEntregas = 0;
 function abrirModal(id) {
@@ -324,13 +324,13 @@ function adicionarEntrega(dadosIniciais = {}) {
         <div class="entrega-header">
             <div class="entrega-numero">${contadorEntregas}</div>
             <div class="entrega-header-actions">
-                <button type="button" class="entrega-icon-btn btn-scan-entrega" onclick="abrirScannerCartoesParaLinha(this.closest('.entrega-item'))" title="Digitalizar neste cartÃ£o" aria-label="Digitalizar este cartÃ£o">ðŸ“·</button>
-                <button type="button" class="entrega-icon-btn entrega-delete-btn" onclick="removerEntrega(this)" title="Remover esta linha" aria-label="Remover este cartÃ£o"><i class="fas fa-trash-alt"></i></button>
+                <button type="button" class="entrega-icon-btn btn-scan-entrega" onclick="abrirScannerCartoesParaLinha(this.closest('.entrega-item'))" title="Digitalizar neste cart\u00E3o" aria-label="Digitalizar este cart\u00E3o">\uD83D\uDCF7</button>
+                <button type="button" class="entrega-icon-btn entrega-delete-btn" onclick="removerEntrega(this)" title="Remover esta linha" aria-label="Remover este cart\u00E3o"><i class="fas fa-trash-alt"></i></button>
             </div>
         </div>
         <div class="entrega-fields">
             <div class="entrega-field"><label>Nome</label><input type="text" class="nome-input" placeholder="Nome completo" autocomplete="name"></div>
-            <div class="entrega-field"><label>EndereÃ§o</label><input type="text" class="endereco-input" placeholder="Rua e nÃºmero" autocomplete="street-address"></div>
+            <div class="entrega-field"><label>Endere\u00E7o</label><input type="text" class="endereco-input" placeholder="Rua e n\u00FAmero" autocomplete="street-address"></div>
         </div>`;
     lista.appendChild(novaEntrega);
     const nomeInp = novaEntrega.querySelector('.nome-input');
@@ -359,7 +359,7 @@ function adicionarEntrega(dadosIniciais = {}) {
 
 function removerEntrega(botao) {
     const entregaItem = botao.closest('.entrega-item');
-    if (contadorEntregas <= 1) { alert('Ã‰ necessÃ¡rio pelo menos uma entrega!'); return; }
+    if (contadorEntregas <= 1) { alert('\u00C9 necess\u00E1rio pelo menos uma entrega!'); return; }
     if (entregaItem === cartoesScannerAlvo) cartoesScannerAlvo = null;
     entregaItem?.remove();
     contadorEntregas--;
@@ -374,7 +374,7 @@ function removerEntrega(botao) {
 
 function atualizarContador() { const contador = document.getElementById('mult-contador'); if(!contador) return; contador.textContent = `${contadorEntregas} ${contadorEntregas===1?'entrega':'entregas'}`; }
 
-function validarCampos() { let valido = true; const qtd = document.getElementById('mult-qtd').value; const tipo = document.getElementById('mult-tipo').value; const numero = document.getElementById('mult-numero').value; if(!qtd||!tipo||!numero){alert("Preencha todos os campos: Quantidade, Tipo e NÂ°.");valido=false;} const nomes = document.querySelectorAll('#mult-lista-entregas .nome-input'); const enderecos = document.querySelectorAll('#mult-lista-entregas .endereco-input'); nomes.forEach((nome, index) => { if(!nome.value.trim()||!enderecos[index].value.trim()){nome.style.borderColor='#e53935';enderecos[index].style.borderColor='#e53935';valido=false;} else {nome.style.borderColor='#ddd';enderecos[index].style.borderColor='#ddd';} }); return valido; }
+function validarCampos() { let valido = true; const qtd = document.getElementById('mult-qtd').value; const tipo = document.getElementById('mult-tipo').value; const numero = document.getElementById('mult-numero').value; if(!qtd||!tipo||!numero){alert("Preencha todos os campos: Quantidade, Tipo e N\u00B0.");valido=false;} const nomes = document.querySelectorAll('#mult-lista-entregas .nome-input'); const enderecos = document.querySelectorAll('#mult-lista-entregas .endereco-input'); nomes.forEach((nome, index) => { if(!nome.value.trim()||!enderecos[index].value.trim()){nome.style.borderColor='#e53935';enderecos[index].style.borderColor='#e53935';valido=false;} else {nome.style.borderColor='#ddd';enderecos[index].style.borderColor='#ddd';} }); return valido; }
 
 function coletarDadosParaEnvio() { const dadosComuns = { quantidade: document.getElementById('mult-qtd').value, data: document.getElementById('mult-data').value, tipo: document.getElementById('mult-tipo').value, obs: document.getElementById('mult-obs').value.toUpperCase(), numero: document.getElementById('mult-numero').value }; const entregas = []; const nomes = document.querySelectorAll('#mult-lista-entregas .nome-input'); const enderecos = document.querySelectorAll('#mult-lista-entregas .endereco-input'); nomes.forEach((nome, index) => { const nomeValor = nome.value.trim().toUpperCase(); const enderecoValor = enderecos[index].value.trim().toUpperCase(); if(nomeValor&&enderecoValor) entregas.push({ nome: nomeValor, endereco: enderecoValor, quantidade: dadosComuns.quantidade, data: dadosComuns.data, tipo: dadosComuns.tipo, obs: dadosComuns.obs, numero: dadosComuns.numero }); }); return entregas; }
 
@@ -384,7 +384,7 @@ async function enviarTodasEntregas() {
     if (!validarCampos()) return;
     const entregas = coletarDadosParaEnvio();
     if (entregas.length === 0) {
-        alert('Adicione pelo menos uma entrega vÃ¡lida!');
+        alert('Adicione pelo menos uma entrega v\u00E1lida!');
         return;
     }
     const btnEnviar = document.getElementById('btnEnviarMulti');
@@ -401,13 +401,13 @@ async function enviarTodasEntregas() {
             statusDiv.style.background = '#e8f5e9';
             statusDiv.style.color = '#2e7d32';
             statusDiv.style.border = '2px solid #a5d6a7';
-            statusDiv.innerText = `âœ… ${entregas.length} registro(s) salvos com sucesso!`;
+            statusDiv.innerText = `\u2705 ${entregas.length} registro(s) salvos com sucesso!`;
         }
         limparCamposNomeEndereco();
         document.querySelector('#mult-lista-entregas .nome-input')?.focus();
     } catch (erro) {
-        console.error('Erro ao enviar cartÃµes:', erro);
-        alert(`NÃ£o foi possÃ­vel enviar os cartÃµes: ${erro.message || erro}`);
+        console.error('Erro ao enviar cart\u00F5es:', erro);
+        alert(`N\u00E3o foi poss\u00EDvel enviar os cart\u00F5es: ${erro.message || erro}`);
     } finally {
         btnEnviar.innerHTML = conteudoOriginal;
         btnEnviar.disabled = false;
@@ -415,7 +415,7 @@ async function enviarTodasEntregas() {
 }
 
 // ============================================================
-// ADC CARTÃ•ES â€” CAMERA E OCR DO DESTINATÃRIO
+// ADC CART\u00D5ES \u2014 CAMERA E OCR DO DESTINAT\u00C1RIO
 // ============================================================
 let cartoesScannerStream = null;
 let cartoesScannerWorkerPromise = null;
@@ -475,7 +475,7 @@ function atualizarAlvoScannerCartoes() {
     const itens = [...document.querySelectorAll('#mult-lista-entregas .entrega-item')];
     const numero = alvo ? itens.indexOf(alvo) + 1 : 1;
     const badge = document.getElementById('cartoes-scanner-alvo');
-    if (badge) badge.textContent = `CartÃ£o ${Math.max(numero, 1)}`;
+    if (badge) badge.textContent = `Cart\u00E3o ${Math.max(numero, 1)}`;
 }
 
 function atualizarStatusScannerCartoes(mensagem, progresso) {
@@ -492,16 +492,16 @@ async function iniciarCameraCartoes() {
     if (!video) return;
     if (cartoesScannerStream) {
         if (capturar) capturar.disabled = false;
-        atualizarStatusScannerCartoes('CÃ¢mera pronta. Centralize apenas o nome e a rua dentro da moldura.', 0);
+        atualizarStatusScannerCartoes('C\u00E2mera pronta. Centralize apenas o nome e a rua dentro da moldura.', 0);
         return;
     }
     if (!navigator.mediaDevices?.getUserMedia) {
         if (semCamera) { semCamera.style.display = 'flex'; }
-        atualizarStatusScannerCartoes('Este navegador nÃ£o liberou a cÃ¢mera. Use â€œEscolher fotoâ€.', 0);
+        atualizarStatusScannerCartoes('Este navegador n\u00E3o liberou a c\u00E2mera. Use \u201CEscolher foto\u201D.', 0);
         return;
     }
     try {
-        atualizarStatusScannerCartoes('Solicitando acesso Ã  cÃ¢mera...', 0);
+        atualizarStatusScannerCartoes('Solicitando acesso \u00E0 c\u00E2mera...', 0);
         cartoesScannerStream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
             audio: false
@@ -510,13 +510,13 @@ async function iniciarCameraCartoes() {
         await video.play();
         if (semCamera) semCamera.style.display = 'none';
         if (capturar) capturar.disabled = false;
-        atualizarStatusScannerCartoes('CÃ¢mera pronta. Evite reflexos e aproxime o bloco do destinatÃ¡rio.', 0);
+        atualizarStatusScannerCartoes('C\u00E2mera pronta. Evite reflexos e aproxime o bloco do destinat\u00E1rio.', 0);
     } catch (erro) {
-        console.warn('CÃ¢mera nÃ£o iniciada:', erro);
+        console.warn('C\u00E2mera n\u00E3o iniciada:', erro);
         cartoesScannerStream = null;
         if (semCamera) semCamera.style.display = 'flex';
         if (capturar) capturar.disabled = true;
-        atualizarStatusScannerCartoes('NÃ£o foi possÃ­vel abrir a cÃ¢mera. Autorize a permissÃ£o ou use â€œEscolher fotoâ€.', 0);
+        atualizarStatusScannerCartoes('N\u00E3o foi poss\u00EDvel abrir a c\u00E2mera. Autorize a permiss\u00E3o ou use \u201CEscolher foto\u201D.', 0);
     }
 }
 
@@ -533,15 +533,15 @@ function mensagemProgressoOCR(info) {
     const nomes = {
         'loading tesseract core': 'Carregando leitor de texto...',
         'initializing tesseract': 'Inicializando leitor...',
-        'loading language traineddata': 'Carregando idioma portuguÃªs...',
+        'loading language traineddata': 'Carregando idioma portugu\u00EAs...',
         'initializing api': 'Preparando reconhecimento...',
-        'recognizing text': 'Lendo nome e endereÃ§o...'
+        'recognizing text': 'Lendo nome e endere\u00E7o...'
     };
     atualizarStatusScannerCartoes(nomes[info.status] || 'Processando imagem...', Math.round(Number(info.progress || 0) * 100));
 }
 
 async function obterWorkerCartoesOCR() {
-    if (typeof Tesseract === 'undefined') throw new Error('O leitor OCR nÃ£o foi carregado. Verifique a internet e recarregue a pÃ¡gina.');
+    if (typeof Tesseract === 'undefined') throw new Error('O leitor OCR n\u00E3o foi carregado. Verifique a internet e recarregue a p\u00E1gina.');
     if (!cartoesScannerWorkerPromise) {
         const oem = Tesseract.OEM?.LSTM_ONLY ?? 1;
         cartoesScannerWorkerPromise = Tesseract.createWorker('por', oem, { logger: mensagemProgressoOCR })
@@ -562,10 +562,10 @@ async function obterWorkerCartoesOCR() {
 
 function desenharFonteNoCanvasCartoes(fonte, recortarGuia) {
     const canvas = document.getElementById('cartoes-scanner-canvas');
-    if (!canvas) throw new Error('Ãrea de captura nÃ£o encontrada.');
+    if (!canvas) throw new Error('\u00C1rea de captura n\u00E3o encontrada.');
     const larguraFonte = fonte.videoWidth || fonte.naturalWidth || fonte.width;
     const alturaFonte = fonte.videoHeight || fonte.naturalHeight || fonte.height;
-    if (!larguraFonte || !alturaFonte) throw new Error('A imagem ainda nÃ£o estÃ¡ pronta.');
+    if (!larguraFonte || !alturaFonte) throw new Error('A imagem ainda n\u00E3o est\u00E1 pronta.');
 
     const sx = recortarGuia ? Math.round(larguraFonte * 0.08) : 0;
     const sy = recortarGuia ? Math.round(alturaFonte * 0.18) : 0;
@@ -577,7 +577,7 @@ function desenharFonteNoCanvasCartoes(fonte, recortarGuia) {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(fonte, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
 
-    // Tons de cinza + contraste automÃ¡tico: ajuda papel amarelo, branco e reflexos.
+    // Tons de cinza + contraste autom\u00E1tico: ajuda papel amarelo, branco e reflexos.
     const imagem = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const pixels = imagem.data;
     const histograma = new Uint32Array(256);
@@ -603,8 +603,8 @@ function desenharFonteNoCanvasCartoes(fonte, recortarGuia) {
 
 function linhaLimpaCartaoOCR(valor) {
     let linha = String(valor || '')
-        .replace(/[|\[\]{}â€œâ€"']/g, ' ')
-        .replace(/[^A-Za-zÃ€-Ã–Ã˜-Ã¶Ã¸-Ã¿0-9ÂºÂªÂ°.,/\-\s]/g, ' ')
+        .replace(/[|\[\]{}\u201C\u201D"']/g, ' ')
+        .replace(/[^A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF0-9\u00BA\u00AA\u00B0.,/\-\s]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim()
         .toUpperCase();
@@ -634,11 +634,11 @@ function normalizarEnderecoDetectadoOCR(valor) {
     const repeticao = linha.slice(4).search(/\s(?:RUA\b|R(?:\.?\s+|[A-Z]{2,3}\s+)(?=[A-Z])|AVENIDA\b|AV\.?\s+(?=[A-Z])|TRAVESSA\b|ESTRADA\b)/i);
     if (repeticao >= 0) linha = linha.slice(0, repeticao + 4).trim();
     linha = linha.replace(/^RUA\s*/i, 'RUA ')
-        .replace(/^R(?!UA)(?:\.?\s+|(?=[A-ZÃ€-Ã–Ã˜-Ãž]{1,3}\s))/i, 'RUA ')
+        .replace(/^R(?!UA)(?:\.?\s+|(?=[A-Z\u00C0-\u00D6\u00D8-\u00DE]{1,3}\s))/i, 'RUA ')
         .replace(/^AV\.?\s+/i, 'AVENIDA ')
         .replace(/^TRAV\.?\s+/i, 'TRAVESSA ')
         .replace(/^TV\.?\s+/i, 'TRAVESSA ')
-        .replace(/([A-ZÃ€-Ã–Ã˜-Ãž])(?=\d{1,5}\b)/g, '$1 ')
+        .replace(/([A-Z\u00C0-\u00D6\u00D8-\u00DE])(?=\d{1,5}\b)/g, '$1 ')
         .replace(/\s+[A-Z]$/i, '')
         .replace(/\s*,\s*/g, ', ')
         .replace(/\s+/g, ' ')
@@ -736,8 +736,8 @@ async function processarFonteCartaoOCR(fonte, recortarGuia) {
         if (endereco) endereco.value = dados.endereco;
         if (bruto) bruto.textContent = texto.trim() || '(nenhum texto reconhecido)';
         if (review) review.style.display = 'block';
-        if (dados.nome && dados.endereco) atualizarStatusScannerCartoes('Leitura concluÃ­da. Confira principalmente o nÃºmero da rua.', 100);
-        else atualizarStatusScannerCartoes('Leitura parcial. Corrija os campos ou aproxime mais o cartÃ£o e tente novamente.', 100);
+        if (dados.nome && dados.endereco) atualizarStatusScannerCartoes('Leitura conclu\u00EDda. Confira principalmente o n\u00FAmero da rua.', 100);
+        else atualizarStatusScannerCartoes('Leitura parcial. Corrija os campos ou aproxime mais o cart\u00E3o e tente novamente.', 100);
         nome?.focus();
     } catch (erro) {
         console.error('Erro no OCR:', erro);
@@ -751,7 +751,7 @@ async function processarFonteCartaoOCR(fonte, recortarGuia) {
 async function capturarCartaoParaOCR() {
     const video = document.getElementById('cartoes-scanner-video');
     if (!video || !cartoesScannerStream || video.readyState < 2) {
-        alert('Inicie a cÃ¢mera e aguarde a imagem aparecer.');
+        alert('Inicie a c\u00E2mera e aguarde a imagem aparecer.');
         return;
     }
     await processarFonteCartaoOCR(video, true);
@@ -768,7 +768,7 @@ async function processarArquivoCartaoOCR(evento) {
                 const img = new Image();
                 const url = URL.createObjectURL(arquivo);
                 img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
-                img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('NÃ£o foi possÃ­vel abrir a foto.')); };
+                img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('N\u00E3o foi poss\u00EDvel abrir a foto.')); };
                 img.src = url;
             });
         }
@@ -791,14 +791,14 @@ function limparResultadoCartaoOCR() {
     if (nome) nome.value = '';
     if (endereco) endereco.value = '';
     if (bruto) bruto.textContent = '';
-    atualizarStatusScannerCartoes(cartoesScannerStream ? 'Pronto para capturar o prÃ³ximo cartÃ£o.' : 'Clique em â€œIniciar cÃ¢meraâ€.', 0);
+    atualizarStatusScannerCartoes(cartoesScannerStream ? 'Pronto para capturar o pr\u00F3ximo cart\u00E3o.' : 'Clique em \u201CIniciar c\u00E2mera\u201D.', 0);
 }
 
 function usarDadosCartaoOCR(adicionarProximo) {
     const nome = document.getElementById('cartoes-ocr-nome')?.value.trim().toUpperCase();
     const endereco = document.getElementById('cartoes-ocr-endereco')?.value.trim().toUpperCase();
     if (!nome || !endereco) {
-        alert('Confira e preencha o nome e o endereÃ§o antes de adicionar.');
+        alert('Confira e preencha o nome e o endere\u00E7o antes de adicionar.');
         return;
     }
     const alvo = obterAlvoScannerCartoes();
@@ -829,7 +829,7 @@ function usarDadosCartaoOCR(adicionarProximo) {
         limparResultadoCartaoOCR();
         cartoesScannerAlvo = alvo;
         atualizarAlvoScannerCartoes();
-        atualizarStatusScannerCartoes('Dados preenchidos. VocÃª pode conferir na lista ou capturar novamente.', 0);
+        atualizarStatusScannerCartoes('Dados preenchidos. Voc\u00EA pode conferir na lista ou capturar novamente.', 0);
     }
 }
 
@@ -839,7 +839,7 @@ window.addEventListener('beforeunload', () => {
 });
 
 // ============================================================
-// CESTA BÃSICA
+// CESTA B\u00C1SICA
 // ============================================================
 function normalizeString(s) { if(!s&&s!==0)return""; return s.toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').toLowerCase().trim(); }
 function headerToId(lbl) { if(!lbl&&lbl!==0)lbl=""; return lbl.toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_+|_+$/g,'').replace(/_+/g,'_').toUpperCase(); }
@@ -855,7 +855,7 @@ async function carregarNomesCesta() { const res=await fetchFromGS('buscarTodosNo
 async function carregarTiposCesta() { const res=await fetchFromGS('listarTiposCesta'); cestaState.types=res||[]; const input=document.getElementById('cesta-tipos-input'); if(input) input.value=cestaState.types.join(', '); }
 function editarTiposCestaUI() { const e=document.getElementById('cesta-tipos-editor'); if(e) e.style.display=e.style.display==='none'?'block':'none'; }
 function fecharEditorTipos() { const e=document.getElementById('cesta-tipos-editor'); if(e) e.style.display='none'; }
-async function salvarTiposCesta() { const input=document.getElementById('cesta-tipos-input'); if(!input)return; const tipos=input.value.trim().split(',').map(t=>t.trim().toUpperCase()).filter(t=>t); await postParaGoogleSheets('salvarTiposCesta',{tipos}); alert("âœ… Tipos de cesta atualizados!"); await carregarTiposCesta(); fecharEditorTipos(); renderizarPendentesCestaHome(); }
+async function salvarTiposCesta() { const input=document.getElementById('cesta-tipos-input'); if(!input)return; const tipos=input.value.trim().split(',').map(t=>t.trim().toUpperCase()).filter(t=>t); await postParaGoogleSheets('salvarTiposCesta',{tipos}); alert("\u2705 Tipos de cesta atualizados!"); await carregarTiposCesta(); fecharEditorTipos(); renderizarPendentesCestaHome(); }
 
 async function renderizarPendentesCestaHome() {
     try {
@@ -867,7 +867,7 @@ async function renderizarPendentesCestaHome() {
         container.style.flexDirection = 'column';
         container.style.gap = '6px';
         if (!list || list.length === 0) {
-            container.innerHTML = '<div style="color:#4a7c2e; font-weight:600; padding:10px;">âœ… Todos os cadastros do mÃªs atual estÃ£o em dia!</div>';
+            container.innerHTML = '<div style="color:#4a7c2e; font-weight:600; padding:10px;">\u2705 Todos os cadastros do m\u00EAs atual est\u00E3o em dia!</div>';
             return;
         }
         list.forEach(item => {
@@ -906,28 +906,28 @@ async function renderizarPendentesCestaHome() {
     } catch (e) { console.error(e); const c=document.getElementById('cesta-pendentes-home'); if(c)c.innerHTML='<span style="color:#888;">Erro ao carregar pendentes.</span>'; }
 }
 async function abrirModalCestaComNome(nome){abrirModal('modal-cesta');setTimeout(()=>{buscarEPreencherCesta(nome,false);},300);}
-async function editarNomePendente(nomeAntigo,linha){const novoNome=prompt(`Digite o novo nome para "${nomeAntigo}":`,nomeAntigo);if(novoNome===null)return;if(novoNome.trim()===''){alert("O nome nÃ£o pode estar vazio.");return;}await postParaGoogleSheets('editarNomeMoradorCesta',{linha,novoNome:novoNome.trim().toUpperCase()});alert("âœ… Nome atualizado com sucesso!");await renderizarPendentesCestaHome();await carregarNomesCesta();}
-async function deletarPendente(linha,nome){if(!confirm(`Tem certeza que deseja EXCLUIR permanentemente o cadastro de "${nome}"?`))return;await postParaGoogleSheets('deletarMoradorCesta',{linha});alert("âœ… Cadastro excluÃ­do com sucesso!");await renderizarPendentesCestaHome();await carregarNomesCesta();}
-async function buscarEPreencherCesta(nome,isQRCode=false){try{const resp=await fetchFromGS('buscarMoradorCesta',{nome});if(!resp||!resp.dados){alert(isQRCode?"âŒ Morador nÃ£o encontrado na planilha.":"âŒ Morador nÃ£o encontrado.");return;}cestaState.currentLine=resp.linha;cestaState.currentDados=resp.dados;renderFormCesta(resp.dados);if(isQRCode){const confirmar=confirm(`Deseja marcar a cesta como ENTREGUE para ${nome} (com a data de hoje)?`);if(confirmar){const monthLabels=["JANEIRO","FEVEREIRO","MARÃ‡O","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];const todayIndex=new Date().getMonth();const today=new Date();const dia=String(today.getDate()).padStart(2,'0');const mes=String(today.getMonth()+1).padStart(2,'0');const monthId=headerToId(monthLabels[todayIndex]);const monthField=document.getElementById(monthId);if(monthField){monthField.value=`${dia}/${mes}`;atualizarMesesUICesta();await salvarCestaAutomatico();alert("âœ… Cesta entregue com sucesso!");}else alert("Erro ao encontrar o mÃªs atual para marcar.");}}}catch(e){console.error(e);alert(isQRCode?"Erro ao buscar os dados via QR Code.":"Erro ao buscar os dados.");}}
+async function editarNomePendente(nomeAntigo,linha){const novoNome=prompt(`Digite o novo nome para "${nomeAntigo}":`,nomeAntigo);if(novoNome===null)return;if(novoNome.trim()===''){alert("O nome n\u00E3o pode estar vazio.");return;}await postParaGoogleSheets('editarNomeMoradorCesta',{linha,novoNome:novoNome.trim().toUpperCase()});alert("\u2705 Nome atualizado com sucesso!");await renderizarPendentesCestaHome();await carregarNomesCesta();}
+async function deletarPendente(linha,nome){if(!confirm(`Tem certeza que deseja EXCLUIR permanentemente o cadastro de "${nome}"?`))return;await postParaGoogleSheets('deletarMoradorCesta',{linha});alert("\u2705 Cadastro exclu\u00EDdo com sucesso!");await renderizarPendentesCestaHome();await carregarNomesCesta();}
+async function buscarEPreencherCesta(nome,isQRCode=false){try{const resp=await fetchFromGS('buscarMoradorCesta',{nome});if(!resp||!resp.dados){alert(isQRCode?"\u274C Morador n\u00E3o encontrado na planilha.":"\u274C Morador n\u00E3o encontrado.");return;}cestaState.currentLine=resp.linha;cestaState.currentDados=resp.dados;renderFormCesta(resp.dados);if(isQRCode){const confirmar=confirm(`Deseja marcar a cesta como ENTREGUE para ${nome} (com a data de hoje)?`);if(confirmar){const monthLabels=["JANEIRO","FEVEREIRO","MAR\u00C7O","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];const todayIndex=new Date().getMonth();const today=new Date();const dia=String(today.getDate()).padStart(2,'0');const mes=String(today.getMonth()+1).padStart(2,'0');const monthId=headerToId(monthLabels[todayIndex]);const monthField=document.getElementById(monthId);if(monthField){monthField.value=`${dia}/${mes}`;atualizarMesesUICesta();await salvarCestaAutomatico();alert("\u2705 Cesta entregue com sucesso!");}else alert("Erro ao encontrar o m\u00EAs atual para marcar.");}}}catch(e){console.error(e);alert(isQRCode?"Erro ao buscar os dados via QR Code.":"Erro ao buscar os dados.");}}
 function renderFormCesta(dadosArray){
     const formArea = document.getElementById('cesta-formArea'); if(!formArea) return; formArea.style.display='block';
     const panelPendentes = document.getElementById('cesta-panelPendentes'); if(panelPendentes) panelPendentes.style.display='none';
     const fields = document.getElementById('cesta-fields'); if(!fields) return; fields.innerHTML='';
     const monthsContainer = document.getElementById('cesta-monthsContainer'); if(!monthsContainer) return; monthsContainer.innerHTML='';
     const tiposOptions=cestaState.types.map(t=>`<option value="${t}">${t}</option>`).join('');
-    const monthLabels=["JANEIRO","FEVEREIRO","MARÃ‡O","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
-    dadosArray.forEach(item=>{const id=item.id;const label=item.label||id;const value=item.value||'';const isMonth=monthLabels.map(m=>normalizeString(m)).indexOf(normalizeString(label))!==-1;if(isMonth){const div=document.createElement('div');div.className='month';const inputMonth=document.createElement('input');inputMonth.className='monthField';inputMonth.id=id;inputMonth.value=value||'';inputMonth.readOnly=true;inputMonth.addEventListener('click',function(){const hoje=new Date();const diaStr=String(hoje.getDate()).padStart(2,'0');const mesStr=String(hoje.getMonth()+1).padStart(2,'0');if(confirm(`Marcar mÃªs ${label} como entregue hoje (${diaStr}/${mesStr})?`)){inputMonth.value=`${diaStr}/${mesStr}`;atualizarMesesUICesta();salvarCestaAutomatico();}});const lab=document.createElement('label');lab.textContent=label;div.appendChild(lab);div.appendChild(inputMonth);monthsContainer.appendChild(div);}else{const wrapper=document.createElement('div');if(label.trim().toUpperCase()==='TIPO'){wrapper.innerHTML=`<label>${label}</label><select class="field" id="${id}"><option value="">Selecione</option>${tiposOptions}</select>`;const select=wrapper.querySelector('select');select.value=value;}else{wrapper.innerHTML=`<label>${label}</label><input class="field" id="${id}">`;const input=wrapper.querySelector('input');input.value=value;}fields.appendChild(wrapper);}});atualizarMesesUICesta();
+    const monthLabels=["JANEIRO","FEVEREIRO","MAR\u00C7O","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+    dadosArray.forEach(item=>{const id=item.id;const label=item.label||id;const value=item.value||'';const isMonth=monthLabels.map(m=>normalizeString(m)).indexOf(normalizeString(label))!==-1;if(isMonth){const div=document.createElement('div');div.className='month';const inputMonth=document.createElement('input');inputMonth.className='monthField';inputMonth.id=id;inputMonth.value=value||'';inputMonth.readOnly=true;inputMonth.addEventListener('click',function(){const hoje=new Date();const diaStr=String(hoje.getDate()).padStart(2,'0');const mesStr=String(hoje.getMonth()+1).padStart(2,'0');if(confirm(`Marcar m\u00EAs ${label} como entregue hoje (${diaStr}/${mesStr})?`)){inputMonth.value=`${diaStr}/${mesStr}`;atualizarMesesUICesta();salvarCestaAutomatico();}});const lab=document.createElement('label');lab.textContent=label;div.appendChild(lab);div.appendChild(inputMonth);monthsContainer.appendChild(div);}else{const wrapper=document.createElement('div');if(label.trim().toUpperCase()==='TIPO'){wrapper.innerHTML=`<label>${label}</label><select class="field" id="${id}"><option value="">Selecione</option>${tiposOptions}</select>`;const select=wrapper.querySelector('select');select.value=value;}else{wrapper.innerHTML=`<label>${label}</label><input class="field" id="${id}">`;const input=wrapper.querySelector('input');input.value=value;}fields.appendChild(wrapper);}});atualizarMesesUICesta();
 }
-function atualizarMesesUICesta(){const months=document.querySelectorAll('#cesta-monthsContainer .month');let pagos=0;months.forEach(div=>{const inputEl=div.querySelector('input');if(!inputEl)return;inputEl.classList.remove('pago','pendente');let v=(inputEl.value||"").toString().trim();if(v&&!v.includes('/')&&!v.toUpperCase().includes('X')){const d=new Date(v);if(!isNaN(d.getTime())){const dia=String(d.getDate()).padStart(2,'0');const mes=String(d.getMonth()+1).padStart(2,'0');v=`${dia}/${mes}`;inputEl.value=v;}}if(!v)inputEl.value='X';if(/\d/.test(v)){inputEl.classList.add('pago');inputEl.style.background='#e6ffed';inputEl.style.color='#166534';pagos++;}else{inputEl.classList.add('pendente');inputEl.style.background='#fee2e2';inputEl.style.color='#9b2c2c';}});const stamp=document.getElementById('cesta-stamp');if(stamp)stamp.classList.toggle('show',pagos===12);const statusId=headerToId('STATUS');const statusInput=document.getElementById(statusId);if(statusInput){const todayIndex=new Date().getMonth();const monthLabels=["JANEIRO","FEVEREIRO","MARÃ‡O","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];const monthId=headerToId(monthLabels[todayIndex]);const monthField=document.getElementById(monthId);const isPago=monthField&&monthField.classList.contains('pago');statusInput.value=isPago?'ENTREGUE':'PENDENTE';statusInput.style.backgroundColor=isPago?'#16a34a':'#dc2626';statusInput.style.color='#ffffff';statusInput.style.fontWeight='bold';}}
+function atualizarMesesUICesta(){const months=document.querySelectorAll('#cesta-monthsContainer .month');let pagos=0;months.forEach(div=>{const inputEl=div.querySelector('input');if(!inputEl)return;inputEl.classList.remove('pago','pendente');let v=(inputEl.value||"").toString().trim();if(v&&!v.includes('/')&&!v.toUpperCase().includes('X')){const d=new Date(v);if(!isNaN(d.getTime())){const dia=String(d.getDate()).padStart(2,'0');const mes=String(d.getMonth()+1).padStart(2,'0');v=`${dia}/${mes}`;inputEl.value=v;}}if(!v)inputEl.value='X';if(/\d/.test(v)){inputEl.classList.add('pago');inputEl.style.background='#e6ffed';inputEl.style.color='#166534';pagos++;}else{inputEl.classList.add('pendente');inputEl.style.background='#fee2e2';inputEl.style.color='#9b2c2c';}});const stamp=document.getElementById('cesta-stamp');if(stamp)stamp.classList.toggle('show',pagos===12);const statusId=headerToId('STATUS');const statusInput=document.getElementById(statusId);if(statusInput){const todayIndex=new Date().getMonth();const monthLabels=["JANEIRO","FEVEREIRO","MAR\u00C7O","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];const monthId=headerToId(monthLabels[todayIndex]);const monthField=document.getElementById(monthId);const isPago=monthField&&monthField.classList.contains('pago');statusInput.value=isPago?'ENTREGUE':'PENDENTE';statusInput.style.backgroundColor=isPago?'#16a34a':'#dc2626';statusInput.style.color='#ffffff';statusInput.style.fontWeight='bold';}}
 async function salvarCestaAutomatico(){if(!cestaState.currentLine)return;const inputs=document.querySelectorAll('#cesta-fields .field, #cesta-monthsContainer input');const payload={};inputs.forEach(inp=>{payload[inp.id]=inp.value;});await postParaGoogleSheets('salvarMoradorCesta',{linha:cestaState.currentLine,payload});renderizarPendentesCestaHome();}
 const btnSaveCesta = document.getElementById('cesta-btnSave');
 if(btnSaveCesta){
-    btnSaveCesta.addEventListener('click',async()=>{if(!cestaState.currentLine){alert("Nenhum morador selecionado.");return;}const inputs=document.querySelectorAll('#cesta-fields .field, #cesta-monthsContainer input');const payload={};inputs.forEach(inp=>{payload[inp.id]=inp.value;});await postParaGoogleSheets('salvarMoradorCesta',{linha:cestaState.currentLine,payload});alert("âœ… Dados salvos com sucesso!");atualizarMesesUICesta();renderizarPendentesCestaHome();});
+    btnSaveCesta.addEventListener('click',async()=>{if(!cestaState.currentLine){alert("Nenhum morador selecionado.");return;}const inputs=document.querySelectorAll('#cesta-fields .field, #cesta-monthsContainer input');const payload={};inputs.forEach(inp=>{payload[inp.id]=inp.value;});await postParaGoogleSheets('salvarMoradorCesta',{linha:cestaState.currentLine,payload});alert("\u2705 Dados salvos com sucesso!");atualizarMesesUICesta();renderizarPendentesCestaHome();});
 }
 async function gerarCarteirinha(){const nome=document.getElementById('cesta-search').value.trim();if(!nome){alert("Busque um morador antes de gerar a carteirinha.");return;}const qrContainer=document.getElementById('card-qrcode');if(!qrContainer)return;qrContainer.innerHTML='';document.getElementById('card-nome').innerText=nome;try{cestaState.qrCodeInstance=new QRCode(qrContainer,{text:nome,width:75,height:75,colorDark:"#4a7c2e",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.H});}catch(e){alert("Erro ao gerar QR Code");return;}setTimeout(async()=>{try{const cardDiv=document.getElementById('carteirinha-print-area');const canvas=await html2canvas(cardDiv,{scale:2});const{jsPDF}=window.jspdf;const pdf=new jsPDF('l','mm','a6');const imgData=canvas.toDataURL('image/jpeg',0.95);pdf.addImage(imgData,'JPEG',0,0,148,105);const pdfBlob=pdf.output('blob');window.open(URL.createObjectURL(pdfBlob),'_blank');}catch(error){console.error(error);alert("Erro ao gerar a imagem da carteirinha.");}},300);}
 
 // ============================================================
-// CURRÃCULO (CORRIGIDO E COMPLETO)
+// CURR\u00CDCULO (CORRIGIDO E COMPLETO)
 // ============================================================
 function handlePhotoUpload(event) {
     const file = event.target.files[0];
@@ -977,7 +977,7 @@ async function buscarCEP() {
             document.getElementById('cv-bairro').value = data.bairro;
             document.getElementById('cv-cidade').value = `${data.localidade} - ${data.uf}`;
         } else {
-            alert("CEP nÃ£o encontrado.");
+            alert("CEP n\u00E3o encontrado.");
         }
     } catch (error) {
         console.error("Erro ao buscar CEP", error);
@@ -994,19 +994,19 @@ function adicionarTelefone() {
 
 function adicionarCurso() {
     if (state.cursoCount >= 3) {
-        alert("VocÃª jÃ¡ atingiu o limite mÃ¡ximo de 3 cursos para caber em 1 Ãºnica folha A4.");
+        alert("Voc\u00EA j\u00E1 atingiu o limite m\u00E1ximo de 3 cursos para caber em 1 \u00FAnica folha A4.");
         return;
     }
     const container = document.getElementById('cursos-container');
     const id = `curso-${Date.now()}`;
     const html = `
         <div class="dynamic-item" id="${id}">
-            <button class="remove-btn" onclick="removerItem('${id}')">Ã—</button>
+            <button class="remove-btn" onclick="removerItem('${id}')">\u00D7</button>
             <div class="grid-cv">
-                <div><label style="font-size:12px;">Curso</label><input type="text" class="input-curso" placeholder="Ex: AdministraÃ§Ã£o"></div>
-                <div><label style="font-size:12px;">InstituiÃ§Ã£o</label><input type="text" class="input-inst" placeholder="Ex: UNESP"></div>
+                <div><label style="font-size:12px;">Curso</label><input type="text" class="input-curso" placeholder="Ex: Administra\u00E7\u00E3o"></div>
+                <div><label style="font-size:12px;">Institui\u00E7\u00E3o</label><input type="text" class="input-inst" placeholder="Ex: UNESP"></div>
             </div>
-            <div class="grid-cv full"><label style="font-size:12px;">PerÃ­odo</label><input type="text" class="input-periodo" placeholder="Ex: 2018 - 2022"></div>
+            <div class="grid-cv full"><label style="font-size:12px;">Per\u00EDodo</label><input type="text" class="input-periodo" placeholder="Ex: 2018 - 2022"></div>
         </div>`;
     container.insertAdjacentHTML('beforeend', html);
     state.cursoCount++;
@@ -1014,19 +1014,19 @@ function adicionarCurso() {
 
 function adicionarExperiencia() {
     if (state.expCount >= 6) {
-        alert("VocÃª jÃ¡ atingiu o limite mÃ¡ximo de 6 experiÃªncias para caber em 1 Ãºnica folha A4.");
+        alert("Voc\u00EA j\u00E1 atingiu o limite m\u00E1ximo de 6 experi\u00EAncias para caber em 1 \u00FAnica folha A4.");
         return;
     }
     const container = document.getElementById('exp-container');
     const id = `exp-${Date.now()}`;
     const html = `
         <div class="dynamic-item" id="${id}">
-            <button class="remove-btn" onclick="removerItem('${id}')">Ã—</button>
+            <button class="remove-btn" onclick="removerItem('${id}')">\u00D7</button>
             <div class="grid-cv">
                 <div><label style="font-size:12px;">Empresa</label><input type="text" class="input-empresa" placeholder="Ex: Tech Solutions"></div>
-                <div><label style="font-size:12px;">FunÃ§Ã£o</label><input type="text" class="input-funcao" placeholder="Ex: Assistente Administrativo"></div>
+                <div><label style="font-size:12px;">Fun\u00E7\u00E3o</label><input type="text" class="input-funcao" placeholder="Ex: Assistente Administrativo"></div>
             </div>
-            <div class="grid-cv full"><label style="font-size:12px;">PerÃ­odo</label><input type="text" class="input-periodo-exp" placeholder="Ex: Jan/2020 - Dez/2022"></div>
+            <div class="grid-cv full"><label style="font-size:12px;">Per\u00EDodo</label><input type="text" class="input-periodo-exp" placeholder="Ex: Jan/2020 - Dez/2022"></div>
         </div>`;
     container.insertAdjacentHTML('beforeend', html);
     state.expCount++;
@@ -1066,25 +1066,25 @@ async function gerarCurriculo() {
     const cursosNodes = document.querySelectorAll('#cursos-container .dynamic-item');
     const cursos = [];
     cursosNodes.forEach(node => {
-        const curso = node.querySelector('.input-curso').value || 'Curso nÃ£o informado';
-        const inst = node.querySelector('.input-inst').value || 'InstituiÃ§Ã£o nÃ£o informada';
-        const periodo = node.querySelector('.input-periodo').value || 'PerÃ­odo nÃ£o informado';
+        const curso = node.querySelector('.input-curso').value || 'Curso n\u00E3o informado';
+        const inst = node.querySelector('.input-inst').value || 'Institui\u00E7\u00E3o n\u00E3o informada';
+        const periodo = node.querySelector('.input-periodo').value || 'Per\u00EDodo n\u00E3o informado';
         cursos.push({ curso, inst, periodo });
     });
     const expNodes = document.querySelectorAll('#exp-container .dynamic-item');
     const experiencias = [];
     expNodes.forEach(node => {
-        const empresa = node.querySelector('.input-empresa').value || 'Empresa nÃ£o informada';
-        const funcao = node.querySelector('.input-funcao').value || 'FunÃ§Ã£o nÃ£o informada';
-        const periodo = node.querySelector('.input-periodo-exp').value || 'PerÃ­odo nÃ£o informado';
+        const empresa = node.querySelector('.input-empresa').value || 'Empresa n\u00E3o informada';
+        const funcao = node.querySelector('.input-funcao').value || 'Fun\u00E7\u00E3o n\u00E3o informada';
+        const periodo = node.querySelector('.input-periodo-exp').value || 'Per\u00EDodo n\u00E3o informado';
         experiencias.push({ empresa, funcao, periodo });
     });
 
     document.getElementById('pdf-nome').innerText = nome;
-    document.getElementById('pdf-tel').innerText = tels.length > 0 ? tels.join(' / ') : '(NÃ£o informado)';
-    document.getElementById('pdf-email').innerText = email || '(NÃ£o informado)';
-    document.getElementById('pdf-endereco').innerText = endereco || '(NÃ£o informado)';
-    document.getElementById('pdf-objetivo').innerText = objetivo || 'NÃ£o informado.';
+    document.getElementById('pdf-tel').innerText = tels.length > 0 ? tels.join(' / ') : '(N\u00E3o informado)';
+    document.getElementById('pdf-email').innerText = email || '(N\u00E3o informado)';
+    document.getElementById('pdf-endereco').innerText = endereco || '(N\u00E3o informado)';
+    document.getElementById('pdf-objetivo').innerText = objetivo || 'N\u00E3o informado.';
 
     const pdfPhoto = document.getElementById('pdf-photo');
     if (state.fotoBase64) {
@@ -1104,7 +1104,7 @@ async function gerarCurriculo() {
             pdfSkills.appendChild(li);
         });
     } else {
-        pdfSkills.innerHTML = '<li>NÃ£o informado.</li>';
+        pdfSkills.innerHTML = '<li>N\u00E3o informado.</li>';
     }
 
     const pdfCursos = document.getElementById('pdf-cursos');
@@ -1123,7 +1123,7 @@ async function gerarCurriculo() {
     const pdfExp = document.getElementById('pdf-experiencias');
     pdfExp.innerHTML = '';
     if (experiencias.length === 0) {
-        pdfExp.innerHTML = '<p style="font-size:12px; color:#888;">Nenhuma experiÃªncia informada.</p>';
+        pdfExp.innerHTML = '<p style="font-size:12px; color:#888;">Nenhuma experi\u00EAncia informada.</p>';
     } else {
         experiencias.forEach(exp => {
             const div = document.createElement('div');
@@ -1157,13 +1157,13 @@ async function gerarCurriculo() {
         fecharModal('modal-curriculo');
     } catch (error) {
         console.error("Erro ao gerar PDF:", error);
-        alert("Ocorreu um erro ao gerar o currÃ­culo.");
+        alert("Ocorreu um erro ao gerar o curr\u00EDculo.");
         pdfLayout.style.display = 'none';
     }
 }
 
 // ============================================================
-// COMPROVANTE E SUGESTÃ•ES
+// COMPROVANTE E SUGEST\u00D5ES
 // ============================================================
 function toggleComprovanteMenu() { const menu=document.getElementById('menu-comprovante'); if(!menu)return; menu.style.display=menu.style.display==='none'?'block':'none'; }
 document.addEventListener('click', function(e){ const menu=document.getElementById('menu-comprovante'); const btn=document.getElementById('btn-comprovante'); if(menu&&btn&&!menu.contains(e.target)&&e.target!==btn) menu.style.display='none'; });
@@ -1173,19 +1173,19 @@ function formatarCPFPrint(i){ i.value=i.value.replace(/\D/g,'').replace(/(\d{3})
 function formatarRGPrint(i){ i.value=i.value.replace(/\D/g,'').replace(/(\d{1,2})(\d{3})(\d{3})(\d{1})$/,'$1.$2.$3-$4'); }
 function autoBuscarCEP(el){ const cep=el.value.replace(/\D/g,''); if(cep.length===8) buscarCEPPrint(); }
 function autoBuscarCPF(el){ const cpf=el.value.replace(/\D/g,''); if(cpf.length===11){ if(state.lastSearchedCPF!==cpf){state.lastSearchedCPF=cpf;buscarCPFPrint();} }else{state.lastSearchedCPF='';} }
-async function abrirComprovantePrint(tipo){ state.tipoComprovanteAtual=tipo; const menu=document.getElementById('menu-comprovante'); if(menu) menu.style.display='none'; const bgImage=tipo==='assinatura'?"https://i.imgur.com/lFhk0Hq.png":"https://i.imgur.com/l47wlMJ.png"; const comprovanteBg=document.getElementById('comprovante-bg'); if(comprovanteBg) comprovanteBg.style.backgroundImage=`url('${bgImage}')`; const modal=document.getElementById('modal-comprovante-print'); if(modal) modal.style.display='flex'; const idsLimpar=['print-nome','print-endereco','print-numero_endereco','print-complemento','print-cep','print-bairro','print-uf','print-nacionalidade','print-estado_civil','print-cpf','print-rg']; idsLimpar.forEach(id=>{const el=document.getElementById(id); if(el) el.value='';}); const emissor=document.getElementById('print-emissor'); if(emissor) emissor.value='DETRAN/RJ'; const proprias=['print-propria','print-alugada','print-emprestada']; proprias.forEach(id=>{const chk=document.getElementById(id); if(chk) chk.checked=false;}); const m=["JANEIRO","FEVEREIRO","MARÃ‡O","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"]; const h=new Date(); const printData=document.getElementById("print-data"); if(printData) printData.value=`${String(h.getDate()).padStart(2,'0')} DE ${m[h.getMonth()]}`; const printAno=document.getElementById("print-ano"); if(printAno) printAno.value=h.getFullYear(); try{ const dados=await fetchFromGS('getNumero'); const numeroEl=document.getElementById('print-numero'); if(numeroEl) numeroEl.value=dados.numero||'0000001'; }catch(e){console.error(e);alert("Erro ao buscar o nÃºmero da declaraÃ§Ã£o."); const numeroEl=document.getElementById('print-numero'); if(numeroEl) numeroEl.value='0000001'; } }
-async function buscarCEPPrint(){ const cep=document.getElementById('print-cep').value.replace(/\D/g,''); if(cep.length!==8){alert("CEP invÃ¡lido");return;} try{ const resp=await fetch(`https://viacep.com.br/ws/${cep}/json/`); const dados=await resp.json(); if(dados.erro){alert("CEP nÃ£o encontrado na API dos Correios");return;} const enderecoEl=document.getElementById('print-endereco'); if(enderecoEl) enderecoEl.value=(dados.logradouro||'').toUpperCase(); const bairro=(dados.bairro||'').toUpperCase(); const cidade=(dados.localidade||'').toUpperCase(); const bairroEl=document.getElementById('print-bairro'); if(bairroEl) bairroEl.value=bairro+'/'+cidade; const ufEl=document.getElementById('print-uf'); if(ufEl) ufEl.value=(dados.uf||'').toUpperCase(); }catch(e){console.error(e);alert("Erro de conexÃ£o ao buscar o CEP.");} }
-async function buscarCPFPrint(){ const cpf=document.getElementById('print-cpf').value.replace(/\D/g,''); if(cpf.length!==11){alert("CPF invÃ¡lido");return;} try{ const r=await fetchFromGS('buscarCPF',{cpf}); if(r.erro){alert("ERRO DO APPS SCRIPT: "+r.erro);return;} if(!r.encontrado){alert("CPF NÃƒO LOCALIZADO na planilha.");return;} const d=r.dados; const nomeEl=document.getElementById('print-nome'); if(nomeEl) nomeEl.value=d.nome||''; const enderecoEl=document.getElementById('print-endereco'); if(enderecoEl) enderecoEl.value=d.endereco||''; const numEndEl=document.getElementById('print-numero_endereco'); if(numEndEl) numEndEl.value=d.numero_endereco||''; const complEl=document.getElementById('print-complemento'); if(complEl) complEl.value=d.complemento||''; const cepEl=document.getElementById('print-cep'); if(cepEl) cepEl.value=d.cep||''; const bairroEl=document.getElementById('print-bairro'); if(bairroEl) bairroEl.value=d.bairro||''; const ufEl=document.getElementById('print-uf'); if(ufEl) ufEl.value=d.uf||''; const nacEl=document.getElementById('print-nacionalidade'); if(nacEl) nacEl.value=d.nacionalidade||''; const civilEl=document.getElementById('print-estado_civil'); if(civilEl) civilEl.value=d.estado_civil||''; const cpfEl=document.getElementById('print-cpf'); if(cpfEl) cpfEl.value=d.cpf||''; const rgEl=document.getElementById('print-rg'); if(rgEl) rgEl.value=d.rg||''; const emissorEl=document.getElementById('print-emissor'); if(emissorEl) emissorEl.value=d.emissor||''; const propEl=document.getElementById('print-propria'); if(propEl) propEl.checked=d.propria||false; const alugEl=document.getElementById('print-alugada'); if(alugEl) alugEl.checked=d.alugada||false; const empEl=document.getElementById('print-emprestada'); if(empEl) empEl.checked=d.emprestada||false; }catch(e){console.error(e);alert("Erro de comunicaÃ§Ã£o: "+e.message);} }
+async function abrirComprovantePrint(tipo){ state.tipoComprovanteAtual=tipo; const menu=document.getElementById('menu-comprovante'); if(menu) menu.style.display='none'; const bgImage=tipo==='assinatura'?"https://i.imgur.com/lFhk0Hq.png":"https://i.imgur.com/l47wlMJ.png"; const comprovanteBg=document.getElementById('comprovante-bg'); if(comprovanteBg) comprovanteBg.style.backgroundImage=`url('${bgImage}')`; const modal=document.getElementById('modal-comprovante-print'); if(modal) modal.style.display='flex'; const idsLimpar=['print-nome','print-endereco','print-numero_endereco','print-complemento','print-cep','print-bairro','print-uf','print-nacionalidade','print-estado_civil','print-cpf','print-rg']; idsLimpar.forEach(id=>{const el=document.getElementById(id); if(el) el.value='';}); const emissor=document.getElementById('print-emissor'); if(emissor) emissor.value='DETRAN/RJ'; const proprias=['print-propria','print-alugada','print-emprestada']; proprias.forEach(id=>{const chk=document.getElementById(id); if(chk) chk.checked=false;}); const m=["JANEIRO","FEVEREIRO","MAR\u00C7O","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"]; const h=new Date(); const printData=document.getElementById("print-data"); if(printData) printData.value=`${String(h.getDate()).padStart(2,'0')} DE ${m[h.getMonth()]}`; const printAno=document.getElementById("print-ano"); if(printAno) printAno.value=h.getFullYear(); try{ const dados=await fetchFromGS('getNumero'); const numeroEl=document.getElementById('print-numero'); if(numeroEl) numeroEl.value=dados.numero||'0000001'; }catch(e){console.error(e);alert("Erro ao buscar o n\u00FAmero da declara\u00E7\u00E3o."); const numeroEl=document.getElementById('print-numero'); if(numeroEl) numeroEl.value='0000001'; } }
+async function buscarCEPPrint(){ const cep=document.getElementById('print-cep').value.replace(/\D/g,''); if(cep.length!==8){alert("CEP inv\u00E1lido");return;} try{ const resp=await fetch(`https://viacep.com.br/ws/${cep}/json/`); const dados=await resp.json(); if(dados.erro){alert("CEP n\u00E3o encontrado na API dos Correios");return;} const enderecoEl=document.getElementById('print-endereco'); if(enderecoEl) enderecoEl.value=(dados.logradouro||'').toUpperCase(); const bairro=(dados.bairro||'').toUpperCase(); const cidade=(dados.localidade||'').toUpperCase(); const bairroEl=document.getElementById('print-bairro'); if(bairroEl) bairroEl.value=bairro+'/'+cidade; const ufEl=document.getElementById('print-uf'); if(ufEl) ufEl.value=(dados.uf||'').toUpperCase(); }catch(e){console.error(e);alert("Erro de conex\u00E3o ao buscar o CEP.");} }
+async function buscarCPFPrint(){ const cpf=document.getElementById('print-cpf').value.replace(/\D/g,''); if(cpf.length!==11){alert("CPF inv\u00E1lido");return;} try{ const r=await fetchFromGS('buscarCPF',{cpf}); if(r.erro){alert("ERRO DO APPS SCRIPT: "+r.erro);return;} if(!r.encontrado){alert("CPF N\u00C3O LOCALIZADO na planilha.");return;} const d=r.dados; const nomeEl=document.getElementById('print-nome'); if(nomeEl) nomeEl.value=d.nome||''; const enderecoEl=document.getElementById('print-endereco'); if(enderecoEl) enderecoEl.value=d.endereco||''; const numEndEl=document.getElementById('print-numero_endereco'); if(numEndEl) numEndEl.value=d.numero_endereco||''; const complEl=document.getElementById('print-complemento'); if(complEl) complEl.value=d.complemento||''; const cepEl=document.getElementById('print-cep'); if(cepEl) cepEl.value=d.cep||''; const bairroEl=document.getElementById('print-bairro'); if(bairroEl) bairroEl.value=d.bairro||''; const ufEl=document.getElementById('print-uf'); if(ufEl) ufEl.value=d.uf||''; const nacEl=document.getElementById('print-nacionalidade'); if(nacEl) nacEl.value=d.nacionalidade||''; const civilEl=document.getElementById('print-estado_civil'); if(civilEl) civilEl.value=d.estado_civil||''; const cpfEl=document.getElementById('print-cpf'); if(cpfEl) cpfEl.value=d.cpf||''; const rgEl=document.getElementById('print-rg'); if(rgEl) rgEl.value=d.rg||''; const emissorEl=document.getElementById('print-emissor'); if(emissorEl) emissorEl.value=d.emissor||''; const propEl=document.getElementById('print-propria'); if(propEl) propEl.checked=d.propria||false; const alugEl=document.getElementById('print-alugada'); if(alugEl) alugEl.checked=d.alugada||false; const empEl=document.getElementById('print-emprestada'); if(empEl) empEl.checked=d.emprestada||false; }catch(e){console.error(e);alert("Erro de comunica\u00E7\u00E3o: "+e.message);} }
 function detectarGeneroENacionalidadeComprovante(){ const nomeInput=document.getElementById('print-nome'); const nome=nomeInput.value.trim().toUpperCase(); if(nome.length<2)return; const primeiroNome=nome.split(' ')[0].toLowerCase(); let genero='MASCULINO'; const excecoesMasculinas=['joaquim','luca','noa','nicola']; if(excecoesMasculinas.includes(primeiroNome))genero='MASCULINO'; else if(['mar','luz','flor','marjorie','alice','constance'].includes(primeiroNome))genero='FEMININO'; else if(primeiroNome.endsWith('a')||primeiroNome.endsWith('e')||primeiroNome.endsWith('i')||primeiroNome.endsWith('ad')||primeiroNome.endsWith('ra')||primeiroNome.endsWith('na')||primeiroNome.endsWith('la')||primeiroNome.endsWith('da')||primeiroNome.endsWith('ia'))genero='FEMININO'; else genero='MASCULINO'; if(genero==='FEMININO'){ const nacEl=document.getElementById('print-nacionalidade'); if(nacEl) nacEl.value='BRASILEIRA'; const civilEl=document.getElementById('print-estado_civil'); if(civilEl) civilEl.value='SOLTEIRA'; }else{ const nacEl=document.getElementById('print-nacionalidade'); if(nacEl) nacEl.value='BRASILEIRO'; const civilEl=document.getElementById('print-estado_civil'); if(civilEl) civilEl.value='SOLTEIRO'; } }
 let debounceTimerEndereco; let enderecoCache={}; let searchController=null;
-function buscarSugestoesEndereco(){ const input=document.getElementById('print-endereco'); const container=document.getElementById('address-suggestions'); if(!container) return; const queryOriginal=input.value.trim().toUpperCase(); if(searchController){searchController.abort();searchController=null;} clearTimeout(debounceTimerEndereco); if(queryOriginal.length<2){container.style.display='none';return;} if(enderecoCache[queryOriginal]){exibirSugestoes(container,enderecoCache[queryOriginal]);return;} debounceTimerEndereco=setTimeout(async()=>{ try{ container.innerHTML='<div class="suggestion-item" style="text-align:center;color:#888;cursor:default;">ðŸ” Buscando...</div>'; container.style.display='block'; searchController=new AbortController(); const resultados=await fetchFromGS('buscarEnderecos',{q:removerAcentos(queryOriginal)},searchController.signal); const querySemAcento=removerAcentos(queryOriginal); const resultadosFiltrados=(resultados||[]).filter(item=>{ const enderecoSemAcento=removerAcentos(String(item.endereco||'').toUpperCase()); return enderecoSemAcento.startsWith(querySemAcento)||enderecoSemAcento.includes(querySemAcento); }); enderecoCache[queryOriginal]=resultadosFiltrados; exibirSugestoes(container,resultadosFiltrados); }catch(e){if(e.name!=='AbortError'){console.warn("Erro ao buscar endereÃ§os:",e);container.style.display='none';}}finally{searchController=null;} },100); }
+function buscarSugestoesEndereco(){ const input=document.getElementById('print-endereco'); const container=document.getElementById('address-suggestions'); if(!container) return; const queryOriginal=input.value.trim().toUpperCase(); if(searchController){searchController.abort();searchController=null;} clearTimeout(debounceTimerEndereco); if(queryOriginal.length<2){container.style.display='none';return;} if(enderecoCache[queryOriginal]){exibirSugestoes(container,enderecoCache[queryOriginal]);return;} debounceTimerEndereco=setTimeout(async()=>{ try{ container.innerHTML='<div class="suggestion-item" style="text-align:center;color:#888;cursor:default;">\uD83D\uDD0D Buscando...</div>'; container.style.display='block'; searchController=new AbortController(); const resultados=await fetchFromGS('buscarEnderecos',{q:removerAcentos(queryOriginal)},searchController.signal); const querySemAcento=removerAcentos(queryOriginal); const resultadosFiltrados=(resultados||[]).filter(item=>{ const enderecoSemAcento=removerAcentos(String(item.endereco||'').toUpperCase()); return enderecoSemAcento.startsWith(querySemAcento)||enderecoSemAcento.includes(querySemAcento); }); enderecoCache[queryOriginal]=resultadosFiltrados; exibirSugestoes(container,resultadosFiltrados); }catch(e){if(e.name!=='AbortError'){console.warn("Erro ao buscar endere\u00E7os:",e);container.style.display='none';}}finally{searchController=null;} },100); }
 function exibirSugestoes(container,resultados){ if(!container) return; container.innerHTML=''; if(!resultados||resultados.length===0){container.style.display='none';return;} resultados.forEach(item=>{ const div=document.createElement('div'); div.className='suggestion-item'; const strong=document.createElement('strong'); strong.textContent=item.endereco||''; const small=document.createElement('small'); small.textContent=`${item.bairro||''} - ${item.uf||''} (CEP: ${item.cep||'N/I'})`; div.appendChild(strong); div.appendChild(small); div.onclick=()=>{ document.getElementById('print-endereco').value=item.endereco||''; const bairro=(item.bairro||'').toUpperCase(); const cidade=(item.cidade||'').toUpperCase(); document.getElementById('print-bairro').value=bairro+'/'+cidade; document.getElementById('print-uf').value=item.uf||''; document.getElementById('print-cep').value=item.cep||''; container.style.display='none'; }; container.appendChild(div); }); container.style.display='block'; }
 document.addEventListener('click',function(e){ const container=document.getElementById('address-suggestions'); const input=document.getElementById('print-endereco'); if(container&&input&&!container.contains(e.target)&&e.target!==input)container.style.display='none'; });
 function obterValoresComprovante(){ return { numero:document.getElementById('print-numero').value, data:document.getElementById('print-data').value, ano:document.getElementById('print-ano').value, nome:document.getElementById('print-nome').value.toUpperCase(), endereco:document.getElementById('print-endereco').value.toUpperCase(), numero_endereco:document.getElementById('print-numero_endereco').value.toUpperCase(), complemento:document.getElementById('print-complemento').value.toUpperCase(), cep:document.getElementById('print-cep').value, bairro:document.getElementById('print-bairro').value.toUpperCase(), uf:document.getElementById('print-uf').value.toUpperCase(), nacionalidade:document.getElementById('print-nacionalidade').value.toUpperCase(), estado_civil:document.getElementById('print-estado_civil').value.toUpperCase(), cpf:document.getElementById('print-cpf').value, rg:document.getElementById('print-rg').value, emissor:document.getElementById('print-emissor').value.toUpperCase(), propria:document.getElementById('print-propria').checked, alugada:document.getElementById('print-alugada').checked, emprestada:document.getElementById('print-emprestada').checked }; }
 function gerarHTMLImpressaoCRM(v){ return `<!DOCTYPE html><html><head><style>body{margin:0;padding:0;font-family:Arial,sans-serif;}.popup{position:relative;width:794px;height:1123px;background-color:white;overflow:hidden;margin:0 auto;}.popup-content{position:relative;width:100%;height:100%;}.popup-content img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;z-index:0;}.input-field{position:absolute;font-size:13px;padding:2px 4px;z-index:1;font-weight:bold;background:transparent;border:none;outline:none;color:black;text-transform:uppercase;}.input-field[type="checkbox"]{width:16px;height:16px;accent-color:black;}@media print{body{margin:0!important;padding:0!important;}}</style></head><body><div class="popup"><div class="popup-content"><img src="https://i.imgur.com/lFhk0Hq.png"><input class="input-field" style="top:386px;left:230px;width:80px" value="${v.numero}" readonly><input class="input-field" style="top:386px;left:390px;width:130px" value="${v.data}" readonly><input class="input-field" style="top:386px;left:580px;width:80px" value="${v.ano}" readonly><input class="input-field" style="top:437px;left:167px;width:500px;font-size:18px" value="${v.nome}" readonly><input class="input-field" style="top:508px;left:216px;width:350px" value="${v.endereco}" readonly><input class="input-field" style="top:508px;left:629px;width:90px" value="${v.numero_endereco}" readonly><input class="input-field" style="top:568px;left:240px;width:210px" value="${v.complemento}" readonly><input class="input-field" style="top:568px;left:530px;width:150px" value="${v.cep}" readonly><input class="input-field" style="top:633px;left:165px;width:350px" value="${v.bairro}" readonly><input class="input-field" style="top:633px;left:630px;width:80px" value="${v.uf}" readonly><input class="input-field" style="top:695px;left:247px;width:150px" value="${v.nacionalidade}" readonly><input class="input-field" style="top:695px;left:555px;width:150px" value="${v.estado_civil}" readonly><input class="input-field" style="top:758px;left:135px;width:188px" value="${v.cpf}" readonly><input class="input-field" style="top:758px;left:395px;width:100px" value="${v.rg}" readonly><input class="input-field" style="top:758px;left:625px;width:120px" value="${v.emissor}" readonly><input type="checkbox" class="input-field" style="top:844px;left:249px" ${v.propria?'checked':''} readonly><input type="checkbox" class="input-field" style="top:844px;left:425px" ${v.alugada?'checked':''} readonly><input type="checkbox" class="input-field" style="top:844px;left:652px" ${v.emprestada?'checked':''} readonly></div></div></body></html>`; }
-async function salvarDadosComprovante(){ const dados=[document.getElementById('print-numero').value,document.getElementById('print-data').value,document.getElementById('print-ano').value,document.getElementById('print-nome').value.toUpperCase(),document.getElementById('print-endereco').value.toUpperCase(),document.getElementById('print-numero_endereco').value.toUpperCase(),document.getElementById('print-complemento').value.toUpperCase(),document.getElementById('print-cep').value,document.getElementById('print-bairro').value.toUpperCase(),document.getElementById('print-uf').value.toUpperCase(),document.getElementById('print-nacionalidade').value.toUpperCase(),document.getElementById('print-estado_civil').value.toUpperCase(),document.getElementById('print-cpf').value,document.getElementById('print-rg').value,document.getElementById('print-emissor').value.toUpperCase(),document.getElementById('print-propria').checked?"Casa PrÃ³pria":"",document.getElementById('print-alugada').checked?"Alugada":"",document.getElementById('print-emprestada').checked?"Emprestada":""]; await postParaGoogleSheets('salvarDeclaracao',dados); }
-async function salvarApenas(){ const btn=document.querySelector('#modal-comprovante-print .btn-save'); if(!btn)return; btn.innerText='Salvando...'; btn.disabled=true; try{ await salvarDadosComprovante(); alert("Dados salvos com sucesso!"); fecharComprovantePrint(); }catch(e){alert("Erro ao salvar: "+e.message);}finally{btn.innerText='ðŸ’¾ Salvar';btn.disabled=false;} }
-async function salvarEImprimir(){ const btn=document.querySelector('#modal-comprovante-print .btn-print'); if(!btn)return; btn.innerText='Salvando...'; btn.disabled=true; try{ await salvarDadosComprovante(); const v=obterValoresComprovante(); let htmlPrint=gerarHTMLImpressaoCRM(v); htmlPrint=htmlPrint.replace('</body>',`<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},800);});<\/script></body>`); const win=window.open('','_blank'); if(win){win.document.write(htmlPrint);win.document.close();win.focus();}else{alert("Pop-up bloqueado! Permita pop-ups.");} fecharComprovantePrint(); }catch(e){alert("Erro ao salvar e imprimir: "+e.message);}finally{btn.innerText='ðŸ–¨ï¸ Imprimir';btn.disabled=false;} }
+async function salvarDadosComprovante(){ const dados=[document.getElementById('print-numero').value,document.getElementById('print-data').value,document.getElementById('print-ano').value,document.getElementById('print-nome').value.toUpperCase(),document.getElementById('print-endereco').value.toUpperCase(),document.getElementById('print-numero_endereco').value.toUpperCase(),document.getElementById('print-complemento').value.toUpperCase(),document.getElementById('print-cep').value,document.getElementById('print-bairro').value.toUpperCase(),document.getElementById('print-uf').value.toUpperCase(),document.getElementById('print-nacionalidade').value.toUpperCase(),document.getElementById('print-estado_civil').value.toUpperCase(),document.getElementById('print-cpf').value,document.getElementById('print-rg').value,document.getElementById('print-emissor').value.toUpperCase(),document.getElementById('print-propria').checked?"Casa Pr\u00F3pria":"",document.getElementById('print-alugada').checked?"Alugada":"",document.getElementById('print-emprestada').checked?"Emprestada":""]; await postParaGoogleSheets('salvarDeclaracao',dados); }
+async function salvarApenas(){ const btn=document.querySelector('#modal-comprovante-print .btn-save'); if(!btn)return; btn.innerText='Salvando...'; btn.disabled=true; try{ await salvarDadosComprovante(); alert("Dados salvos com sucesso!"); fecharComprovantePrint(); }catch(e){alert("Erro ao salvar: "+e.message);}finally{btn.innerText='\uD83D\uDCBE Salvar';btn.disabled=false;} }
+async function salvarEImprimir(){ const btn=document.querySelector('#modal-comprovante-print .btn-print'); if(!btn)return; btn.innerText='Salvando...'; btn.disabled=true; try{ await salvarDadosComprovante(); const v=obterValoresComprovante(); let htmlPrint=gerarHTMLImpressaoCRM(v); htmlPrint=htmlPrint.replace('</body>',`<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},800);});<\/script></body>`); const win=window.open('','_blank'); if(win){win.document.write(htmlPrint);win.document.close();win.focus();}else{alert("Pop-up bloqueado! Permita pop-ups.");} fecharComprovantePrint(); }catch(e){alert("Erro ao salvar e imprimir: "+e.message);}finally{btn.innerText='\uD83D\uDDA8\uFE0F Imprimir';btn.disabled=false;} }
 function fecharModal(id){
     const modal=document.getElementById(id);
     if(modal) modal.classList.remove('active');
@@ -1198,7 +1198,7 @@ function fecharModal(id){
 function fecharComprovantePrint(){ const modal=document.getElementById('modal-comprovante-print'); if(modal) modal.style.display='none'; }
 
 // ============================================================
-// ðŸ”¥ BUSCA INTELIGENTE (Sem Filtros, com Data BR e OrdenaÃ§Ã£o)
+// \uD83D\uDD25 BUSCA INTELIGENTE (Sem Filtros, com Data BR e Ordena\u00E7\u00E3o)
 // ============================================================
 var todosResultadosBusca = []; 
 var debounceTimerBusca = null; 
@@ -1234,12 +1234,12 @@ function minimoCaracteresBusca(tipo) {
 
 function placeholderBusca(tipo) {
     const textos = {
-        todos: 'Digite nome, rua, nÃºmero, CPF ou telefone...',
+        todos: 'Digite nome, rua, n\u00FAmero, CPF ou telefone...',
         nome: 'Digite o nome da pessoa...',
-        endereco: 'Digite o nome da rua ou endereÃ§o...',
-        numero: 'Digite o nÃºmero do cartÃ£o...',
-        cpf: 'Digite pelo menos 3 nÃºmeros do CPF...',
-        telefone: 'Digite pelo menos 3 nÃºmeros do telefone...'
+        endereco: 'Digite o nome da rua ou endere\u00E7o...',
+        numero: 'Digite o n\u00FAmero do cart\u00E3o...',
+        cpf: 'Digite pelo menos 3 n\u00FAmeros do CPF...',
+        telefone: 'Digite pelo menos 3 n\u00FAmeros do telefone...'
     };
     return textos[tipo] || textos.todos;
 }
@@ -1365,18 +1365,18 @@ function prepararModalBusca() {
             inputBusca.placeholder = placeholderBusca(buscaTipoSelect ? buscaTipoSelect.value : 'todos');
         }
         todosResultadosBusca = [];
-        if (contadorBusca) contadorBusca.textContent = 'â³ ...';
+        if (contadorBusca) contadorBusca.textContent = '\u23F3 ...';
         const editorArea = document.getElementById('busca-editor-area');
         if (editorArea) { editorArea.style.display = 'none'; editorArea.innerHTML = ''; }
         if (buscaResultados) {
             buscaResultados.style.display = 'flex';
-            buscaResultados.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">ðŸ”Ž Digite algo para iniciar a busca</div>';
+            buscaResultados.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">\uD83D\uDD0E Digite algo para iniciar a busca</div>';
         }
         carregarTotalCartoesBusca();
     }, 100);
 }
 
-async function carregarTotalCartoesBusca() { if (!contadorBusca) return; contadorBusca.textContent = 'â³ ...'; try { const resp=await fetchFromGS('contarCartoesPendentes'); if(resp && resp.success) contadorBusca.textContent=`ðŸ“¦ ${resp.total} pendentes`; else { contadorBusca.textContent='âš ï¸ Erro'; console.error(resp); } } catch(erro){ console.error(erro); contadorBusca.textContent='âš ï¸ Erro'; } }
+async function carregarTotalCartoesBusca() { if (!contadorBusca) return; contadorBusca.textContent = '\u23F3 ...'; try { const resp=await fetchFromGS('contarCartoesPendentes'); if(resp && resp.success) contadorBusca.textContent=`\uD83D\uDCE6 ${resp.total} pendentes`; else { contadorBusca.textContent='\u26A0\uFE0F Erro'; console.error(resp); } } catch(erro){ console.error(erro); contadorBusca.textContent='\u26A0\uFE0F Erro'; } }
 
 async function executarBusca() {
     if (!inputBusca) { inputBusca = document.getElementById('busca-input'); if (!inputBusca) return; }
@@ -1408,19 +1408,19 @@ async function executarBusca() {
     const controllerAtual = new AbortController();
     buscaRequestController = controllerAtual;
     const sequenciaAtual = ++buscaSequencia;
-    if (buscaResultados) { buscaResultados.style.display = 'flex'; buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">â³ Buscando...</div>'; }
+    if (buscaResultados) { buscaResultados.style.display = 'flex'; buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">\u23F3 Buscando...</div>'; }
     const params = { termo, campo: tipo };
     try {
         const resultado = await fetchFromGS('pesquisarCartoes', params, controllerAtual.signal);
         if (sequenciaAtual !== buscaSequencia) return;
-        if (!resultado || resultado.error) throw new Error(resultado?.error || 'Resposta invÃ¡lida do servidor');
+        if (!resultado || resultado.error) throw new Error(resultado?.error || 'Resposta inv\u00E1lida do servidor');
         salvarBuscaMemoria(chaveMemoria, resultado);
         buscaUltimaConsulta = { tipo, termo, resposta: resultado };
         processarResultados(resultado);
     } catch (e) {
         if (e.name === 'AbortError') return;
         console.error(e);
-        if (buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#d32f2f;">âŒ Erro na busca. Tente novamente.</div>';
+        if (buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#d32f2f;">\u274C Erro na busca. Tente novamente.</div>';
     } finally {
         if (buscaRequestController === controllerAtual) buscaRequestController = null;
     }
@@ -1442,8 +1442,8 @@ function processarResultados(resposta) {
         }
     });
     if (contadorBusca) {
-        const limitado = resposta?.completo === false ? ` Â· mostrando ${todosResultadosBusca.length}` : '';
-        contadorBusca.textContent = `ðŸ“¦ ${Number(resposta?.total || 0)} encontrado(s)${limitado}`;
+        const limitado = resposta?.completo === false ? ` \u00B7 mostrando ${todosResultadosBusca.length}` : '';
+        contadorBusca.textContent = `\uD83D\uDCE6 ${Number(resposta?.total || 0)} encontrado(s)${limitado}`;
     }
     renderizarResultados();
 }
@@ -1460,7 +1460,7 @@ function renderizarResultados() {
     let html = '';
     exibir.forEach(item => {
         const qtdEndereco = contarIguaisPorEndereco(item);
-        const multiIcon = qtdEndereco > 1 ? `<span style="background:#e3f2fd; padding:2px 8px; border-radius:12px; margin-left:5px;">ðŸ‘¥ ${qtdEndereco}</span>` : '';
+        const multiIcon = qtdEndereco > 1 ? `<span style="background:#e3f2fd; padding:2px 8px; border-radius:12px; margin-left:5px;">\uD83D\uDC65 ${qtdEndereco}</span>` : '';
         const statusClass = String(item.status || '').toUpperCase().trim() === 'BLOQUEADO' ? 'bloqueado' : '';
         const seloRecente = ehDataRecenteBusca(item.data) ? '<div class="selo-container"><div class="selo">RECENTE</div></div>' : '';
         html += `
@@ -1468,10 +1468,10 @@ function renderizarResultados() {
                 <span class="numero">${escapeHtml(item.numero || '-')}</span>
                 <span class="nome" title="${escapeHtml(item.nome || '')}">${escapeHtml(item.nome || '')}</span>
                 <div class="detalhes">
-                    <span class="data-destaque">ðŸ“… ${escapeHtml(formatarDataBR(item.data))}</span>
+                    <span class="data-destaque">\uD83D\uDCC5 ${escapeHtml(formatarDataBR(item.data))}</span>
                     ${seloRecente}
-                    <span>ðŸ“ ${escapeHtml(item.endereco || 'SEM ENDEREÃ‡O')} ${multiIcon}</span>
-                    <span>ðŸ“¦ ${escapeHtml(item.tipo || '')}</span>
+                    <span>\uD83D\uDCCD ${escapeHtml(item.endereco || 'SEM ENDERE\u00C7O')} ${multiIcon}</span>
+                    <span>\uD83D\uDCE6 ${escapeHtml(item.tipo || '')}</span>
                     <span class="status-badge ${statusClass}">${escapeHtml(item.status || 'PENDENTE')}</span>
                 </div>
             </div>`;
@@ -1488,7 +1488,7 @@ function limparBusca(recarregarTotal = true) {
     buscaResultadosAuxiliares.clear();
     buscaUltimaConsulta = null;
     if (buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">Digite algo para buscar.</div>';
-    if (contadorBusca && recarregarTotal) contadorBusca.textContent = 'â³ ...';
+    if (contadorBusca && recarregarTotal) contadorBusca.textContent = '\u23F3 ...';
     const editorArea = document.getElementById('busca-editor-area');
     if (editorArea) { editorArea.style.display = 'none'; editorArea.innerHTML = ''; }
     if (recarregarTotal) carregarTotalCartoesBusca();
@@ -1510,7 +1510,7 @@ function ehDataRecenteBusca(valor) {
 function escapeHtml(v) { return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
 
 // ============================================================
-// âœ¨ EDITOR RÃPIDO PREMIUM COM BOTÃƒO VOLTAR, POSIÃ‡ÃƒO PISCANTE E NÃšMERO GIGANTE
+// \u2728 EDITOR R\u00C1PIDO PREMIUM COM BOT\u00C3O VOLTAR, POSI\u00C7\u00C3O PISCANTE E N\u00DAMERO GIGANTE
 // ============================================================
 function abrirEditorBuscaRapido(linha) {
     const item = obterResultadoBuscaPorLinha(linha);
@@ -1527,30 +1527,30 @@ function abrirEditorBuscaRapido(linha) {
     editorArea.innerHTML = `
         <div id="editor-busca-${Number(linha)}">
             <div class="header-editor">
-                <button class="btn-voltar" onclick="cancelarEdicaoBusca(${Number(linha)})">â† Voltar</button>
-                <h4 style="margin:0; flex:1; text-align:center;">âœï¸ CartÃ£o NÂº ${escapeHtml(item.numero || '-')} â€” ${escapeHtml(item.nome || '')}</h4>
-                <span id="posicao-span-busca-${Number(linha)}" class="posicao-badge posicao-badge-piscante">ðŸ“Œ carregando...</span>
+                <button class="btn-voltar" onclick="cancelarEdicaoBusca(${Number(linha)})">\u2190 Voltar</button>
+                <h4 style="margin:0; flex:1; text-align:center;">\u270F\uFE0F Cart\u00E3o N\u00BA ${escapeHtml(item.numero || '-')} \u2014 ${escapeHtml(item.nome || '')}</h4>
+                <span id="posicao-span-busca-${Number(linha)}" class="posicao-badge posicao-badge-piscante">\uD83D\uDCCC carregando...</span>
             </div>
 
             <div class="editor-grid">
                 <div><label>Nome</label><input id="edit-nome-busca-${Number(linha)}" value="${escapeHtml(item.nome || '')}"></div>
-                <div><label>ðŸ“… Data</label><input id="edit-data-busca-${Number(linha)}" value="${escapeHtml(formatarDataBR(item.data))}" placeholder="dd/mm/yyyy"></div>
+                <div><label>\uD83D\uDCC5 Data</label><input id="edit-data-busca-${Number(linha)}" value="${escapeHtml(formatarDataBR(item.data))}" placeholder="dd/mm/yyyy"></div>
             </div>
 
             <div class="editor-grid">
-                <div class="editor-full"><label>ðŸ”¢ NÃšMERO DO CARTÃƒO (IdentificaÃ§Ã£o)</label><input id="edit-num-busca-${Number(linha)}" class="campo-numero" value="${escapeHtml(item.numero || '')}" readonly></div>
+                <div class="editor-full"><label>\uD83D\uDD22 N\u00DAMERO DO CART\u00C3O (Identifica\u00E7\u00E3o)</label><input id="edit-num-busca-${Number(linha)}" class="campo-numero" value="${escapeHtml(item.numero || '')}" readonly></div>
             </div>
 
             <div class="editor-grid">
                 <div class="editor-full">
-                    <label>ðŸ“ ENDEREÃ‡O COMPLETO</label>
+                    <label>\uD83D\uDCCD ENDERE\u00C7O COMPLETO</label>
                     <input id="edit-end-busca-${Number(linha)}" value="${escapeHtml(item.endereco || '')}" style="${temOutros ? 'background:#fffbeb;border:2px solid #f59e0b;' : ''}">
                     ${temOutros ? `
                         <div class="alerta-duplicidade">
-                            <span style="color:#b45309; font-weight:bold; display:flex; align-items:center; gap:8px;"><span style="font-size:1.2rem;">âš ï¸</span> HÃ¡ ${qtdMesmoEndereco} cartÃµes neste mesmo endereÃ§o!</span>
+                            <span style="color:#b45309; font-weight:bold; display:flex; align-items:center; gap:8px;"><span style="font-size:1.2rem;">\u26A0\uFE0F</span> H\u00E1 ${qtdMesmoEndereco} cart\u00F5es neste mesmo endere\u00E7o!</span>
                             <div>
-                                <button class="btn-sm" onclick="abrirListaMoradoresBusca(${Number(linha)})" style="background:#2563eb; color:white; border:none; padding:5px 14px; border-radius:30px; cursor:pointer;">ðŸ‘¥ VER MORADORES</button>
-                                <button class="btn-sm" onclick="abrirEdicaoMassivaBusca(${Number(linha)})" style="background:#ea580c; color:white; border:none; padding:5px 14px; border-radius:30px; cursor:pointer;">âœï¸ EDITAR TODOS</button>
+                                <button class="btn-sm" onclick="abrirListaMoradoresBusca(${Number(linha)})" style="background:#2563eb; color:white; border:none; padding:5px 14px; border-radius:30px; cursor:pointer;">\uD83D\uDC65 VER MORADORES</button>
+                                <button class="btn-sm" onclick="abrirEdicaoMassivaBusca(${Number(linha)})" style="background:#ea580c; color:white; border:none; padding:5px 14px; border-radius:30px; cursor:pointer;">\u270F\uFE0F EDITAR TODOS</button>
                             </div>
                         </div>` : ''}
                 </div>
@@ -1558,7 +1558,7 @@ function abrirEditorBuscaRapido(linha) {
 
             <div class="editor-grid">
                 <div><label>CPF</label><input id="edit-cpf-busca-${Number(linha)}" value="${escapeHtml(item.cpf || '')}"></div>
-                <div><label>Entregue Ã€</label><input id="edit-entrega-busca-${Number(linha)}" value="${escapeHtml(item.entregueA || '')}"></div>
+                <div><label>Entregue \u00C0</label><input id="edit-entrega-busca-${Number(linha)}" value="${escapeHtml(item.entregueA || '')}"></div>
             </div>
 
             <div class="editor-grid">
@@ -1566,8 +1566,8 @@ function abrirEditorBuscaRapido(linha) {
             </div>
 
             <div class="btn-actions">
-                <button class="btn-salvar" onclick="salvarEdicaoBusca(${Number(linha)})">ðŸ’¾ Salvar</button>
-                <button class="btn-entregue" onclick="confirmarEntregaBusca(${Number(linha)})">âœ… ENTREGUE</button>
+                <button class="btn-salvar" onclick="salvarEdicaoBusca(${Number(linha)})">\uD83D\uDCBE Salvar</button>
+                <button class="btn-entregue" onclick="confirmarEntregaBusca(${Number(linha)})">\u2705 ENTREGUE</button>
                 <button class="btn-cancelar" onclick="cancelarEdicaoBusca(${Number(linha)})">Cancelar</button>
             </div>
         </div>`;
@@ -1578,20 +1578,20 @@ function abrirEditorBuscaRapido(linha) {
                 const span = document.getElementById(`posicao-span-busca-${Number(linha)}`);
                 if (!span) return;
                 if (result.success && result.posicao !== null) {
-                    span.textContent = `ðŸ“Œ PosiÃ§Ã£o: ${result.posicao} de ${result.total} (bloco ${numeroBloco})`;
+                    span.textContent = `\uD83D\uDCCC Posi\u00E7\u00E3o: ${result.posicao} de ${result.total} (bloco ${numeroBloco})`;
                 } else if (result.total === 0) {
-                    span.textContent = `ðŸ“Œ Sem outros cartÃµes no bloco ${numeroBloco}`;
+                    span.textContent = `\uD83D\uDCCC Sem outros cart\u00F5es no bloco ${numeroBloco}`;
                 } else {
-                    span.textContent = 'ðŸ“Œ PosiÃ§Ã£o: nÃ£o disponÃ­vel';
+                    span.textContent = '\uD83D\uDCCC Posi\u00E7\u00E3o: n\u00E3o dispon\u00EDvel';
                 }
             })
             .catch(() => {
                 const span = document.getElementById(`posicao-span-busca-${Number(linha)}`);
-                if (span) span.textContent = 'ðŸ“Œ Erro ao carregar posiÃ§Ã£o';
+                if (span) span.textContent = '\uD83D\uDCCC Erro ao carregar posi\u00E7\u00E3o';
             });
     } else {
         const span = document.getElementById(`posicao-span-busca-${Number(linha)}`);
-        if (span) span.textContent = 'ðŸ“Œ Bloco nÃ£o informado';
+        if (span) span.textContent = '\uD83D\uDCCC Bloco n\u00E3o informado';
     }
 }
 
@@ -1610,7 +1610,7 @@ window.salvarEdicaoBusca = async function (linha) {
         data: get(`edit-data-busca-${Number(linha)}`) || itemOriginal.data || '',
         quantidade: itemOriginal.quantidade || 1,
         obs: itemOriginal.obs || '',
-        tipo: itemOriginal.tipo || 'CARTÃƒO',
+        tipo: itemOriginal.tipo || 'CART\u00C3O',
         status: itemOriginal.status || '',
         numero: get(`edit-num-busca-${Number(linha)}`) || itemOriginal.numero || '',
         endereco: get(`edit-end-busca-${Number(linha)}`) || itemOriginal.endereco || '',
@@ -1621,22 +1621,22 @@ window.salvarEdicaoBusca = async function (linha) {
     };
     try {
         await postParaGoogleSheets('atualizarCartao', { linha, dados });
-        alert('âœ… Dados salvos com sucesso!');
+        alert('\u2705 Dados salvos com sucesso!');
         cancelarEdicaoBusca(linha);
         executarBusca();
     } catch (erro) {
-        alert('âŒ Erro ao salvar: ' + erro.message);
+        alert('\u274C Erro ao salvar: ' + erro.message);
     }
 };
 
 window.confirmarEntregaBusca = function (linha) {
     const itemOriginal = obterResultadoBuscaPorLinha(linha);
     if (!itemOriginal) return;
-    const nomeQuemRecebeu = prompt(`ðŸ“¦ PARA QUEM FOI ENTREGUE O CARTÃƒO DE ${itemOriginal.nome}?`);
+    const nomeQuemRecebeu = prompt(`\uD83D\uDCE6 PARA QUEM FOI ENTREGUE O CART\u00C3O DE ${itemOriginal.nome}?`);
     if (!nomeQuemRecebeu || nomeQuemRecebeu.trim() === '') { alert('Entrega cancelada.'); return; }
     const hoje = new Date();
     const dataFormatada = `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}/${hoje.getFullYear()}`;
-    const telRecebedor = prompt('ðŸ“ž Qual o telefone de quem recebeu? (Opcional)', '');
+    const telRecebedor = prompt('\uD83D\uDCDE Qual o telefone de quem recebeu? (Opcional)', '');
     finalizarEntregaBusca(linha, nomeQuemRecebeu.trim(), dataFormatada, telRecebedor);
 };
 
@@ -1647,7 +1647,7 @@ async function finalizarEntregaBusca(linha, nomeEntregueA, dataEntrega, telefone
         data: get(`edit-data-busca-${Number(linha)}`) || '',
         quantidade: 1,
         obs: '',
-        tipo: 'CARTÃƒO',
+        tipo: 'CART\u00C3O',
         status: 'ENTREGUE',
         numero: get(`edit-num-busca-${Number(linha)}`) || '',
         endereco: get(`edit-end-busca-${Number(linha)}`) || '',
@@ -1658,11 +1658,11 @@ async function finalizarEntregaBusca(linha, nomeEntregueA, dataEntrega, telefone
     };
     try {
         await postParaGoogleSheets('atualizarCartao', { linha, dados });
-        alert('âœ… CartÃ£o marcado como ENTREGUE com sucesso!');
+        alert('\u2705 Cart\u00E3o marcado como ENTREGUE com sucesso!');
         cancelarEdicaoBusca(linha);
         executarBusca();
     } catch (erro) {
-        alert('âŒ Erro: ' + erro.message);
+        alert('\u274C Erro: ' + erro.message);
     }
 }
 
@@ -1678,7 +1678,7 @@ async function obterCartoesMesmoEnderecoBusca(enderecoOriginal) {
         const exatos = completos.filter(item => normalizarEndereco(item.endereco) === enderecoNorm);
         if (exatos.length) cartoes = exatos;
     } catch (erro) {
-        console.warn('NÃ£o foi possÃ­vel carregar todos os moradores do endereÃ§o:', erro);
+        console.warn('N\u00E3o foi poss\u00EDvel carregar todos os moradores do endere\u00E7o:', erro);
     }
     return cartoes;
 }
@@ -1715,7 +1715,7 @@ async function abrirListaMoradoresBusca(linhaAtual) {
     const enderecoOriginal = atual.endereco || '';
     const editorArea = document.getElementById('busca-editor-area');
     if (!editorArea) return;
-    editorArea.innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;">â³ Carregando moradores...</div>';
+    editorArea.innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;">\u23F3 Carregando moradores...</div>';
     const cartoes = await obterCartoesMesmoEnderecoBusca(enderecoOriginal);
     if (!cartoes.length) return;
     incluirResultadosAuxiliaresBusca(cartoes);
@@ -1724,14 +1724,14 @@ async function abrirListaMoradoresBusca(linhaAtual) {
         const isAtual = Number(cartao.linha) === Number(linhaAtual);
         listaHtml += `
             <li role="button" tabindex="0" onclick="abrirCartaoDaListaBusca(${Number(cartao.linha)})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirCartaoDaListaBusca(${Number(cartao.linha)});}" style="margin:4px 0; padding:9px; background:${isAtual ? '#e3f2fd' : '#f9f9f9'}; border:1px solid ${isAtual ? '#90caf9' : '#e5e7eb'}; border-radius:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:.2s;" onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
-                <div><strong>${escapeHtml(cartao.nome)}</strong><br><small>ðŸ“ NÂº ${escapeHtml(cartao.numero || '-')}</small></div>
-                ${isAtual ? '<span style="font-size:12px; background:#2196f3; color:white; padding:4px 10px; border-radius:12px;">ATUAL</span>' : '<span style="font-size:12px; background:#1B4F1F; color:white; padding:4px 10px; border-radius:12px;">ABRIR â†’</span>'}
+                <div><strong>${escapeHtml(cartao.nome)}</strong><br><small>\uD83D\uDCCD N\u00BA ${escapeHtml(cartao.numero || '-')}</small></div>
+                ${isAtual ? '<span style="font-size:12px; background:#2196f3; color:white; padding:4px 10px; border-radius:12px;">ATUAL</span>' : '<span style="font-size:12px; background:#1B4F1F; color:white; padding:4px 10px; border-radius:12px;">ABRIR \u2192</span>'}
             </li>`;
     });
     listaHtml += '</ul>';
     editorArea.innerHTML = `
-        <h4>ðŸ‘¥ Moradores do endereÃ§o</h4>
-        <p style="background:#e8f5e9; padding:6px; border-radius:6px;">ðŸ“ ${escapeHtml(enderecoOriginal)}</p>
+        <h4>\uD83D\uDC65 Moradores do endere\u00E7o</h4>
+        <p style="background:#e8f5e9; padding:6px; border-radius:6px;">\uD83D\uDCCD ${escapeHtml(enderecoOriginal)}</p>
         ${listaHtml}
         <button class="btn-cancelar" onclick="cancelarEdicaoBusca(${Number(linhaAtual)})">Fechar</button>`;
 }
@@ -1741,10 +1741,10 @@ async function abrirEdicaoMassivaBusca(linhaAtual) {
     if (!atual) return;
     const editorArea = document.getElementById('busca-editor-area');
     if (!editorArea) return;
-    editorArea.innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;">â³ Carregando cartÃµes do endereÃ§o...</div>';
+    editorArea.innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;">\u23F3 Carregando cart\u00F5es do endere\u00E7o...</div>';
     const cartoes = await obterCartoesMesmoEnderecoBusca(atual.endereco || '');
     if (cartoes.length <= 1) {
-        editorArea.innerHTML = `<div style="text-align:center;padding:30px;color:#64748b;">Nenhum outro cartÃ£o foi encontrado neste endereÃ§o.<br><button class="btn-voltar" style="margin:15px auto 0;" onclick="cancelarEdicaoBusca(${Number(linhaAtual)})">â† Voltar</button></div>`;
+        editorArea.innerHTML = `<div style="text-align:center;padding:30px;color:#64748b;">Nenhum outro cart\u00E3o foi encontrado neste endere\u00E7o.<br><button class="btn-voltar" style="margin:15px auto 0;" onclick="cancelarEdicaoBusca(${Number(linhaAtual)})">\u2190 Voltar</button></div>`;
         return;
     }
     const linhas = cartoes.map(it => Number(it.linha));
@@ -1752,13 +1752,13 @@ async function abrirEdicaoMassivaBusca(linhaAtual) {
     editorArea.style.display = 'block';
     editorArea.innerHTML = `
         <div id="editorMassaBusca" class="editor-massa active">
-            <h4>âœï¸ EdiÃ§Ã£o Massiva (${linhas.length} cartÃµes)</h4>
-            <p>ðŸ“ ${escapeHtml(cartoes[0].endereco || '')} â€” ${escapeHtml(nomes.join(', '))}</p>
+            <h4>\u270F\uFE0F Edi\u00E7\u00E3o Massiva (${linhas.length} cart\u00F5es)</h4>
+            <p>\uD83D\uDCCD ${escapeHtml(cartoes[0].endereco || '')} \u2014 ${escapeHtml(nomes.join(', '))}</p>
             <label>Status</label>
             <select id="massa-status-busca"><option value="">Manter atual</option><option value="ENTREGUE">ENTREGUE</option><option value="BLOQUEADO">BLOQUEADO</option></select>
             <label>Data Entrega</label><input id="massa-dataentrega-busca" placeholder="dd/mm/yyyy">
             <label>CPF</label><input id="massa-cpf-busca" placeholder="CPF para todos">
-            <label>Entregue Ã</label><input id="massa-entrega-busca" placeholder="Entregue Ã para todos">
+            <label>Entregue \u00C1</label><input id="massa-entrega-busca" placeholder="Entregue \u00C1 para todos">
             <label>Telefone</label><input id="massa-telefone-busca" placeholder="Telefone para todos">
             <div style="display:flex; gap:8px; margin-top:12px;">
                 <button class="btn-salvar" onclick='salvarEdicaoMassivaBusca(${JSON.stringify(linhas)})'>Salvar em todos</button>
@@ -1781,11 +1781,10 @@ async function salvarEdicaoMassivaBusca(linhas) {
     if (telefone) dados.telefone = telefone;
     try {
         await postParaGoogleSheets('atualizarMultiplosCartoes', { linhas, dados });
-        alert('âœ… EdiÃ§Ã£o massiva salva com sucesso!');
+        alert('\u2705 Edi\u00E7\u00E3o massiva salva com sucesso!');
         cancelarEdicaoBusca(linhas[0]);
         executarBusca();
     } catch (erro) {
         alert('Erro: ' + erro.message);
     }
 }
-Explicar
