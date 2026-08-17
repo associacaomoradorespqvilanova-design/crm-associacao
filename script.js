@@ -1,7 +1,7 @@
 // ============================================================
 // CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwwRSOJ9M5xTegU-981obWZJaXILqRBSrkFpwOwkOx318GxZIeFXKd6QmFToa8S0BtAAQ/exec";
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzS6RUbpptfPggHMIsOTHPmHJK2p4SZOb3AFW2qnesgiXgmBHddLHt4KH889SX7Ks-tZw/exec";
 
 // ============================================================
 // GET VIA JSONP
@@ -291,6 +291,7 @@ async function deletarResponsavel(nome) { if(!confirm(`Remover o respons\u00E1ve
 // ADC CART\u00D5ES (M\u00FAltiplas Entregas)
 // ============================================================
 let contadorEntregas = 0;
+let cartoesLotePendente = null;
 function abrirModal(id) {
     const modal = document.getElementById(id);
     if (!modal) return;
@@ -380,6 +381,33 @@ function coletarDadosParaEnvio() { const dadosComuns = { quantidade: document.ge
 
 function limparCamposNomeEndereco() { document.querySelectorAll('#mult-lista-entregas .nome-input').forEach(n => { n.value=''; n.style.borderColor='#ddd'; }); document.querySelectorAll('#mult-lista-entregas .endereco-input').forEach(e => { e.value=''; e.style.borderColor='#ddd'; }); }
 
+function criarIdLoteEntregas() {
+    if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+    return `LOTE-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function aguardarCartoes(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+async function confirmarGravacaoLoteEntregas(loteId, totalEsperado) {
+    let ultimaResposta = null;
+    for (let tentativa = 1; tentativa <= 6; tentativa++) {
+        await aguardarCartoes(tentativa === 1 ? 900 : 1400);
+        try {
+            ultimaResposta = await fetchFromGS('confirmarLoteCartoesEntrega', {
+                loteId,
+                esperado: String(totalEsperado),
+                _: String(Date.now())
+            });
+            if (ultimaResposta?.success && Number(ultimaResposta.total) === Number(totalEsperado)) return ultimaResposta;
+            if (ultimaResposta?.success === false && ultimaResposta?.definitivo) break;
+        } catch (erro) {
+            console.warn(`Tentativa ${tentativa} de confirmar o lote falhou:`, erro);
+        }
+    }
+    const detalhe = ultimaResposta?.message || ultimaResposta?.error || 'O servidor n\u00E3o confirmou a grava\u00E7\u00E3o. Atualize a implanta\u00E7\u00E3o do Google Apps Script.';
+    throw new Error(`${detalhe} Os campos foram mantidos para voc\u00EA tentar novamente.`);
+}
+
 async function enviarTodasEntregas() {
     if (!validarCampos()) return;
     const entregas = coletarDadosParaEnvio();
@@ -395,14 +423,21 @@ async function enviarTodasEntregas() {
     btnEnviar.disabled = true;
     if (statusDiv) statusDiv.style.display = 'none';
     try {
-        await postParaGoogleSheets('salvarLoteCartoesEntrega', entregas);
+        const assinatura = JSON.stringify(entregas);
+        const loteId = cartoesLotePendente?.assinatura === assinatura
+            ? cartoesLotePendente.loteId
+            : criarIdLoteEntregas();
+        cartoesLotePendente = { loteId, assinatura };
+        await postParaGoogleSheets('salvarLoteCartoesEntrega', { loteId, entregas });
+        const confirmacao = await confirmarGravacaoLoteEntregas(loteId, entregas.length);
         if (statusDiv) {
             statusDiv.style.display = 'block';
             statusDiv.style.background = '#e8f5e9';
             statusDiv.style.color = '#2e7d32';
             statusDiv.style.border = '2px solid #a5d6a7';
-            statusDiv.innerText = `\u2705 ${entregas.length} registro(s) salvos com sucesso!`;
+            statusDiv.innerText = `\u2705 ${confirmacao.total} registro(s) confirmados na aba ENTREGAS!`;
         }
+        cartoesLotePendente = null;
         limparCamposNomeEndereco();
         document.querySelector('#mult-lista-entregas .nome-input')?.focus();
     } catch (erro) {
@@ -560,6 +595,34 @@ async function obterWorkerCartoesOCR() {
     return cartoesScannerWorkerPromise;
 }
 
+function obterRecorteRealDaGuiaCartoes(fonte) {
+    const video = document.getElementById('cartoes-scanner-video');
+    const guia = document.querySelector('.scanner-frame-guide');
+    if (!video || !guia || fonte !== video) return null;
+    const larguraFonte = video.videoWidth;
+    const alturaFonte = video.videoHeight;
+    const videoRect = video.getBoundingClientRect();
+    const guiaRect = guia.getBoundingClientRect();
+    if (!larguraFonte || !alturaFonte || !videoRect.width || !videoRect.height) return null;
+
+    // O preview usa object-fit: cover. Converte a moldura visivel para as
+    // coordenadas reais da camera; sem isto o OCR lia areas fora da moldura.
+    const escala = Math.max(videoRect.width / larguraFonte, videoRect.height / alturaFonte);
+    const larguraRenderizada = larguraFonte * escala;
+    const alturaRenderizada = alturaFonte * escala;
+    const deslocamentoX = (videoRect.width - larguraRenderizada) / 2;
+    const deslocamentoY = (videoRect.height - alturaRenderizada) / 2;
+    let sx = (guiaRect.left - videoRect.left - deslocamentoX) / escala;
+    let sy = (guiaRect.top - videoRect.top - deslocamentoY) / escala;
+    let sw = guiaRect.width / escala;
+    let sh = guiaRect.height / escala;
+    sx = Math.max(0, Math.min(larguraFonte - 1, sx));
+    sy = Math.max(0, Math.min(alturaFonte - 1, sy));
+    sw = Math.max(1, Math.min(larguraFonte - sx, sw));
+    sh = Math.max(1, Math.min(alturaFonte - sy, sh));
+    return { sx, sy, sw, sh };
+}
+
 function desenharFonteNoCanvasCartoes(fonte, recortarGuia) {
     const canvas = document.getElementById('cartoes-scanner-canvas');
     if (!canvas) throw new Error('\u00C1rea de captura n\u00E3o encontrada.');
@@ -567,10 +630,11 @@ function desenharFonteNoCanvasCartoes(fonte, recortarGuia) {
     const alturaFonte = fonte.videoHeight || fonte.naturalHeight || fonte.height;
     if (!larguraFonte || !alturaFonte) throw new Error('A imagem ainda n\u00E3o est\u00E1 pronta.');
 
-    const sx = recortarGuia ? Math.round(larguraFonte * 0.08) : 0;
-    const sy = recortarGuia ? Math.round(alturaFonte * 0.18) : 0;
-    const sw = recortarGuia ? Math.round(larguraFonte * 0.84) : larguraFonte;
-    const sh = recortarGuia ? Math.round(alturaFonte * 0.64) : alturaFonte;
+    const recorteReal = recortarGuia ? obterRecorteRealDaGuiaCartoes(fonte) : null;
+    const sx = Math.round(recorteReal?.sx ?? (recortarGuia ? larguraFonte * 0.08 : 0));
+    const sy = Math.round(recorteReal?.sy ?? (recortarGuia ? alturaFonte * 0.18 : 0));
+    const sw = Math.round(recorteReal?.sw ?? (recortarGuia ? larguraFonte * 0.84 : larguraFonte));
+    const sh = Math.round(recorteReal?.sh ?? (recortarGuia ? alturaFonte * 0.64 : alturaFonte));
     const escala = Math.min(2, 1800 / sw);
     canvas.width = Math.max(900, Math.round(sw * escala));
     canvas.height = Math.round(canvas.width * sh / sw);
@@ -678,7 +742,7 @@ function linhaPareceNomeOCR(valor) {
     const linha = semAcentoCartaoOCR(normalizarNomeDetectadoOCR(valor));
     const original = semAcentoCartaoOCR(valor);
     if (linha.length < 6 || linha.length > 75 || /\d/.test(linha) || linhaPareceEnderecoOCR(linha)) return false;
-    const bloqueios = /DESTINATARIO|REMETENTE|PEQUENA ENCOMENDA|STATUS VISITA|NOME.*RECEBEDOR|ASSINATURA|PROTOCOLO|LOCAL PARA DEVOLUCAO|FLASH|COURIER|CEP\b|BAIRRO|DUQUE DE CAXIAS|SAO BERNARDO|ENCOMENDA|RASTREADA|VISITA|AUSENTE|DATA\b|HORA\b|PARQUE\b|PQE\b|PRQ\b|JARDIM\b|JD\b|VILA\b|COOPERATIVA/;
+    const bloqueios = /DESTINATARIO|REMETENTE|PEQUENA ENCOMENDA|STATUS VISITA|NOME.*RECEBEDOR|ASSINATURA|PROTOCOLO|LOCAL PARA DEVOLUCAO|FLASH|COURIER|CEP\b|BAIRRO|DUQUE DE CAXIA(?:S)?|RIO DE JANEIRO|SAO PAULO|SAO BERNARDO|ENCOMENDA|RASTREADA|VISITA|AUSENTE|DATA\b|HORA\b|PARQUE\b|PQE\b|PRQ\b|JARDIM\b|JD\b|VILA\b|COOPERATIVA|\bRJ\b|\bSP\b/;
     const prefixoLocalidade = /^(?:JD|JARDIM|PQE|PRQ|PARQUE|VILA|BAIRRO)\b/;
     if (bloqueios.test(linha) || prefixoLocalidade.test(original)) return false;
     const palavras = linha.split(/\s+/).filter(Boolean);
@@ -687,25 +751,79 @@ function linhaPareceNomeOCR(valor) {
     return letras / Math.max(1, linha.replace(/\s/g, '').length) > 0.72;
 }
 
+function linhaPareceEnderecoComNumeroOCR(valor) {
+    const linha = semAcentoCartaoOCR(valor);
+    if (!linha || /CEP\b|PROTOCOLO|N[O0]?\s*WO|DATA\b|VISITA|AUSENTE|TELEFONE|CPF|CNPJ/.test(linha)) return false;
+    if (/DUQUE DE CAXIA(?:S)?|RIO DE JANEIRO|SAO PAULO|SAO BERNARDO/.test(linha)) return false;
+    const temNumeroResidencial = /(?:^|\s)\d{1,5}[A-Z]?(?:\s|,|$)/.test(linha) || /[A-Z]\d{1,5}(?:\s|,|$)/.test(linha);
+    const letras = (linha.match(/[A-Z]/g) || []).length;
+    return temNumeroResidencial && letras >= 4;
+}
+
+function ehLimiteBlocoDestinatarioOCR(valor) {
+    const linha = semAcentoCartaoOCR(valor);
+    return /REMETENTE|STATUS VISITA|PEQUENA ENCOMENDA|LOCAL PARA DEVOLUCAO|NOME.*RECEBEDOR|ASSINATURA|PROTOCOLO/.test(linha);
+}
+
+function extrairDoBlocoDestinatarioOCR(linhas, simples, inicioRotulo) {
+    const limiteMaximo = Math.min(linhas.length, inicioRotulo + 10);
+    let fim = limiteMaximo;
+    for (let i = inicioRotulo + 1; i < limiteMaximo; i++) {
+        if (i > inicioRotulo + 1 && (ehLimiteBlocoDestinatarioOCR(linhas[i]) || simples[i].includes('DESTINATARIO'))) {
+            fim = i;
+            break;
+        }
+    }
+    let indiceNome = -1;
+    for (let i = inicioRotulo + 1; i < fim; i++) {
+        if (linhaPareceNomeOCR(linhas[i])) { indiceNome = i; break; }
+    }
+    if (indiceNome < 0) return null;
+    let indiceEndereco = -1;
+    for (let i = indiceNome + 1; i < fim; i++) {
+        if (linhaPareceEnderecoOCR(linhas[i]) || linhaPareceEnderecoComNumeroOCR(linhas[i])) {
+            indiceEndereco = i;
+            break;
+        }
+    }
+    if (indiceEndereco < 0) return null;
+    return {
+        nome: normalizarNomeDetectadoOCR(linhas[indiceNome]),
+        endereco: normalizarEnderecoDetectadoOCR(linhas[indiceEndereco]),
+        pontuacao: 1000 - (indiceEndereco - indiceNome) * 10
+    };
+}
+
 function extrairNomeEnderecoCartaoOCR(texto) {
     const linhas = String(texto || '').split(/\r?\n/).map(linhaLimpaCartaoOCR).filter(l => l.length >= 2);
     const simples = linhas.map(semAcentoCartaoOCR);
     let melhor = null;
 
+    // Nos quatro modelos recebidos, o bloco correto comeca em DESTINATARIO.
+    // Prioriza esse bloco e nunca atravessa REMETENTE/STATUS/PROTOCOLO.
     for (let i = 0; i < linhas.length; i++) {
-        if (!linhaPareceEnderecoOCR(linhas[i])) continue;
-        for (let j = i - 1; j >= Math.max(0, i - 20); j--) {
-            if (!linhaPareceNomeOCR(linhas[j])) continue;
-            const temRotulo = simples.slice(Math.max(0, j - 4), j + 1).some(l => l.includes('DESTINATARIO'));
-            const distancia = i - j;
-            const pontuacao = 220 - distancia * 14 + (temRotulo ? 120 : 0) + Math.min(30, linhas[j].split(/\s+/).length * 5);
-            if (!melhor || pontuacao > melhor.pontuacao) melhor = { nome: normalizarNomeDetectadoOCR(linhas[j]), endereco: normalizarEnderecoDetectadoOCR(linhas[i]), pontuacao };
+        if (!simples[i].includes('DESTINATARIO')) continue;
+        const candidato = extrairDoBlocoDestinatarioOCR(linhas, simples, i);
+        if (candidato && (!melhor || candidato.pontuacao > melhor.pontuacao)) melhor = candidato;
+    }
+
+    if (!melhor) {
+        for (let i = 0; i < linhas.length; i++) {
+            if (!linhaPareceEnderecoOCR(linhas[i]) && !linhaPareceEnderecoComNumeroOCR(linhas[i])) continue;
+            for (let j = i - 1; j >= Math.max(0, i - 8); j--) {
+                if (!linhaPareceNomeOCR(linhas[j])) continue;
+                if (simples.slice(j + 1, i).some(ehLimiteBlocoDestinatarioOCR)) continue;
+                const temRotulo = simples.slice(Math.max(0, j - 4), j + 1).some(l => l.includes('DESTINATARIO'));
+                const distancia = i - j;
+                const pontuacao = 220 - distancia * 14 + (temRotulo ? 120 : 0) + Math.min(30, linhas[j].split(/\s+/).length * 5);
+                if (!melhor || pontuacao > melhor.pontuacao) melhor = { nome: normalizarNomeDetectadoOCR(linhas[j]), endereco: normalizarEnderecoDetectadoOCR(linhas[i]), pontuacao };
+            }
         }
     }
 
     if (!melhor) {
         const indiceNome = linhas.findIndex(linhaPareceNomeOCR);
-        const indiceEndereco = linhas.findIndex(linhaPareceEnderecoOCR);
+        const indiceEndereco = linhas.findIndex(l => linhaPareceEnderecoOCR(l) || linhaPareceEnderecoComNumeroOCR(l));
         melhor = {
             nome: indiceNome >= 0 ? normalizarNomeDetectadoOCR(linhas[indiceNome]) : '',
             endereco: indiceEndereco >= 0 ? normalizarEnderecoDetectadoOCR(linhas[indiceEndereco]) : '',
