@@ -174,7 +174,7 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 .busca-bar:focus-within { border-color: #2D6A30; box-shadow: 0 0 0 4px rgba(45, 106, 48, 0.1); }
 .busca-tipo-select {
     border: none; background: transparent; font-size: 13px; font-weight: 600; color: #1B4F1F;
-    outline: none; cursor: pointer; padding: 4px 8px 4px 4px; flex-shrink: 0; max-width: 140px; white-space: nowrap;
+    outline: none; cursor: pointer; padding: 4px 8px 4px 4px; flex-shrink: 0; max-width: 175px; white-space: nowrap;
     appearance: none; -webkit-appearance: none; font-family: 'Montserrat', sans-serif;
 }
 .busca-tipo-select option { color: #1e293b; font-weight: 500; background: #ffffff; }
