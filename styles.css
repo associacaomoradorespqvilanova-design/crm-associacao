@@ -1,362 +1,290 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+* { box-sizing: border-box; font-family: 'Montserrat', sans-serif; }
+body { margin: 0; padding: 0; min-height: 100vh; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); display: flex; justify-content: center; align-items: center; position: relative; overflow-x: hidden; }
 
-    <title>Associação PQ Vila Nova - CRM</title>
+.floating-shape { position: fixed; z-index: -1; border-radius: 50%; opacity: 0.15; pointer-events: none !important; animation: floatUp 20s infinite alternate ease-in-out; }
+.shape1 { width: 300px; height: 300px; background: #7baa48; top: 10%; left: -10%; }
+.shape2 { width: 400px; height: 400px; background: #F5B041; bottom: -10%; right: -10%; animation-delay: -5s; opacity: 0.1; }
+.shape3 { width: 150px; height: 150px; background: #4a7c2e; top: 60%; left: 80%; animation-duration: 25s; }
+@keyframes floatUp { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 33% { transform: translate(30px, -50px) scale(1.1) rotate(120deg); } 66% { transform: translate(-20px, 20px) scale(0.9) rotate(240deg); } 100% { transform: translate(10px, -30px) scale(1.05) rotate(360deg); } }
 
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+#login-screen { background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(12px); padding: 45px 40px; border-radius: 24px; max-width: 420px; width: 100%; box-shadow: 0 15px 40px rgba(0,0,0,0.05); border: 1px solid rgba(255, 255, 255, 0.5); text-align: center; position: relative; z-index: 10; }
+.login-logo img { max-width: 140px; height: auto; display: block; margin: 0 auto 15px auto; }
+#login-screen h2 { color: #2c3e50; font-weight: 700; margin: 0 0 5px 0; font-size: 22px; }
+#login-screen p { color: #7f8c8d; font-size: 14px; margin: 0 0 30px 0; }
+.input-group { margin-bottom: 20px; position: relative; text-align: left; }
+.input-group .icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #a0a0a0; width: 20px; height: 20px; }
+.input-group input { width: 100%; padding: 14px 14px 14px 48px; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 12px; font-size: 14px; font-weight: 500; outline: none; background: rgba(255, 255, 255, 0.7); transition: all 0.3s; color: #333; }
+.input-group input:focus { background: #ffffff; border-color: #7baa48; box-shadow: 0 0 0 4px rgba(123, 170, 72, 0.15); }
+.btn-primary { width: 100%; background: #7baa48; color: #fff; padding: 15px; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.3s; text-transform: uppercase; letter-spacing: 1px; position: relative; overflow: hidden; box-shadow: 0 4px 15px rgba(123, 170, 72, 0.3); }
+.btn-primary:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 8px 25px rgba(123, 170, 72, 0.4); }
+#login-error { color: #e74c3c; font-size: 13px; font-weight: 600; margin-top: 15px; display: none; background: #fde8e8; padding: 10px; border-radius: 8px; }
+.login-footer { margin-top: 25px; font-size: 12px; color: #95a5a6; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 20px; }
+.login-footer a { color: #7baa48; text-decoration: none; font-weight: 600; }
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js"></script>
+#dashboard-screen { display: none; max-width: 1400px; margin: 0 auto; padding: 30px; }
+.header-container { display: flex; justify-content: center; align-items: center; position: relative; margin-bottom: 40px; width: 100%; }
+.header-title { font-size: 34px; font-weight: 800; color: #2c3e50; letter-spacing: 1px; margin: 0; }
+.header-title span { color: #4a7c2e; }
+.header-title::after { content: ''; flex: 1; height: 2px; background: linear-gradient(to right, transparent, #7baa48, transparent); display: block; margin-top: 5px; }
+#clock-wrapper { perspective: 300px; background: rgba(255, 255, 255, 0.8); padding: 5px 25px; border-radius: 40px; backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.9); box-shadow: 0 2px 15px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: center; margin-top: 10px; }
+#current-time { font-size: 2.2rem; font-weight: 700; color: #4a7c2e; transition: transform 0.3s ease, opacity 0.3s ease; animation: paperFlip 0.4s ease-in-out; display: inline-block; }
+@keyframes paperFlip { 0% { transform: rotateY(0deg); opacity: 1; } 30% { transform: rotateY(90deg); opacity: 0.8; } 70% { transform: rotateY(-90deg); opacity: 0.8; } 100% { transform: rotateY(0deg); opacity: 1; } }
+.logout-container { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); }
+.btn-power-logout { background: rgba(74, 124, 46, 0.12); border: 1px solid #4a7c2e; color: #4a7c2e; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 2px 10px rgba(74, 124, 46, 0.1); }
+.btn-power-logout:hover { background: #4a7c2e; color: #fff; transform: scale(1.08); box-shadow: 0 6px 20px rgba(74, 124, 46, 0.4); }
+.btn-power-logout svg { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+.btn-power-logout:hover svg { transform: rotate(-90deg); }
+.grid-container { display: grid; grid-template-columns: 1.1fr 1.8fr 1.1fr; gap: 25px; align-items: start; }
+.panel { background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(8px); border-radius: 16px; padding: 20px; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06); border: 1px solid rgba(255, 255, 255, 0.8); transition: transform 0.3s, box-shadow 0.3s; }
+.panel:hover { transform: translateY(-5px); box-shadow: 0 15px 40px 0 rgba(31, 38, 135, 0.15); }
+.panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.panel-header h3 { margin: 0; font-size: 14px; color: #fff; background: #7baa48; padding: 8px 16px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 5px rgba(123, 170, 72, 0.3); }
+.btn-sm { background: rgba(255, 255, 255, 0.5); border: 1px solid #7baa48; color: #4a7c2e; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.3s; }
+.btn-sm:hover { background: #4a7c2e; color: #fff; transform: scale(1.05); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+table thead { background: rgba(26, 26, 26, 0.9); color: #fff; }
+table th, table td { padding: 10px 8px; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.05); }
+table th { font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
+.highlight-row { background-color: #eafde8; border-left: 4px solid #7baa48; font-weight: 700; }
+.btn-edit { background: transparent; border: none; color: #4a7c2e; cursor: pointer; font-size: 16px; transition: 0.2s; padding: 0 5px; }
+.btn-edit:hover { color: #1e3d0e; transform: scale(1.2); }
+@keyframes pulseBorder { 0% { box-shadow: 0 0 0 0 rgba(123, 170, 72, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(123, 170, 72, 0); } 100% { box-shadow: 0 0 0 0 rgba(123, 170, 72, 0); } }
+.pulse-row { animation: pulseBorder 2s infinite; border-left: 4px solid #7baa48 !important; }
+.col-center { display: flex; flex-direction: column; align-items: center; padding-top: 10px; }
+.logo-circle { width: 150px; height: 150px; border-radius: 50%; overflow: hidden; margin: 0 auto 25px auto; background: #fff; pointer-events: auto; position: relative; padding: 4px; }
+.logo-circle img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; pointer-events: none; }
+/* 🔥 EFEITO GIRATÓRIO NA LOGO */
+.logo-circle.spinning { border: 4px solid transparent; background-clip: padding-box; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+.logo-circle.spinning::before {
+    content: '';
+    position: absolute;
+    top: -4px; left: -4px; right: -4px; bottom: -4px;
+    border-radius: 50%;
+    z-index: -1;
+    background: conic-gradient(#7baa48, #4a7c2e, #7baa48, #4a7c2e, #7baa48);
+    animation: girarBorda 4s linear infinite;
+}
+@keyframes girarBorda { 100% { transform: rotate(360deg); } }
 
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
+.menu-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; max-width: 450px; width: 100%; }
+.btn-action { background: #7baa48; color: #fff; border: none; border-radius: 12px; padding: 15px 0; font-size: 12px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; position: relative; overflow: hidden; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 6px rgba(0,0,0,0.05); pointer-events: auto; }
+.btn-action:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 8px 15px rgba(123, 170, 72, 0.4); }
+.btn-action::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent); transition: 0.6s; }
+.btn-action:hover::before { left: 100%; }
+.btn-action:nth-child(1) { grid-column: 1; } .btn-action:nth-child(2) { grid-column: 3; }
+.btn-action:nth-child(3) { grid-column: 1; } .btn-action:nth-child(4) { grid-column: 2; }
+.btn-action:nth-child(5) { grid-column: 3; } .btn-action:nth-child(6) { grid-column: 1; }
+.btn-action:nth-child(7) { grid-column: 2; } .btn-action:nth-child(8) { grid-column: 3; }
+.table-cards th { background: rgba(74, 124, 46, 0.9); color: #fff; }
+.total-geral { margin-top: 15px; border-top: 2px solid #7baa48; padding-top: 10px; display: flex; justify-content: space-between; font-weight: 700; font-size: 14px; }
 
-    <div class="floating-shape shape1"></div>
-    <div class="floating-shape shape2"></div>
-    <div class="floating-shape shape3"></div>
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); backdrop-filter: blur(6px); z-index: 1000; justify-content: center; align-items: center; }
+.modal-overlay.active { display: flex; }
+.modal-box { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); padding: 30px; border-radius: 20px; width: 100%; max-width: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); position: relative; border: 1px solid rgba(255, 255, 255, 0.8); animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1); margin: auto; }
+.modal-box-large { max-width: 800px !important; }
+.modal-box-xl { max-width: 1100px !important; width: 95% !important; }
+@keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.modal-box h3 { margin: 0 0 15px 0; color: #4a7c2e; font-weight: 700; text-align: center; }
+.modal-box label { display: block; margin: 10px 0 5px; font-weight: 600; font-size: 14px; color: #444; }
+.modal-box input, .modal-box select, .modal-box textarea { width: 100%; padding: 10px; background: rgba(255, 255, 255, 0.5); border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 8px; margin-bottom: 10px; outline: none; }
+.modal-box input:focus, .modal-box select:focus, .modal-box textarea:focus { background: #fff; border-color: #7baa48; box-shadow: 0 0 0 3px rgba(123, 170, 72, 0.1); }
+.modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+.modal-actions .btn-primary { width: auto; padding: 10px 20px; font-size: 14px; border-radius: 10px; }
+.btn-cancel { background: rgba(200, 200, 200, 0.5); color: #333; padding: 10px 20px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+.btn-cancel:hover { background: rgba(200, 200, 200, 0.9); }
+.close-btn { position: absolute; right: 15px; top: 15px; cursor: pointer; font-size: 20px; color: #888; transition: 0.3s; }
+.close-btn:hover { color: #333; transform: rotate(90deg); }
 
-    <!-- ====================================================== -->
-    <!-- LOGIN -->
-    <!-- ====================================================== -->
-    <div id="login-screen">
-        <div class="login-logo">
-            <img src="https://i.imgur.com/Txij9sk.png" alt="Logo">
-        </div>
-        <h2>Bem-vindo</h2>
-        <p>Associação PQ Vila Nova</p>
-        <div class="input-group">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-            <input type="text" id="username" placeholder="Digite seu usuário">
-        </div>
-        <div class="input-group">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-            <input type="password" id="password" placeholder="Digite sua senha" onkeydown="if(event.key==='Enter') login()">
-        </div>
-        <button class="btn-primary" onclick="login()">Acessar o Sistema</button>
-        <div id="login-error">Usuário ou senha incorretos</div>
-        <div class="login-footer"><a href="#">Esqueceu a senha?</a> | <span>Sistema v1.0</span></div>
-    </div>
+#cesta-pendentes-home { width: 100%; padding: 10px 0; display: flex; flex-direction: column; gap: 6px; }
+.pending-item-card { background: #ffe6e6 !important; color: #9b2c2c !important; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; border: 1px solid #ffcdd2; display: flex; justify-content: space-between; align-items: center; }
+.card-content { flex: 1; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.card-content span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.card-tag { font-weight: 400; font-size: 9px; opacity: 0.7; background: rgba(155, 44, 44, 0.1); padding: 2px 6px; border-radius: 4px; flex-shrink: 0; margin-left: 8px; }
+.card-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.btn-icon { background: transparent; border: none; cursor: pointer; font-size: 14px; padding: 4px; border-radius: 4px; transition: 0.2s; line-height: 1; color: #9b2c2c; }
+.btn-icon:hover { background: rgba(0,0,0,0.05); }
+.btn-icon.btn-edit:hover { color: #196E3A; transform: scale(1.1); }
+.btn-icon.btn-delete:hover { color: #d32f2f; transform: scale(1.1); }
+.months { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; justify-content: center; }
+.month { width: 150px; text-align:center; display:flex; flex-direction:column; gap:4px; margin-bottom:5px; }
+.month input { width:100%; padding:6px; border-radius:6px; border:1px solid #ccc; font-weight:700; text-align:center; cursor:pointer; background:#fff; font-size:13px; }
+.month .pago { background:#e6ffed !important; color:#166534 !important; }
+.month .pendente { background:#ffe6e6 !important; color:#9b2c2c !important; }
+.stamp.show { display:block; text-align:center; font-size:32px; color:rgba(25,110,58,0.3); font-weight:900; margin-top:10px; }
 
-    <!-- ====================================================== -->
-    <!-- DASHBOARD -->
-    <!-- ====================================================== -->
-    <div id="dashboard-screen">
-        <div class="header-container">
-            <div style="display:flex; flex-direction:column; align-items:center;">
-                <h1 class="header-title">ASSOCIAÇÃO <span>PQ VILA NOVA</span></h1>
-                <div id="clock-wrapper"><div id="current-time">00:00:00</div></div>
-            </div>
-            <div class="logout-container">
-                <button onclick="logout()" class="btn-power-logout" title="Sair do sistema">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
-                </button>
-            </div>
-        </div>
+/* 🔥 BADGE "!" PISCANDO E RODANDO */
+.badge-urgente {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: #e74c3c;
+    color: #ffffff;
+    font-weight: 900;
+    font-size: 14px;
+    border-radius: 50%;
+    margin-right: 6px;
+    box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
+    animation: pulsarGirar 1.2s ease-in-out infinite;
+    border: 2px solid #fff;
+}
+@keyframes pulsarGirar {
+    0% { transform: scale(1) rotate(0deg); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+    50% { transform: scale(1.15) rotate(180deg); box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
+    100% { transform: scale(1) rotate(360deg); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+}
 
-        <div class="grid-container">
-            <div class="panel">
-                <div class="panel-header"><h3>AGENDA QUADRA</h3><button class="btn-sm" onclick="abrirModal('modal-agenda')">+ Adicionar Data</button></div>
-                <table><thead><tr><th>DATA</th><th>HORÁRIO</th><th>NOME</th><th>END</th><th>TEL</th><th>AÇÕES</th></tr></thead><tbody id="agenda-list"></tbody></table>
-            </div>
-            
-            <div class="col-center">
-                <div class="logo-circle spinning">
-                    <img src="https://i.imgur.com/Txij9sk.png" alt="Logo">
-                </div>
-                <div class="menu-buttons">
-                    <button class="btn-action" onclick="abrirModal('modal-curriculo')">CURRICULO</button>
-                    <button class="btn-action">WHATSAPP</button>
-                    <div style="position:relative; display:inline-block; width:100%;">
-                        <button class="btn-action" onclick="toggleComprovanteMenu()" id="btn-comprovante" style="width:100%;">COMPROVANTE</button>
-                        <div id="menu-comprovante" class="menu-dropdown" style="display:none; position:absolute; top:100%; left:0; width:100%; background:#fff; border-radius:0 0 12px 12px; box-shadow:0 4px 10px rgba(0,0,0,0.15); z-index:20; overflow:hidden;">
-                            <div onclick="abrirComprovantePrint('assinatura')" class="menu-option" style="padding:12px 0; text-align:center; cursor:pointer; color:#333; font-weight:600; transition:0.2s; border-bottom:1px solid #eee;">📜 Com Assinatura</div>
-                            <div onclick="abrirComprovantePrint('sem_assinatura')" class="menu-option" style="padding:12px 0; text-align:center; cursor:pointer; color:#333; font-weight:600; transition:0.2s;">📋 Sem Assinatura</div>
-                        </div>
-                    </div>
-                    <button class="btn-action" onclick="abrirModal('modal-multiplas-entregas')">ADC CARTÕES</button>
-                    <button class="btn-action" onclick="abrirModal('modal-cesta')">CESTAS</button>
-                    <button class="btn-action" onclick="abrirModal('modal-busca')">🔍 BUSCAR</button>
-                </div>
-            </div>
+/* ============================================================ */
+/* 🔥 DESIGN PREMIUM SAAS (BUSCA E EDITOR RÁPIDO) */
+/* ============================================================ */
+.busca-modal-container {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 30px 60px rgba(0,0,0,0.1);
+    padding: 30px 35px;
+    max-width: 960px;
+    width: 95%;
+    max-height: 95vh;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+.busca-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+.busca-titulo { margin: 0; color: #1F4F2B; font-size: 26px; font-weight: 800; display: flex; align-items: center; gap: 12px; }
+.busca-subtitulo { margin: 5px 0 0 0; font-size: 13px; color: #555; }
+.busca-subtitulo strong { color: #d32f2f; }
 
-            <div class="panel">
-                <div class="panel-header"><h3>CARTÕES</h3><button class="btn-sm" onclick="abrirModal('modal-cartoes')">+ Adicionar</button></div>
-                <div id="cards-container">
-                    <table class="table-cards"><thead id="cards-header"><tr><th>DATA</th><th id="th-responsaveis" colspan="1">RESPONSÁVEIS</th><th>TOTAL DIA</th><th>AÇÕES</th></tr></thead><tbody id="cards-list"></tbody></table>
-                </div>
-                <div class="total-geral" id="totais-gerais" style="display:none;"></div>
-            </div>
-        </div>
+.busca-bar {
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    border-radius: 60px;
+    padding: 6px 6px 6px 16px;
+    border: 2px solid #e2e8f0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    flex-wrap: nowrap;
+}
+.busca-bar:focus-within { border-color: #2D6A30; box-shadow: 0 0 0 4px rgba(45, 106, 48, 0.1); }
+.busca-tipo-select {
+    border: none; background: transparent; font-size: 13px; font-weight: 600; color: #1B4F1F;
+    outline: none; cursor: pointer; padding: 4px 8px 4px 4px; flex-shrink: 0; max-width: 175px; white-space: nowrap;
+    appearance: none; -webkit-appearance: none; font-family: 'Montserrat', sans-serif;
+}
+.busca-tipo-select option { color: #1e293b; font-weight: 500; background: #ffffff; }
+.busca-divider { width: 1px; height: 30px; background-color: #e2e8f0; margin: 0 8px; flex-shrink: 0; }
+#busca-input { flex: 1; min-width: 50px; border: none; background: transparent; padding: 14px 10px; font-size: 15px; font-weight: 500; outline: none; color: #1a202c; }
+#busca-btnSearch { background: #1B4F1F; color: white; border: none; padding: 12px 28px; border-radius: 40px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; white-space: nowrap; flex-shrink: 0; margin-left: 4px; }
+#busca-btnSearch:hover { background: #14532d; transform: scale(1.02); box-shadow: 0 4px 12px rgba(27, 79, 31, 0.3); }
 
-        <div style="margin-top:25px; width:100%;">
-            <div class="panel" style="margin-top:15px;">
-                <div class="panel-header"><h3>📋 PENDENTES CESTA (MÊS ATUAL)</h3><button class="btn-sm" onclick="abrirModal('modal-cesta')" style="background:#4a7c2e; color:#fff;">+ Gerenciar</button></div>
-                <div id="cesta-pendentes-home" style="font-size:14px; color:#555; min-height:50px; width:100%;"><span style="color:#888;">Carregando pendentes...</span></div>
-            </div>
-        </div>
-    </div>
+.busca-resultados { display: flex; flex-direction: column; gap: 6px; max-height: 450px; flex: 1; overflow-y: auto; padding-right: 6px; }
+.busca-resultados::-webkit-scrollbar { width: 6px; }
+.busca-resultados::-webkit-scrollbar-thumb { background: #c8e6c9; border-radius: 8px; }
+.busca-resultados::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
+.busca-resultados .card { background: #ffffff; border-radius: 12px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 5px solid #2D6A30; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); position: relative; cursor: pointer; }
+.busca-resultados .card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); border-left-color: #1B4F1F; background: #fafffc; }
+.busca-resultados .card .numero { background: #1B4F1F; color: #ffffff; font-size: 13px; font-weight: 800; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; flex-shrink: 0; box-shadow: 0 2px 6px rgba(27, 79, 31, 0.2); }
+.busca-resultados .card .nome { font-size: 13px; font-weight: 700; color: #1a202c; flex: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.busca-resultados .card .detalhes { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; flex: 3; }
+.busca-resultados .card .data-destaque { background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 20px; font-weight: 600; font-size: 10px; }
+.busca-resultados .card .status-badge { font-size: 9px; padding: 2px 8px; border-radius: 20px; font-weight: 700; text-transform: uppercase; background: #fef08a; color: #854d0e; }
+.busca-resultados .card .status-badge.bloqueado { background: #fee2e2; color: #991b1b; }
+.selo-container { display: flex; align-items: center; justify-content: center; }
+.selo { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; font-size: 8px; font-weight: 800; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3); animation: pulsarSelo 1.8s ease-in-out infinite; }
+@keyframes pulsarSelo { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3); } 70% { transform: scale(1.08); box-shadow: 0 0 0 12px rgba(245, 158, 11, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); } }
 
-    <!-- ====================================================== -->
-    <!-- MODAL DE AVISO DE PRÓXIMA AGENDA -->
-    <!-- ====================================================== -->
-    <div id="modal-popup-login" class="modal-overlay">
-        <div class="modal-box">
-            <span class="close-btn" onclick="fecharModal('modal-popup-login')">×</span>
-            <h3>📅 Próximos Compromissos</h3>
-            <div id="popup-login-content" style="text-align:center; padding:10px 0;">
-                <p style="color:#555;">Carregando compromissos...</p>
-            </div>
-            <div class="modal-actions" style="justify-content:center;">
-                <button class="btn-primary" onclick="fecharModal('modal-popup-login')" style="width:auto;">Ok, entendi</button>
-            </div>
-        </div>
-    </div>
+#busca-editor-area { background: #ffffff; border-radius: 24px; padding: 20px 24px; border: 1px solid #e2e8f0; margin-top: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); position: relative; overflow-y: auto; max-height: calc(95vh - 200px); }
+#busca-editor-area h4 { color: #1B4F1F; font-weight: 800; font-size: 18px; margin: 0 0 10px 0; display: flex; align-items: center; gap: 12px; }
+#busca-editor-area .header-editor { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; }
+.btn-voltar { background: transparent; border: 1px solid #cbd5e1; color: #475569; padding: 6px 16px; border-radius: 40px; font-weight: 700; font-size: 12px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px; }
+.btn-voltar:hover { background: #f1f5f9; border-color: #94a3b8; }
+.posicao-badge { background: #f1f5f9; color: #1e293b; padding: 4px 14px; border-radius: 40px; font-weight: 600; font-size: 11px; border: 1px solid #e2e8f0; }
+.posicao-badge-piscante { animation: piscarPosicao 1.2s infinite; }
+@keyframes piscarPosicao { 0%, 100% { opacity: 1; background: #f1f5f9; border-color: #e2e8f0; } 50% { opacity: 0.4; background: #e2e8f0; border-color: #1B4F1F; } }
+#busca-editor-area .editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+#busca-editor-area .editor-full { grid-column: 1 / -1; }
+#busca-editor-area label { display: block; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #475569; margin-bottom: 6px; }
+#busca-editor-area input, #busca-editor-area select { width: 100%; padding: 12px 14px; background: #ffffff; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 14px; font-weight: 500; outline: none; transition: all 0.2s ease; color: #1e293b; }
+#busca-editor-area input:focus, #busca-editor-area select:focus { border-color: #2D6A30; box-shadow: 0 0 0 4px rgba(45, 106, 48, 0.08); }
+.campo-numero { font-size: 3.5rem !important; font-weight: 900 !important; text-align: center !important; background: linear-gradient(135deg, #f0fdf4, #dcfce7) !important; border: 4px solid #1B4F1F !important; border-radius: 16px !important; color: #1B4F1F !important; box-shadow: 0 0 30px rgba(27, 79, 31, 0.6) !important; animation: piscarNumero 1.2s ease-in-out infinite !important; padding: 20px 0 !important; letter-spacing: 2px; text-shadow: 0 2px 10px rgba(27, 79, 31, 0.2); }
+@keyframes piscarNumero { 0%, 100% { box-shadow: 0 0 30px rgba(27, 79, 31, 0.6); border-color: #1B4F1F; transform: scale(1); } 50% { box-shadow: 0 0 70px rgba(27, 79, 31, 0.9); border-color: #2D6A30; transform: scale(1.04); } }
+#busca-editor-area .btn-actions { display: flex; gap: 14px; margin-top: 20px; flex-wrap: wrap; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+#busca-editor-area .btn-salvar { background: #1B4F1F; color: white; border: none; padding: 12px 28px; border-radius: 50px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+#busca-editor-area .btn-salvar:hover { background: #14532d; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(27, 79, 31, 0.2); }
+#busca-editor-area .btn-entregue { background: linear-gradient(135deg, #16a34a, #15803d); color: white; border: none; padding: 12px 28px; border-radius: 50px; font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3); animation: pulsarBtnEntrega 2s infinite; }
+@keyframes pulsarBtnEntrega { 0% { transform: scale(1); box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3); } 50% { transform: scale(1.04); box-shadow: 0 6px 20px rgba(22, 163, 74, 0.4); } 100% { transform: scale(1); box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3); } }
+#busca-editor-area .btn-cancelar { background: #ef4444; color: white; border: none; padding: 12px 28px; border-radius: 50px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+#busca-editor-area .btn-cancelar:hover { background: #dc2626; transform: translateY(-2px); }
+.alerta-duplicidade { background: #fffbeb; border: 1px solid #f59e0b; border-radius: 16px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; margin-top: 10px; animation: piscarAlerta 2s ease-in-out infinite; }
+@keyframes piscarAlerta { 0%, 100% { background: #fffbeb; } 50% { background: #fef3c7; } }
 
-    <!-- ====================================================== -->
-    <!-- MODAL DE BUSCA -->
-    <!-- ====================================================== -->
-    <div id="modal-busca" class="modal-overlay">
-        <div class="modal-box modal-box-xl busca-modal-container">
-            <span class="close-btn" onclick="fecharModal('modal-busca')" style="top:15px; right:20px; font-size:28px;">×</span>
-            <div class="busca-header">
-                <div>
-                    <h2 class="busca-titulo">🔍 Busca Inteligente</h2>
-                    <p class="busca-subtitulo">Somente cartões <strong>pendentes</strong> são exibidos. Resultados ordenados por relevância.</p>
-                </div>
-                <div class="contador" id="busca-contador" style="background:#196E3A; color:#fff; padding:6px 18px; border-radius:30px; font-weight:700; font-size:14px;">⏳ ...</div>
-            </div>
-            
-            <div class="busca-bar">
-                <select id="busca-tipo" class="busca-tipo-select">
-                    <option value="todos">✨ Tudo</option>
-                    <option value="nome">👤 Nome</option>
-                    <option value="endereco">🏠 Endereço</option>
-                    <option value="numero">🔢 Nº do cartão</option>
-                    <option value="cpf">🪪 CPF</option>
-                    <option value="telefone">📞 Telefone</option>
-                </select>
-                <div class="busca-divider"></div>
-                <i class="fas fa-search" style="color:#94a3b8; font-size:18px; margin-left:4px;"></i>
-                <input id="busca-input" type="text" placeholder="Digite nome, rua, número, CPF, telefone..." autocomplete="off">
-                <button id="busca-btnSearch" type="button">🔎 Buscar</button>
-            </div>
-            <div id="busca-resultados" class="busca-resultados">
-                <div style="text-align:center; padding:40px; color:#999; font-size:16px;">Digite algo para iniciar a busca.</div>
-            </div>
-            <div id="busca-editor-area" style="display:none; margin-top:15px; border-top:2px solid #e0f2e0; padding-top:15px; background:#fafffa; border-radius:12px; padding:15px;"></div>
-        </div>
-    </div>
+/* ============================================================ */
+/* ADC CARTÕES — MODOS MANUAL E DIGITALIZADO */
+/* ============================================================ */
+.cartoes-modal-box { max-height: 94vh; overflow-y: auto; }
+.cartoes-mode-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #eef6ef; padding: 6px; border-radius: 14px; margin: 4px 0 10px; }
+.cartoes-mode-tab { border: none; background: transparent; color: #45604b; padding: 11px 14px; border-radius: 10px; font-weight: 800; cursor: pointer; transition: .2s; }
+.cartoes-mode-tab.active { background: #1B4F1F; color: #fff; box-shadow: 0 4px 12px rgba(27,79,31,.24); }
+.cartoes-mode-help { font-size: 13px; color: #555; margin: 0 0 15px; text-align: center; }
+.cartoes-scanner-panel { background: #f3faf5; border: 1px solid #b7d8bd; border-radius: 16px; padding: 14px; margin-bottom: 16px; }
+.cartoes-scanner-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+.cartoes-scanner-header strong { display: block; color: #174a23; font-size: 15px; }
+.cartoes-scanner-header small { display: block; color: #5c6f61; margin-top: 3px; }
+.scanner-target-badge { background: #1B4F1F; color: #fff; border-radius: 20px; padding: 5px 12px; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.cartoes-scanner-grid { display: grid; grid-template-columns: minmax(280px, 1.4fr) minmax(230px, 1fr); gap: 14px; align-items: stretch; }
+.scanner-camera-wrap { position: relative; min-height: 240px; background: #111827; border-radius: 14px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+#cartoes-scanner-video { width: 100%; height: 100%; min-height: 240px; max-height: 360px; object-fit: cover; display: block; }
+.scanner-frame-guide { position: absolute; inset: 18% 8%; border: 3px solid #7CFF8C; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0,0,0,.34), 0 0 18px rgba(124,255,140,.65); pointer-events: none; }
+.scanner-frame-guide span { position: absolute; top: -27px; left: 50%; transform: translateX(-50%); background: #1B4F1F; color: #fff; padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 800; white-space: nowrap; }
+.scanner-no-camera { position: absolute; inset: 0; background: #111827; color: #fff; align-items: center; justify-content: center; text-align: center; padding: 30px; font-weight: 700; }
+.scanner-controls { background: #fff; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; justify-content: center; gap: 10px; border: 1px solid #dce9df; }
+.scanner-status { min-height: 40px; color: #334155; font-size: 12px; line-height: 1.4; text-align: center; }
+.scanner-progress { height: 8px; background: #e5e7eb; border-radius: 20px; overflow: hidden; }
+.scanner-progress span { display: block; width: 0; height: 100%; background: linear-gradient(90deg,#22c55e,#15803d); transition: width .2s; }
+.scanner-button-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.scanner-btn { flex: 1; border: none; border-radius: 10px; padding: 10px 12px; font-size: 12px; font-weight: 800; cursor: pointer; transition: .2s; min-width: 105px; }
+.scanner-btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(.96); }
+.scanner-btn:disabled { opacity: .45; cursor: not-allowed; }
+.scanner-btn-primary { background: #1B4F1F; color: #fff; }
+.scanner-btn-capture { background: #16a34a; color: #fff; }
+.scanner-btn-file { background: #e2e8f0; color: #334155; }
+.scanner-btn-stop { background: #fee2e2; color: #991b1b; }
+.ocr-review { margin-top: 14px; background: #fff; border: 2px solid #86c58f; border-radius: 14px; padding: 14px; }
+.ocr-review-title { color: #174a23; font-weight: 900; margin-bottom: 10px; }
+.ocr-review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ocr-review label { display: block; font-size: 11px; color: #475569; font-weight: 800; margin-bottom: 4px; }
+.ocr-review input { width: 100%; padding: 10px; border: 2px solid #cbd5e1; border-radius: 9px; text-transform: uppercase; font-weight: 700; }
+.ocr-review input:focus { border-color: #1B4F1F; outline: none; box-shadow: 0 0 0 3px rgba(27,79,31,.1); }
+.ocr-review details { margin: 10px 0; font-size: 11px; color: #64748b; }
+.ocr-review pre { white-space: pre-wrap; max-height: 130px; overflow: auto; background: #f8fafc; padding: 8px; border-radius: 8px; }
+.scanner-review-actions { margin-top: 10px; }
+.entrega-item.scanner-target { border: 2px solid #22c55e !important; box-shadow: 0 0 0 4px rgba(34,197,94,.12); }
+.entrega-item.scanner-filled { animation: scannerFilled .8s ease; }
+@keyframes scannerFilled { 0% { background: #bbf7d0; transform: scale(1.01); } 100% { background: #fff; transform: scale(1); } }
+.btn-scan-entrega { background: #e0f2fe; color: #0369a1; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; }
 
-    <!-- ====================================================== -->
-    <!-- MODAL AGENDA -->
-    <!-- ====================================================== -->
-    <div id="modal-agenda" class="modal-overlay">
-        <div class="modal-box"><span class="close-btn" onclick="fecharModal('modal-agenda')">×</span><h3>Novo Agendamento</h3>
-            <label>Nome do Responsável</label><input type="text" id="ag-nome">
-            <label>Data</label><input type="date" id="ag-data">
-            <label>Período / Horário</label><input type="text" id="ag-periodo">
-            <label>Endereço (Quadra)</label><input type="text" id="ag-end">
-            <label>Telefone</label><input type="text" id="ag-tel">
-            <div class="modal-actions"><button class="btn-cancel" onclick="fecharModal('modal-agenda')">Cancelar</button><button class="btn-primary" onclick="salvarAgenda()">Salvar</button></div>
-        </div>
-    </div>
-
-    <!-- ====================================================== -->
-    <!-- MODAL CARTÕES -->
-    <!-- ====================================================== -->
-    <div id="modal-cartoes" class="modal-overlay">
-        <div class="modal-box"><span class="close-btn" onclick="fecharModal('modal-cartoes')">×</span><h3>Adicionar Lote de Cartões</h3>
-            <div style="border-bottom:1px solid #ddd; padding-bottom:10px; margin-bottom:15px;">
-                <label style="display:block; font-weight:600; color:#4a7c2e; margin-bottom:5px;">Gerenciar Responsáveis</label>
-                <div style="display:flex; gap:10px;"><input type="text" id="novo-responsavel-input" placeholder="Nome do novo responsável" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:6px;"><button class="btn-sm" onclick="adicionarResponsavel()" style="background:#4a7c2e; color:#fff; border-radius:6px;">+ Adicionar</button></div>
-                <div id="lista-responsaveis-cadastrados" style="margin-top:8px; display:flex; flex-wrap:wrap; gap:5px;"></div>
-            </div>
-            <label>Selecionar Responsável</label><select id="card-responsavel" style="width:100%; padding:10px; margin-bottom:10px;"><option value="">Selecione um responsável</option></select>
-            <label>Quantidade</label><input type="number" id="card-qtd" placeholder="0" min="1" style="width:100%; padding:10px; margin-bottom:10px;">
-            <label>Data de Entrega</label><input type="date" id="card-data" style="width:100%; padding:10px; margin-bottom:10px;">
-            <div class="modal-actions"><button class="btn-cancel" onclick="fecharModal('modal-cartoes')">Cancelar</button><button class="btn-primary" onclick="salvarCartoes()">Salvar</button></div>
-        </div>
-    </div>
-
-    <!-- ====================================================== -->
-    <!-- MODAL MÚLTIPLAS ENTREGAS -->
-    <!-- ====================================================== -->
-    <div id="modal-multiplas-entregas" class="modal-overlay">
-        <div class="modal-box modal-box-large cartoes-modal-box" style="padding:25px;"><span class="close-btn" onclick="fecharModal('modal-multiplas-entregas')">×</span><h3><i class="fas fa-id-card"></i> Adicionar Cartões</h3>
-
-            <div class="cartoes-mode-tabs" role="tablist" aria-label="Modo de cadastro">
-                <button id="cartoes-tab-manual" class="cartoes-mode-tab active" type="button" role="tab" aria-selected="true" onclick="selecionarModoCadastroCartoes('manual')">✍️ Manual</button>
-                <button id="cartoes-tab-digitalizado" class="cartoes-mode-tab" type="button" role="tab" aria-selected="false" onclick="selecionarModoCadastroCartoes('digitalizado')">📷 Digitalizado</button>
-            </div>
-
-            <p id="cartoes-manual-ajuda" class="cartoes-mode-help">Digite normalmente. Pressione <strong>TAB</strong> ou <strong>ENTER</strong> no endereço para adicionar o próximo cartão.</p>
-
-            <section id="cartoes-digitalizado-area" class="cartoes-scanner-panel" style="display:none;" aria-label="Digitalização de cartões">
-                <div class="cartoes-scanner-header">
-                    <div>
-                        <strong>Leitura do destinatário</strong>
-                        <small>Enquadre somente o nome e a rua do destinatário dentro da moldura.</small>
-                    </div>
-                    <span id="cartoes-scanner-alvo" class="scanner-target-badge">Cartão 1</span>
-                </div>
-
-                <div class="cartoes-scanner-grid">
-                    <div class="scanner-camera-wrap">
-                        <video id="cartoes-scanner-video" autoplay playsinline muted></video>
-                        <div class="scanner-frame-guide"><span>NOME + RUA/NÚMERO</span></div>
-                        <canvas id="cartoes-scanner-canvas" hidden></canvas>
-                        <div id="cartoes-scanner-sem-camera" class="scanner-no-camera" style="display:none;">Câmera indisponível. Use “Escolher foto”.</div>
-                    </div>
-
-                    <div class="scanner-controls">
-                        <div id="cartoes-scanner-status" class="scanner-status">Clique em “Iniciar câmera”.</div>
-                        <div class="scanner-progress"><span id="cartoes-scanner-progress-bar"></span></div>
-                        <div class="scanner-button-row">
-                            <button type="button" class="scanner-btn scanner-btn-primary" onclick="iniciarCameraCartoes()">▶ Iniciar câmera</button>
-                            <button type="button" id="cartoes-btn-capturar" class="scanner-btn scanner-btn-capture" onclick="capturarCartaoParaOCR()" disabled>📸 Capturar</button>
-                        </div>
-                        <div class="scanner-button-row">
-                            <button type="button" class="scanner-btn scanner-btn-file" onclick="document.getElementById('cartoes-scanner-file').click()">🖼️ Escolher foto</button>
-                            <button type="button" class="scanner-btn scanner-btn-stop" onclick="pararCameraCartoes()">■ Parar câmera</button>
-                        </div>
-                        <input id="cartoes-scanner-file" type="file" accept="image/*" capture="environment" hidden onchange="processarArquivoCartaoOCR(event)">
-                    </div>
-                </div>
-
-                <div id="cartoes-ocr-review" class="ocr-review" style="display:none;">
-                    <div class="ocr-review-title">Confira antes de adicionar</div>
-                    <div class="ocr-review-grid">
-                        <div><label for="cartoes-ocr-nome">Nome detectado</label><input id="cartoes-ocr-nome" type="text" autocomplete="off"></div>
-                        <div><label for="cartoes-ocr-endereco">Endereço detectado</label><input id="cartoes-ocr-endereco" type="text" autocomplete="off"></div>
-                    </div>
-                    <details><summary>Ver texto reconhecido</summary><pre id="cartoes-ocr-texto-bruto"></pre></details>
-                    <div class="scanner-button-row scanner-review-actions">
-                        <button type="button" class="scanner-btn scanner-btn-primary" onclick="usarDadosCartaoOCR(false)">✓ Preencher este</button>
-                        <button type="button" class="scanner-btn scanner-btn-capture" onclick="usarDadosCartaoOCR(true)">✓ Adicionar e próximo</button>
-                        <button type="button" class="scanner-btn scanner-btn-file" onclick="limparResultadoCartaoOCR()">↻ Ler novamente</button>
-                    </div>
-                </div>
-            </section>
-
-            <div style="background:#f9fffb; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e0f2e0;">
-                <h4 style="margin:0 0 12px 0; color:#196E3A; font-size:15px;">Dados Gerais</h4>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
-                    <div><label style="display:block; font-weight:600; font-size:12px; color:#444;">Quantidade</label><input type="number" id="mult-qtd" min="1" value="1"></div>
-                    <div><label style="display:block; font-weight:600; font-size:12px; color:#444;">Data</label><input type="text" id="mult-data" readonly></div>
-                    <div><label style="display:block; font-weight:600; font-size:12px; color:#444;">Tipo</label><select id="mult-tipo"><option value="">Selecione...</option><option value="SHOPEE">SHOPEE</option><option value="CARTÃO">CARTÃO</option><option value="CARTA">CARTA</option></select></div>
-                    <div><label style="display:block; font-weight:600; font-size:12px; color:#444;">N°</label><input type="text" id="mult-numero"></div>
-                </div>
-                <div style="margin-top:10px;"><label style="display:block; font-weight:600; font-size:12px; color:#444;">Observação</label><input type="text" id="mult-obs" placeholder="Opcional"></div>
-            </div>
-            <div style="margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;"><label style="font-weight:700; font-size:14px; color:#196E3A;"><i class="fas fa-list"></i> Lista de Entregas</label><span id="mult-contador" style="font-size:12px; color:#555;">1 entrega</span></div>
-            <div id="mult-lista-entregas" style="max-height:200px; overflow-y:auto; padding-right:5px; margin-bottom:15px;"></div>
-            <div style="display:flex; gap:10px;">
-                <button type="button" onclick="adicionarEntrega()" style="background:#1a73e8; color:#fff; border:none; padding:10px 15px; border-radius:30px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; flex:1; justify-content:center;"><i class="fas fa-plus"></i> Adicionar Outro</button>
-                <button type="button" onclick="enviarTodasEntregas()" id="btnEnviarMulti" style="background:#4a7c2e; color:#fff; border:none; padding:10px 15px; border-radius:30px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; flex:1; justify-content:center;"><i class="fas fa-paper-plane"></i> Enviar Tudo</button>
-            </div>
-            <div id="mult-status-message" style="display:none; padding:10px; border-radius:8px; margin-top:15px; font-weight:500; text-align:center;"></div>
-            <div style="margin-top:15px;"><button class="btn-cancel" onclick="fecharModal('modal-multiplas-entregas')" style="width:100%; padding:10px; text-align:center;">Cancelar</button></div>
-        </div>
-    </div>
-
-    <!-- ====================================================== -->
-    <!-- MODAL CESTA -->
-    <!-- ====================================================== -->
-    <div id="modal-cesta" class="modal-overlay">
-        <div class="modal-box modal-box-large" style="padding:25px; background:#e8f9ee;"><span class="close-btn" onclick="fecharModal('modal-cesta')">×</span>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap;">
-                <h2 style="margin:0; color:#196E3A; display:flex; align-items:center; gap:10px;">📋 Controle - CESTA <button onclick="editarTiposCestaUI()" style="background:transparent; border:none; font-size:20px; cursor:pointer; color:#196E3A;" title="Editar Tipos de Cesta">⚙️</button></h2>
-                <div><button type="button" onclick="abrirCameraCesta()" style="background:#2196F3; color:#fff; border:none; padding:8px 16px; border-radius:30px; cursor:pointer; font-weight:600; margin-right:5px;">📷 Escanear Carteirinha</button></div>
-            </div>
-            <input type="text" id="cesta-scanner-input" style="position:absolute; opacity:0; width:1px; height:1px; pointer-events:none;" autofocus>
-            <div id="cesta-camera-container" style="display:none; width:100%; max-width:350px; margin:0 auto 10px; border:2px dashed #4a7c2e; border-radius:8px; overflow:hidden; background:#000;"></div>
-            <div id="cesta-tipos-editor" style="display:none; background:#fff; padding:12px; border-radius:8px; border:1px solid #e0f2e0; margin-bottom:15px;">
-                <label style="font-weight:700; color:#1f6f35; display:block; margin-bottom:4px;">✏️ Editar Tipos de Cesta (separados por vírgula):</label>
-                <div style="display:flex; gap:8px;"><input type="text" id="cesta-tipos-input"><button onclick="salvarTiposCesta()" style="background:#4a7c2e; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600;">Salvar</button><button onclick="fecharEditorTipos()" style="background:#ccc; color:#333; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">Cancelar</button></div>
-            </div>
-            <div style="display:flex; gap:10px; align-items:center; position:relative; margin-bottom:10px;">
-                <input id="cesta-search" placeholder="Digite o nome do morador..." autocomplete="off">
-                <button id="cesta-btnSearch" style="padding:10px 14px; border-radius:8px; background:#196E3A; color:#fff; border:none; cursor:pointer; font-weight:700;">Buscar</button>
-                <div id="cesta-suggestions" class="suggestions-box" style="display:none; position:absolute; top:45px; left:0; width:75%; background:#fff; border:1px solid #ddd; border-radius:8px; max-height:200px; overflow:auto; z-index:99;"></div>
-            </div>
-            <div id="cesta-formArea" style="display:none;">
-                <div id="cesta-fields" class="grid" style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:10px;"></div>
-                <div style="margin-top:12px;"><label style="font-weight:700; color:#1f6f35; display:block; margin-bottom:6px;">Mensalidades (Clique no mês atual para marcar)</label><div class="months" id="cesta-monthsContainer" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:5px;"></div></div>
-                <div class="stamp" id="cesta-stamp" style="display:none; text-align:center; font-size:32px; color:rgba(25,110,58,0.3); font-weight:900; margin-top:10px;">CONCLUÍDO</div>
-                <div style="display:flex; gap:10px; margin-top:14px;"><button id="cesta-btnSave" style="flex:1; background:#196E3A; color:#fff; padding:10px; border-radius:8px; border:none; font-weight:700; cursor:pointer;">💾 Salvar alterações</button><button onclick="gerarCarteirinha()" style="flex:1; background:#e67e22; color:#fff; padding:10px; border-radius:8px; border:none; font-weight:700; cursor:pointer;">🪪 Gerar Carteirinha</button></div>
-            </div>
-            <div id="cesta-panelPendentes" style="display:none; margin-top:12px; padding:12px; border-radius:8px; border:1px solid #eee; background:#fff;"><h3 style="margin:0 0 10px 0; color:#196E3A;">Lista de Pendentes</h3><div id="cesta-listaPendentesContainer"></div><button id="cesta-btnVoltar" style="margin-top:10px; padding:8px 12px; border-radius:6px; background:#f0f0f0; border:none; cursor:pointer;">🔙 Voltar</button></div>
-        </div>
-    </div>
-
-    <!-- ====================================================== -->
-    <!-- MODAL CURRÍCULO -->
-    <!-- ====================================================== -->
-    <div id="modal-curriculo" class="modal-overlay">
-        <div class="modal-box modal-box-large"><span class="close-btn" onclick="fecharModal('modal-curriculo')">×</span><h3>📄 Preencher Currículo</h3>
-            <div class="grid-cv" style="margin-bottom:15px;">
-                <div><label>Modelo do Currículo</label><select id="cv-template"><option value="padrao">Padrão</option><option value="moderno">Moderno</option><option value="chic">Chic</option><option value="basico">Básico</option></select></div>
-                <div><label>Foto 3x4</label><input type="file" id="cv-photo-input" accept="image/*" onchange="handlePhotoUpload(event)"><img id="cv-photo-preview" src="" style="display:none; width:75px; height:100px; object-fit:cover; border:1px solid #ccc;"></div>
-            </div>
-            <div class="grid-cv full"><label>Nome Completo</label><input type="text" id="cv-nome" placeholder="Seu nome completo"></div>
-            <div class="grid-cv"><div><label>Data de Nascimento</label><input type="date" id="cv-nascimento"></div><div><label>Telefone (1)</label><div style="display:flex; gap:5px;"><input type="text" id="cv-tel-1" placeholder="(XX) XXXXX-XXXX" style="flex:1;"><button class="btn-sm" onclick="adicionarTelefone()" id="btn-add-tel" style="font-size:10px; padding:6px 10px;">+ Tel</button></div><div id="tel-extra-container"><div id="cv-tel-container-2" style="display:none; margin-top:5px;"><label style="font-size:12px;">Telefone (2)</label><input type="text" id="cv-tel-2" style="width:100%;"></div><div id="cv-tel-container-3" style="display:none; margin-top:5px;"><label style="font-size:12px;">Telefone (3)</label><input type="text" id="cv-tel-3" style="width:100%;"></div></div></div></div>
-            <div class="grid-cv full"><label>E-mail</label><input type="email" id="cv-email" placeholder="email@exemplo.com"></div>
-            <div class="grid-cv" style="grid-template-columns:1fr 2fr;"><div><label>CEP</label><input type="text" id="cv-cep" placeholder="00000-000" onblur="buscarCEP()" maxlength="9"></div><div><label>Nº da Residência</label><input type="text" id="cv-numero" placeholder="Ex: 123"></div></div>
-            <div class="grid-cv" style="grid-template-columns:2fr 1fr 2fr;"><div><label>Logradouro</label><input type="text" id="cv-logradouro" readonly></div><div><label>Bairro</label><input type="text" id="cv-bairro" readonly></div><div><label>Cidade - UF</label><input type="text" id="cv-cidade" readonly></div></div>
-            <div class="grid-cv full"><label>Objetivo Profissional</label><textarea id="cv-objetivo" rows="2">Profissional proativo, dinâmico e engajado, em busca de uma oportunidade para aplicar minhas habilidades e contribuir para o crescimento da empresa.</textarea></div>
-            <div class="grid-cv full" style="border-bottom:1px solid #ddd; padding-bottom:10px; margin-bottom:10px;">
-                <div style="display:flex; justify-content:space-between;"><label style="margin:0;">Formação & Cursos (Máx 3)</label><button class="btn-sm" onclick="adicionarCurso()" style="font-size:10px; padding:4px 12px;">+ Adicionar Curso</button></div>
-                <div id="cursos-container"></div>
-            </div>
-            <div class="grid-cv full"><div style="display:flex; justify-content:space-between;"><label style="margin:0;">Experiência Profissional (Máx 6)</label><button class="btn-sm" onclick="adicionarExperiencia()" style="font-size:10px; padding:4px 12px;">+ Adicionar Experiência</button></div><div id="exp-container"></div></div>
-            <div class="grid-cv full"><label>Habilidades / Competências</label><textarea id="cv-habilidades" rows="3">Trabalho em equipe, Comunicação eficaz, Proatividade, Organização</textarea></div>
-            <div class="modal-actions" style="justify-content:center; margin-top:20px;"><button class="btn-cancel" onclick="fecharModal('modal-curriculo')">Cancelar</button><button class="btn-primary" onclick="gerarCurriculo()" style="width:auto; padding:10px 30px;">🎯 Gerar Currículo</button></div>
-        </div>
-    </div>
-
-    <!-- ====================================================== -->
-    <!-- MODAL COMPROVANTE -->
-    <!-- ====================================================== -->
-    <div id="modal-comprovante-print" class="modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); backdrop-filter:blur(6px); z-index:1000; justify-content:center; overflow-y:auto; padding:30px 0;">
-        <div id="comprovante-bg" style="position:relative; width:794px; height:1123px; background-image:url('https://i.imgur.com/lFhk0Hq.png'); background-size:100% 100%; background-color:white; background-position:center; border-radius:12px; box-shadow:0 20px 50px rgba(0,0,0,0.4); flex-shrink:0; margin:0 auto; overflow:hidden;">
-            <span class="close-btn" onclick="fecharComprovantePrint()" style="position:absolute; top:-15px; right:-15px; background:#4a7c2e; color:#fff; border-radius:50%; width:30px; height:30px; padding:0; display:flex; align-items:center; justify-content:center; z-index:10; border:2px solid white; box-shadow:0 4px 8px rgba(0,0,0,0.2); cursor:pointer;">×</span>
-            <input id="print-numero" class="input-field-print" style="position:absolute; top:386px; left:230px; width:80px; z-index:1;" readonly>
-            <input id="print-data" class="input-field-print" style="position:absolute; top:386px; left:390px; width:130px; z-index:1;">
-            <input id="print-ano" class="input-field-print" style="position:absolute; top:386px; left:580px; width:80px; z-index:1;">
-            <input id="print-nome" class="input-field-print" style="position:absolute; top:437px; left:167px; width:500px; font-size:18px; z-index:1;" onblur="detectarGeneroENacionalidadeComprovante()">
-            <input id="print-endereco" class="input-field-print" style="position:absolute; top:508px; left:216px; width:350px; z-index:1;" oninput="buscarSugestoesEndereco()" autocomplete="off">
-            <div id="address-suggestions" class="suggestions-box" style="display:none; position:absolute; top:540px; left:216px; width:350px;"></div>
-            <input id="print-numero_endereco" class="input-field-print" style="position:absolute; top:508px; left:629px; width:90px; z-index:1;">
-            <input id="print-complemento" class="input-field-print" style="position:absolute; top:568px; left:240px; width:210px; z-index:1;">
-            <input id="print-cep" class="input-field-print" maxlength="9" style="position:absolute; top:568px; left:530px; width:150px; z-index:1;" oninput="formatarCEPPrint(this)" onblur="autoBuscarCEP(this)">
-            <button class="btn-sm no-print" style="position:absolute; top:565px; left:690px; padding:2px 8px; font-size:11px; z-index:2; border-radius:4px; background:#7baa48; color:white; border:1px solid #4a7c2e; cursor:pointer;" onclick="buscarCEPPrint()">Buscar</button>
-            <input id="print-bairro" class="input-field-print" style="position:absolute; top:633px; left:165px; width:350px; z-index:1;">
-            <input id="print-uf" class="input-field-print" style="position:absolute; top:633px; left:630px; width:80px; z-index:1;">
-            <input id="print-nacionalidade" class="input-field-print" style="position:absolute; top:695px; left:247px; width:150px; z-index:1;">
-            <input id="print-estado_civil" class="input-field-print" style="position:absolute; top:695px; left:555px; width:150px; z-index:1;">
-            <input id="print-cpf" class="input-field-print" maxlength="14" style="position:absolute; top:758px; left:135px; width:188px; z-index:1;" oninput="formatarCPFPrint(this)" onblur="autoBuscarCPF(this)">
-            <button class="btn-sm no-print" style="position:absolute; top:755px; left:330px; padding:2px 8px; font-size:11px; z-index:2; border-radius:4px; background:#7baa48; color:white; border:1px solid #4a7c2e; cursor:pointer;" onclick="buscarCPFPrint()">Buscar</button>
-            <input id="print-rg" class="input-field-print" maxlength="12" style="position:absolute; top:758px; left:395px; width:100px; z-index:1;" oninput="formatarRGPrint(this)">
-            <select id="print-emissor" class="input-field-print" style="position:absolute; top:758px; left:625px; width:120px; z-index:1;"><option value="">SELECIONE</option><option value="DETRAN/RJ" selected>DETRAN/RJ</option></select>
-            <input type="checkbox" id="print-propria" class="input-field-print" style="position:absolute; top:844px; left:249px; z-index:1; width:16px; height:16px;">
-            <input type="checkbox" id="print-alugada" class="input-field-print" style="position:absolute; top:844px; left:425px; z-index:1; width:16px; height:16px;">
-            <input type="checkbox" id="print-emprestada" class="input-field-print" style="position:absolute; top:844px; left:652px; z-index:1; width:16px; height:16px;">
-            <div class="buttons-container no-print" style="position:absolute; bottom:25px; left:50%; transform:translateX(-50%); display:flex; gap:10px; z-index:10;">
-                <button class="btn-cancel" onclick="fecharComprovantePrint()" style="padding:10px 20px; border-radius:6px; border:none; background:#ccc; color:#333; cursor:pointer;">Cancelar</button>
-                <button class="btn-primary btn-save" onclick="salvarApenas()" style="padding:10px 20px; border-radius:6px; border:none; color:white; cursor:pointer; background:#4CAF50;">💾 Salvar</button>
-                <button class="btn-primary btn-print" onclick="salvarEImprimir()" style="padding:10px 20px; border-radius:6px; border:none; color:white; cursor:pointer; background:#007BFF;">🖨️ Imprimir</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
-</body>
-</html>
+@media (max-width: 900px) {
+  .grid-container { grid-template-columns: 1fr; }
+  .col-center { order: -1; }
+  .menu-buttons { grid-template-columns: 1fr 1fr !important; }
+  .btn-action { grid-column: auto !important; }
+  .header-container { flex-direction: column; }
+  .logout-container { position: relative; top: auto; transform: none; margin-top: 15px; display: flex; justify-content: center; }
+  #login-screen { margin: 20px; padding: 30px 20px; }
+  .modal-box { max-width: 95%; margin: 10px; }
+  .busca-modal-container { padding: 20px; }
+  .busca-bar { flex-wrap: wrap; }
+  #busca-btnSearch { width: 100%; margin-top: 10px; }
+  .busca-resultados .card { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .busca-resultados .card .detalhes { justify-content: flex-start; width: 100%; flex-wrap: wrap; }
+  #busca-editor-area .editor-grid { grid-template-columns: 1fr; }
+  .cartoes-scanner-grid, .ocr-review-grid { grid-template-columns: 1fr; }
+  .scanner-camera-wrap, #cartoes-scanner-video { min-height: 210px; }
+  .cartoes-scanner-header { align-items: flex-start; }
+}
