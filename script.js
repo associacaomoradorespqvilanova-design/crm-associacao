@@ -1,8 +1,8 @@
 // ============================================================
 // CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbytjhlqZFT-cLql-dKDQh3DbyCY4NYHAkuW97wxKi0c9ZGAfzF0QKOiesuiAWg49MQU0g/exec";
-const CRM_BACKEND_VERSAO = '20260817-4';
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbyHYVnwYX83lqyOaappKedUahGIuUzC84xwVa1FEn5H_W1DIvNwpdKDfWgbHisdxuM6ew/exec";
+const CRM_BACKEND_VERSAO = '20260817-5';
 
 // ============================================================
 // GET VIA JSONP
@@ -40,47 +40,36 @@ function fetchFromGS(acao, params = {}, signal, timeoutMs = 45000) {
 // POST PARA GOOGLE SHEETS
 // ============================================================
 async function postParaGoogleSheets(acao, dados = {}) {
-    const identificador = 'gs_post_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
-    const iframe = document.createElement('iframe');
-    iframe.name = identificador;
-    iframe.hidden = true;
-    iframe.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(iframe);
-    // Aguarda o about:blank inicial antes de observar a resposta do Web App.
-    await new Promise(resolve => setTimeout(resolve, 0));
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = URL_API_GS;
-    form.target = identificador;
-    form.hidden = true;
-    const criarCampo = (nome, valor) => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = nome;
-        input.value = valor;
-        form.appendChild(input);
-    };
-    criarCampo('acao', acao);
-    criarCampo('dados', JSON.stringify(dados));
-    document.body.appendChild(form);
+    // GitHub Pages -> Apps Script: envia o POST sem tentar ler a resposta
+    // cross-origin. A confirmação real continua sendo feita depois via JSONP.
+    const body = new URLSearchParams();
+    body.set('acao', acao);
+    body.set('dados', JSON.stringify(dados));
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+
     try {
-        await new Promise((resolve, reject) => {
-            let terminou = false;
-            const finalizar = erro => {
-                if (terminou) return;
-                terminou = true;
-                clearTimeout(timeout);
-                erro ? reject(erro) : resolve();
-            };
-            const timeout = setTimeout(() => finalizar(new Error('O envio ao Google Apps Script excedeu 60 segundos.')), 60000);
-            iframe.addEventListener('load', () => finalizar(), { once: true });
-            form.submit();
+        await fetch(URL_API_GS, {
+            method: 'POST',
+            mode: 'no-cors',
+            cache: 'no-store',
+            redirect: 'follow',
+            credentials: 'omit',
+            body,
+            signal: controller.signal
         });
+    } catch (erro) {
+        if (erro?.name === 'AbortError') {
+            throw new Error('O envio ao Google Apps Script excedeu 60 segundos.');
+        }
+        throw new Error('Falha ao enviar dados ao Google Apps Script: ' + (erro?.message || erro));
     } finally {
-        form.remove();
-        setTimeout(() => iframe.remove(), 1000);
+        clearTimeout(timeout);
     }
-    // Qualquer grava\u00E7\u00E3o pode alterar os resultados; evita mostrar dados antigos.
+
+    // O POST é no-cors e retorna resposta opaca. Não significa que a gravação
+    // terminou; as rotinas críticas confirmam a gravação via GET/JSONP.
     if (typeof buscaCacheMemoria !== 'undefined' && buscaCacheMemoria) buscaCacheMemoria.clear();
     if (typeof buscaUltimaConsulta !== 'undefined') buscaUltimaConsulta = null;
 }
