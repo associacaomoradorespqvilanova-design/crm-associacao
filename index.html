@@ -190,7 +190,13 @@
     <!-- MODAL MÚLTIPLAS ENTREGAS -->
     <!-- ====================================================== -->
     <div id="modal-multiplas-entregas" class="modal-overlay">
-        <div class="modal-box modal-box-large cartoes-modal-box" style="padding:25px;"><span class="close-btn" onclick="fecharModal('modal-multiplas-entregas')">×</span><h3><i class="fas fa-id-card"></i> Adicionar Cartões</h3>
+        <div class="modal-box modal-box-large cartoes-modal-box">
+            <header class="cartoes-modal-header">
+                <h3><i class="fas fa-id-card"></i> Adicionar Cartões</h3>
+                <button type="button" class="cartoes-close-btn" onclick="fecharModal('modal-multiplas-entregas')" aria-label="Fechar cadastro de cartões">×</button>
+            </header>
+
+            <div id="cartoes-modal-scroll" class="cartoes-modal-scroll">
 
             <div class="cartoes-mode-tabs" role="tablist" aria-label="Modo de cadastro">
                 <button id="cartoes-tab-manual" class="cartoes-mode-tab active" type="button" role="tab" aria-selected="true" onclick="selecionarModoCadastroCartoes('manual')">✍️ Manual</button>
@@ -246,24 +252,34 @@
                 </div>
             </section>
 
-            <div style="background:#f9fffb; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e0f2e0;">
-                <h4 style="margin:0 0 12px 0; color:#196E3A; font-size:15px;">Dados Gerais</h4>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
-                    <div><label style="display:block; font-weight:600; font-size:12px; color:#444;">Quantidade</label><input type="number" id="mult-qtd" min="1" value="1"></div>
-                    <div><label style="display:block; font-weight:600; font-size:12px; color:#444;">Data</label><input type="text" id="mult-data" readonly></div>
-                    <div><label style="display:block; font-weight:600; font-size:12px; color:#444;">Tipo</label><select id="mult-tipo"><option value="">Selecione...</option><option value="SHOPEE">SHOPEE</option><option value="CARTÃO">CARTÃO</option><option value="CARTA">CARTA</option></select></div>
-                    <div><label style="display:block; font-weight:600; font-size:12px; color:#444;">N°</label><input type="text" id="mult-numero"></div>
+            <details id="cartoes-dados-gerais" class="cartoes-dados-gerais" open>
+                <summary>
+                    <span>Dados gerais</span>
+                    <small>Quantidade, tipo e número</small>
+                </summary>
+                <div class="cartoes-dados-conteudo">
+                    <div class="cartoes-dados-grid">
+                        <div><label>Quantidade</label><input type="number" id="mult-qtd" min="1" value="1" inputmode="numeric"></div>
+                        <div><label>Data</label><input type="text" id="mult-data" readonly></div>
+                        <div><label>Tipo</label><select id="mult-tipo"><option value="">Selecione...</option><option value="SHOPEE">SHOPEE</option><option value="CARTÃO">CARTÃO</option><option value="CARTA">CARTA</option></select></div>
+                        <div><label>N°</label><input type="text" id="mult-numero" inputmode="numeric"></div>
+                    </div>
+                    <div class="cartoes-obs"><label>Observação</label><input type="text" id="mult-obs" placeholder="Opcional"></div>
                 </div>
-                <div style="margin-top:10px;"><label style="display:block; font-weight:600; font-size:12px; color:#444;">Observação</label><input type="text" id="mult-obs" placeholder="Opcional"></div>
+            </details>
+
+            <div class="cartoes-lista-header">
+                <strong><i class="fas fa-list"></i> Lista de entregas</strong>
+                <span id="mult-contador">1 entrega</span>
             </div>
-            <div style="margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;"><label style="font-weight:700; font-size:14px; color:#196E3A;"><i class="fas fa-list"></i> Lista de Entregas</label><span id="mult-contador" style="font-size:12px; color:#555;">1 entrega</span></div>
-            <div id="mult-lista-entregas" style="max-height:200px; overflow-y:auto; padding-right:5px; margin-bottom:15px;"></div>
-            <div style="display:flex; gap:10px;">
-                <button type="button" onclick="adicionarEntrega()" style="background:#1a73e8; color:#fff; border:none; padding:10px 15px; border-radius:30px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; flex:1; justify-content:center;"><i class="fas fa-plus"></i> Adicionar Outro</button>
-                <button type="button" onclick="enviarTodasEntregas()" id="btnEnviarMulti" style="background:#4a7c2e; color:#fff; border:none; padding:10px 15px; border-radius:30px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; flex:1; justify-content:center;"><i class="fas fa-paper-plane"></i> Enviar Tudo</button>
+            <div id="mult-lista-entregas" class="cartoes-entregas-lista"></div>
+            <div id="mult-status-message" class="cartoes-status-message" style="display:none;"></div>
             </div>
-            <div id="mult-status-message" style="display:none; padding:10px; border-radius:8px; margin-top:15px; font-weight:500; text-align:center;"></div>
-            <div style="margin-top:15px;"><button class="btn-cancel" onclick="fecharModal('modal-multiplas-entregas')" style="width:100%; padding:10px; text-align:center;">Cancelar</button></div>
+
+            <footer class="cartoes-sticky-actions">
+                <button type="button" class="cartoes-action-btn cartoes-action-add" onclick="adicionarEntrega()"><i class="fas fa-plus"></i> Adicionar outro</button>
+                <button type="button" class="cartoes-action-btn cartoes-action-send" onclick="enviarTodasEntregas()" id="btnEnviarMulti"><i class="fas fa-paper-plane"></i> Enviar tudo</button>
+            </footer>
         </div>
     </div>
 
