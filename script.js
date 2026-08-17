@@ -1,22 +1,38 @@
 // ============================================================
 // CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbx9wIzhHW736YYx12oLcGfRNYZgFw4YpOEvJZOwCaHYu2ep7jm_VtFX6R51-lndvRud/exec";
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbytjhlqZFT-cLql-dKDQh3DbyCY4NYHAkuW97wxKi0c9ZGAfzF0QKOiesuiAWg49MQU0g/exec";
+const CRM_BACKEND_VERSAO = '20260817-4';
 
 // ============================================================
 // GET VIA JSONP
 // ============================================================
-function fetchFromGS(acao, params = {}, signal) {
+function fetchFromGS(acao, params = {}, signal, timeoutMs = 45000) {
     return new Promise((resolve, reject) => {
         const callbackName = 'cb' + Date.now() + Math.random().toString(36).substr(2, 8);
         const urlParams = new URLSearchParams({ acao, callback: callbackName, ...params });
         const script = document.createElement('script');
         script.src = URL_API_GS + '?' + urlParams.toString();
-        const timeout = setTimeout(() => { if(document.body.contains(script)) document.body.removeChild(script); reject(new Error('Timeout')); delete window[callbackName]; }, 30000);
-        window[callbackName] = (res) => { clearTimeout(timeout); if(document.body.contains(script)) document.body.removeChild(script); resolve(res); delete window[callbackName]; };
-        script.onerror = () => { clearTimeout(timeout); if(document.body.contains(script)) document.body.removeChild(script); reject(new Error('Erro de rede')); delete window[callbackName]; };
+        let finalizado = false;
+        const descartarCallbackMaisTarde = () => {
+            // O Apps Script pode responder depois do timeout. Mantem uma funcao
+            // vazia temporariamente para a resposta tardia nao quebrar a pagina.
+            window[callbackName] = () => {};
+            setTimeout(() => { try { delete window[callbackName]; } catch (ignorar) {} }, 120000);
+        };
+        const encerrar = (erro, resposta) => {
+            if (finalizado) return;
+            finalizado = true;
+            clearTimeout(timeout);
+            if (document.body.contains(script)) document.body.removeChild(script);
+            if (erro) { descartarCallbackMaisTarde(); reject(erro); }
+            else { try { delete window[callbackName]; } catch (ignorar) {} resolve(resposta); }
+        };
+        const timeout = setTimeout(() => encerrar(new Error('O Google Apps Script demorou para responder.')), timeoutMs);
+        window[callbackName] = res => encerrar(null, res);
+        script.onerror = () => encerrar(new Error('Erro de rede'));
         document.body.appendChild(script);
-        if(signal) signal.addEventListener('abort', () => { if(document.body.contains(script)) document.body.removeChild(script); clearTimeout(timeout); delete window[callbackName]; reject(new DOMException('Abortado')); }, { once: true });
+        if(signal) signal.addEventListener('abort', () => encerrar(new DOMException('Abortado')), { once: true });
     });
 }
 
@@ -24,10 +40,46 @@ function fetchFromGS(acao, params = {}, signal) {
 // POST PARA GOOGLE SHEETS
 // ============================================================
 async function postParaGoogleSheets(acao, dados = {}) {
-    const formData = new URLSearchParams();
-    formData.append('acao', acao);
-    formData.append('dados', JSON.stringify(dados));
-    await fetch(URL_API_GS, { method: 'POST', body: formData, mode: 'no-cors' });
+    const identificador = 'gs_post_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+    const iframe = document.createElement('iframe');
+    iframe.name = identificador;
+    iframe.hidden = true;
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
+    // Aguarda o about:blank inicial antes de observar a resposta do Web App.
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = URL_API_GS;
+    form.target = identificador;
+    form.hidden = true;
+    const criarCampo = (nome, valor) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = nome;
+        input.value = valor;
+        form.appendChild(input);
+    };
+    criarCampo('acao', acao);
+    criarCampo('dados', JSON.stringify(dados));
+    document.body.appendChild(form);
+    try {
+        await new Promise((resolve, reject) => {
+            let terminou = false;
+            const finalizar = erro => {
+                if (terminou) return;
+                terminou = true;
+                clearTimeout(timeout);
+                erro ? reject(erro) : resolve();
+            };
+            const timeout = setTimeout(() => finalizar(new Error('O envio ao Google Apps Script excedeu 60 segundos.')), 60000);
+            iframe.addEventListener('load', () => finalizar(), { once: true });
+            form.submit();
+        });
+    } finally {
+        form.remove();
+        setTimeout(() => iframe.remove(), 1000);
+    }
     // Qualquer grava\u00E7\u00E3o pode alterar os resultados; evita mostrar dados antigos.
     if (typeof buscaCacheMemoria !== 'undefined' && buscaCacheMemoria) buscaCacheMemoria.clear();
     if (typeof buscaUltimaConsulta !== 'undefined') buscaUltimaConsulta = null;
@@ -423,6 +475,10 @@ async function enviarTodasEntregas() {
     btnEnviar.disabled = true;
     if (statusDiv) statusDiv.style.display = 'none';
     try {
+        const backend = await fetchFromGS('statusBackendCRM', { _: String(Date.now()) }, undefined, 25000);
+        if (backend?.versao !== CRM_BACKEND_VERSAO) {
+            throw new Error('O Google Apps Script publicado ainda esta na versao antiga. Crie uma NOVA VERSAO em Gerenciar implantacoes antes de enviar.');
+        }
         const assinatura = JSON.stringify(entregas);
         const loteId = cartoesLotePendente?.assinatura === assinatura
             ? cartoesLotePendente.loteId
