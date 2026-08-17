@@ -28,6 +28,9 @@ async function postParaGoogleSheets(acao, dados = {}) {
     formData.append('acao', acao);
     formData.append('dados', JSON.stringify(dados));
     await fetch(URL_API_GS, { method: 'POST', body: formData, mode: 'no-cors' });
+    // Qualquer gravação pode alterar os resultados; evita mostrar dados antigos.
+    if (typeof buscaCacheMemoria !== 'undefined' && buscaCacheMemoria) buscaCacheMemoria.clear();
+    if (typeof buscaUltimaConsulta !== 'undefined') buscaUltimaConsulta = null;
 }
 
 // ============================================================
@@ -670,7 +673,114 @@ var inputBusca = null;
 var btnBuscaSearch = null; 
 var buscaResultados = null; 
 var contadorBusca = null;
-var buscaTipoSelect = null; 
+var buscaTipoSelect = null;
+var buscaSequencia = 0;
+var buscaUltimaConsulta = null;
+var buscaCacheMemoria = new Map();
+var buscaContagemEnderecos = new Map();
+const BUSCA_DEBOUNCE_MS = 650;
+const BUSCA_CACHE_MS = 60000;
+
+function normalizarTextoBusca(valor) {
+    return String(valor || '').toLowerCase().normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function somenteDigitosBusca(valor) { return String(valor || '').replace(/\D/g, ''); }
+
+function minimoCaracteresBusca(tipo) {
+    if (tipo === 'numero') return 1;
+    if (tipo === 'cpf' || tipo === 'telefone') return 3;
+    return 2;
+}
+
+function placeholderBusca(tipo) {
+    const textos = {
+        todos: 'Digite nome, rua, número, CPF ou telefone...',
+        nome: 'Digite o nome da pessoa...',
+        endereco: 'Digite o nome da rua ou endereço...',
+        numero: 'Digite o número do cartão...',
+        cpf: 'Digite pelo menos 3 números do CPF...',
+        telefone: 'Digite pelo menos 3 números do telefone...'
+    };
+    return textos[tipo] || textos.todos;
+}
+
+function chaveBuscaMemoria(tipo, termo) {
+    return `${tipo}|${normalizarTextoBusca(termo)}|${somenteDigitosBusca(termo)}`;
+}
+
+function obterBuscaMemoria(chave) {
+    const item = buscaCacheMemoria.get(chave);
+    if (!item) return null;
+    if (Date.now() - item.criadoEm > BUSCA_CACHE_MS) {
+        buscaCacheMemoria.delete(chave);
+        return null;
+    }
+    return item.resposta;
+}
+
+function salvarBuscaMemoria(chave, resposta) {
+    buscaCacheMemoria.set(chave, { criadoEm: Date.now(), resposta });
+    if (buscaCacheMemoria.size > 40) buscaCacheMemoria.delete(buscaCacheMemoria.keys().next().value);
+}
+
+function pontuarResultadoLocal(item, termo, tipo) {
+    const consulta = normalizarTextoBusca(termo);
+    const digitos = somenteDigitosBusca(termo);
+    const tokens = consulta.split(/\s+/).filter(Boolean);
+    const nome = normalizarTextoBusca(item.nome);
+    const endereco = normalizarTextoBusca(item.endereco);
+    const palavrasNome = nome.split(/\s+/).filter(Boolean);
+    const numero = normalizarTextoBusca(item.numero);
+    const cpf = somenteDigitosBusca(item.cpf);
+    const telefone = somenteDigitosBusca(item.telefone);
+
+    const nomeScore = () => {
+        if (!tokens.length || !tokens.every(t => palavrasNome.some(p => p.startsWith(t)))) return 0;
+        if (nome === consulta) return 1200;
+        if (nome.startsWith(consulta)) return 900;
+        return 500 + tokens.length * 100;
+    };
+    const enderecoScore = () => {
+        if (!tokens.length || !tokens.every(t => endereco.includes(t))) return 0;
+        if (endereco === consulta) return 1000;
+        if (endereco.startsWith(consulta)) return 800;
+        return 450 + tokens.length * 50;
+    };
+
+    if (tipo === 'nome') return nomeScore();
+    if (tipo === 'endereco') return enderecoScore();
+    if (tipo === 'numero') return numero === consulta ? 1000 : (numero.startsWith(consulta) ? 700 : 0);
+    if (tipo === 'cpf') return digitos && cpf.includes(digitos) ? (cpf === digitos ? 1000 : 700) : 0;
+    if (tipo === 'telefone') return digitos && telefone.includes(digitos) ? (telefone === digitos ? 1000 : 700) : 0;
+
+    let score = Math.max(nomeScore(), enderecoScore());
+    if (digitos) {
+        if (numero === consulta) score = Math.max(score, 1100);
+        else if (numero.startsWith(consulta)) score = Math.max(score, 750);
+        if (cpf.includes(digitos)) score = Math.max(score, cpf === digitos ? 1050 : 720);
+        if (telefone.includes(digitos)) score = Math.max(score, telefone === digitos ? 1000 : 700);
+    }
+    return score;
+}
+
+function refinarBuscaAnterior(tipo, termo) {
+    const anterior = buscaUltimaConsulta;
+    if (!anterior || !anterior.resposta?.completo || anterior.tipo !== tipo) return null;
+    const antes = normalizarTextoBusca(anterior.termo);
+    const agora = normalizarTextoBusca(termo);
+    if (!antes || agora.length <= antes.length || !agora.startsWith(antes)) return null;
+
+    const resultados = (anterior.resposta.resultados || [])
+        .map(item => ({ ...item, score: pontuarResultadoLocal(item, termo, tipo) }))
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score || Number(b.linha) - Number(a.linha));
+    return { ...anterior.resposta, resultados, total: resultados.length, completo: true, cacheLocal: true };
+}
 
 function inicializarEventosBusca() {
     inputBusca = document.getElementById('busca-input');
@@ -681,8 +791,8 @@ function inicializarEventosBusca() {
     if (!inputBusca || !btnBuscaSearch) return; 
     if (buscaTipoSelect) {
         buscaTipoSelect.addEventListener('change', function() {
-            if (this.value === 'endereco') inputBusca.placeholder = "Digite o nome da rua ou endereço...";
-            else inputBusca.placeholder = "Digite nome, rua, número, CPF, telefone...";
+            inputBusca.placeholder = placeholderBusca(this.value);
+            if (inputBusca.value.trim()) executarBusca();
         });
     }
     if (btnBuscaSearch && !btnBuscaSearch.dataset.bound) {
@@ -692,7 +802,17 @@ function inicializarEventosBusca() {
     if (inputBusca && !inputBusca.dataset.bound) {
         inputBusca.dataset.bound = 'true';
         inputBusca.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); executarBusca(); } });
-        inputBusca.addEventListener('input', () => { clearTimeout(debounceTimerBusca); debounceTimerBusca = setTimeout(executarBusca, 450); });
+        inputBusca.addEventListener('input', () => {
+            clearTimeout(debounceTimerBusca);
+            const tipo = buscaTipoSelect ? buscaTipoSelect.value : 'todos';
+            const termo = inputBusca.value.trim();
+            if (!termo) { limparBusca(false); return; }
+            if (termo.length < minimoCaracteresBusca(tipo)) {
+                if (buscaResultados) buscaResultados.innerHTML = `<div style="text-align:center; padding:30px; color:#888;">Digite pelo menos ${minimoCaracteresBusca(tipo)} caractere(s).</div>`;
+                return;
+            }
+            debounceTimerBusca = setTimeout(executarBusca, BUSCA_DEBOUNCE_MS);
+        });
     }
 }
 
@@ -707,8 +827,7 @@ function prepararModalBusca() {
         if (inputBusca) {
             inputBusca.value = '';
             inputBusca.focus();
-            if (buscaTipoSelect && buscaTipoSelect.value === 'endereco') inputBusca.placeholder = "Digite o nome da rua ou endereço...";
-            else inputBusca.placeholder = "Digite nome, rua, número, CPF, telefone...";
+            inputBusca.placeholder = placeholderBusca(buscaTipoSelect ? buscaTipoSelect.value : 'todos');
         }
         todosResultadosBusca = [];
         if (contadorBusca) contadorBusca.textContent = '⏳ ...';
@@ -727,29 +846,79 @@ async function carregarTotalCartoesBusca() { if (!contadorBusca) return; contado
 async function executarBusca() {
     if (!inputBusca) { inputBusca = document.getElementById('busca-input'); if (!inputBusca) return; }
     const termo = inputBusca.value.trim();
-    if (!termo) { limparBusca(); return; }
+    const tipo = buscaTipoSelect ? buscaTipoSelect.value : 'todos';
+    if (!termo) { limparBusca(false); return; }
+    if (termo.length < minimoCaracteresBusca(tipo)) {
+        if (buscaResultados) buscaResultados.innerHTML = `<div style="text-align:center; padding:30px; color:#888;">Digite pelo menos ${minimoCaracteresBusca(tipo)} caractere(s).</div>`;
+        return;
+    }
+
+    const chaveMemoria = chaveBuscaMemoria(tipo, termo);
+    const respostaMemoria = obterBuscaMemoria(chaveMemoria);
+    if (respostaMemoria) {
+        buscaUltimaConsulta = { tipo, termo, resposta: respostaMemoria };
+        processarResultados(respostaMemoria);
+        return;
+    }
+
+    const respostaRefinada = refinarBuscaAnterior(tipo, termo);
+    if (respostaRefinada) {
+        salvarBuscaMemoria(chaveMemoria, respostaRefinada);
+        buscaUltimaConsulta = { tipo, termo, resposta: respostaRefinada };
+        processarResultados(respostaRefinada);
+        return;
+    }
+
     if (buscaRequestController) buscaRequestController.abort();
-    buscaRequestController = new AbortController();
+    const controllerAtual = new AbortController();
+    buscaRequestController = controllerAtual;
+    const sequenciaAtual = ++buscaSequencia;
     if (buscaResultados) { buscaResultados.style.display = 'flex'; buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">⏳ Buscando...</div>'; }
-    let params = { termo: '' };
-    const tipo = buscaTipoSelect ? buscaTipoSelect.value : 'nome';
-    if (tipo === 'endereco') params = { termo: '', rua: termo };
-    else params = { termo: termo };
+    const params = { termo, campo: tipo };
     try {
-        const resultado = await fetchFromGS('pesquisarCartoes', params, buscaRequestController.signal);
+        const resultado = await fetchFromGS('pesquisarCartoes', params, controllerAtual.signal);
+        if (sequenciaAtual !== buscaSequencia) return;
+        if (!resultado || resultado.error) throw new Error(resultado?.error || 'Resposta inválida do servidor');
+        salvarBuscaMemoria(chaveMemoria, resultado);
+        buscaUltimaConsulta = { tipo, termo, resposta: resultado };
         processarResultados(resultado);
-    } catch (e) { if (e.name === 'AbortError') return; console.error(e); if (buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#d32f2f;">❌ Erro na busca</div>'; } finally { buscaRequestController = null; }
+    } catch (e) {
+        if (e.name === 'AbortError') return;
+        console.error(e);
+        if (buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#d32f2f;">❌ Erro na busca. Tente novamente.</div>';
+    } finally {
+        if (buscaRequestController === controllerAtual) buscaRequestController = null;
+    }
 }
 
-function processarResultados(resposta) { todosResultadosBusca = resposta.resultados || []; if(contadorBusca) contadorBusca.textContent = `📦 ${resposta.total} pendente(s)`; renderizarResultados(); }
+function processarResultados(resposta) {
+    todosResultadosBusca = Array.isArray(resposta?.resultados) ? resposta.resultados : [];
+    buscaContagemEnderecos = new Map();
+    todosResultadosBusca.forEach(item => {
+        const chave = normalizarEndereco(item.endereco);
+        if (chave) buscaContagemEnderecos.set(chave, (buscaContagemEnderecos.get(chave) || 0) + 1);
+    });
+    todosResultadosBusca.forEach(item => {
+        const chave = normalizarEndereco(item.endereco);
+        const totalServidor = Number(item.qtdEndereco || 0);
+        if (chave && totalServidor > (buscaContagemEnderecos.get(chave) || 0)) {
+            buscaContagemEnderecos.set(chave, totalServidor);
+        }
+    });
+    if (contadorBusca) {
+        const limitado = resposta?.completo === false ? ` · mostrando ${todosResultadosBusca.length}` : '';
+        contadorBusca.textContent = `📦 ${Number(resposta?.total || 0)} encontrado(s)${limitado}`;
+    }
+    renderizarResultados();
+}
 
 function renderizarResultados() {
     if (!buscaResultados) buscaResultados = document.getElementById('busca-resultados');
     if (!buscaResultados) return;
-    let exibir = todosResultadosBusca;
+    const exibir = [...todosResultadosBusca];
     exibir.sort((a, b) => {
         const parseDate = (str) => { if (!str) return 0; let d = new Date(str); if (!isNaN(d.getTime())) return d.getTime(); const p = String(str).split('/'); if (p.length === 3) { d = new Date(p[2], p[1] - 1, p[0]); if (!isNaN(d.getTime())) return d.getTime(); } return 0; };
-        return parseDate(b.data) - parseDate(a.data);
+        return Number(b.score || 0) - Number(a.score || 0) || parseDate(b.data) - parseDate(a.data) || Number(b.linha) - Number(a.linha);
     });
     if (!exibir.length) { buscaResultados.innerHTML = '<div style="text-align:center; padding:25px; color:#999;">Nenhum pendente encontrado.</div>'; return; }
     let html = '';
@@ -757,13 +926,14 @@ function renderizarResultados() {
         const qtdEndereco = contarIguaisPorEndereco(item);
         const multiIcon = qtdEndereco > 1 ? `<span style="background:#e3f2fd; padding:2px 8px; border-radius:12px; margin-left:5px;">👥 ${qtdEndereco}</span>` : '';
         const statusClass = String(item.status || '').toUpperCase().trim() === 'BLOQUEADO' ? 'bloqueado' : '';
+        const seloRecente = ehDataRecenteBusca(item.data) ? '<div class="selo-container"><div class="selo">RECENTE</div></div>' : '';
         html += `
             <div class="card" onclick="abrirEditorBuscaRapido(${Number(item.linha)})">
                 <span class="numero">${escapeHtml(item.numero || '-')}</span>
                 <span class="nome" title="${escapeHtml(item.nome || '')}">${escapeHtml(item.nome || '')}</span>
                 <div class="detalhes">
                     <span class="data-destaque">📅 ${escapeHtml(formatarDataBR(item.data))}</span>
-                    <div class="selo-container"><div class="selo">RECENTE</div></div>
+                    ${seloRecente}
                     <span>📍 ${escapeHtml(item.endereco || 'SEM ENDEREÇO')} ${multiIcon}</span>
                     <span>📦 ${escapeHtml(item.tipo || '')}</span>
                     <span class="status-badge ${statusClass}">${escapeHtml(item.status || 'PENDENTE')}</span>
@@ -773,19 +943,33 @@ function renderizarResultados() {
     buscaResultados.innerHTML = html;
 }
 
-function limparBusca() {
+function limparBusca(recarregarTotal = true) {
     clearTimeout(debounceTimerBusca);
     if (buscaRequestController) { buscaRequestController.abort(); buscaRequestController = null; }
+    buscaSequencia++;
     todosResultadosBusca = [];
+    buscaContagemEnderecos = new Map();
+    buscaUltimaConsulta = null;
     if (buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">Digite algo para buscar.</div>';
-    if (contadorBusca) contadorBusca.textContent = '⏳ ...';
+    if (contadorBusca && recarregarTotal) contadorBusca.textContent = '⏳ ...';
     const editorArea = document.getElementById('busca-editor-area');
     if (editorArea) { editorArea.style.display = 'none'; editorArea.innerHTML = ''; }
-    carregarTotalCartoesBusca();
+    if (recarregarTotal) carregarTotalCartoesBusca();
 }
 
 function normalizarEndereco(endereco) { return String(endereco || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
-function contarIguaisPorEndereco(item) { const eNorm = normalizarEndereco(item.endereco); return todosResultadosBusca.filter(it => normalizarEndereco(it.endereco) === eNorm).length; }
+function contarIguaisPorEndereco(item) { return buscaContagemEnderecos.get(normalizarEndereco(item.endereco)) || 0; }
+function ehDataRecenteBusca(valor) {
+    if (!valor) return false;
+    let data = new Date(valor);
+    if (isNaN(data.getTime())) {
+        const partes = String(valor).split('/');
+        if (partes.length === 3) data = new Date(partes[2], partes[1] - 1, partes[0]);
+    }
+    if (isNaN(data.getTime())) return false;
+    const dias = (Date.now() - data.getTime()) / 86400000;
+    return dias >= 0 && dias <= 45;
+}
 function escapeHtml(v) { return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
 
 // ============================================================
@@ -796,7 +980,6 @@ function abrirEditorBuscaRapido(linha) {
     if (!item) return;
     const qtdMesmoEndereco = contarIguaisPorEndereco(item);
     const temOutros = qtdMesmoEndereco > 1;
-    const chaveEndereco = normalizarEndereco(item.endereco);
     const numeroBloco = item.numero;
     const editorArea = document.getElementById('busca-editor-area');
     const resultadosDiv = document.getElementById('busca-resultados');
@@ -829,8 +1012,8 @@ function abrirEditorBuscaRapido(linha) {
                         <div class="alerta-duplicidade">
                             <span style="color:#b45309; font-weight:bold; display:flex; align-items:center; gap:8px;"><span style="font-size:1.2rem;">⚠️</span> Há ${qtdMesmoEndereco} cartões neste mesmo endereço!</span>
                             <div>
-                                <button class="btn-sm" onclick="abrirListaMoradoresBusca('${escapeHtml(item.endereco || '')}', ${Number(linha)})" style="background:#2563eb; color:white; border:none; padding:5px 14px; border-radius:30px; cursor:pointer;">👥 VER MORADORES</button>
-                                <button class="btn-sm" onclick="abrirEdicaoMassivaBusca('${escapeHtml(chaveEndereco)}', ${Number(linha)})" style="background:#ea580c; color:white; border:none; padding:5px 14px; border-radius:30px; cursor:pointer;">✏️ EDITAR TODOS</button>
+                                <button class="btn-sm" onclick="abrirListaMoradoresBusca(${Number(linha)})" style="background:#2563eb; color:white; border:none; padding:5px 14px; border-radius:30px; cursor:pointer;">👥 VER MORADORES</button>
+                                <button class="btn-sm" onclick="abrirEdicaoMassivaBusca(${Number(linha)})" style="background:#ea580c; color:white; border:none; padding:5px 14px; border-radius:30px; cursor:pointer;">✏️ EDITAR TODOS</button>
                             </div>
                         </div>` : ''}
                 </div>
@@ -946,9 +1129,30 @@ async function finalizarEntregaBusca(linha, nomeEntregueA, dataEntrega, telefone
     }
 }
 
-function abrirListaMoradoresBusca(enderecoOriginal, linhaAtual) {
+async function obterCartoesMesmoEnderecoBusca(enderecoOriginal) {
     const enderecoNorm = normalizarEndereco(enderecoOriginal);
-    const cartoes = todosResultadosBusca.filter(item => normalizarEndereco(item.endereco) === enderecoNorm);
+    let cartoes = todosResultadosBusca.filter(item => normalizarEndereco(item.endereco) === enderecoNorm);
+    const totalEsperado = cartoes.reduce((maior, item) => Math.max(maior, Number(item.qtdEndereco || 0)), cartoes.length);
+    if (cartoes.length >= totalEsperado) return cartoes;
+    try {
+        const resposta = await fetchFromGS('pesquisarCartoes', { termo: enderecoOriginal, campo: 'endereco' });
+        const completos = Array.isArray(resposta?.resultados) ? resposta.resultados : [];
+        const exatos = completos.filter(item => normalizarEndereco(item.endereco) === enderecoNorm);
+        if (exatos.length) cartoes = exatos;
+    } catch (erro) {
+        console.warn('Não foi possível carregar todos os moradores do endereço:', erro);
+    }
+    return cartoes;
+}
+
+async function abrirListaMoradoresBusca(linhaAtual) {
+    const atual = todosResultadosBusca.find(item => Number(item.linha) === Number(linhaAtual));
+    if (!atual) return;
+    const enderecoOriginal = atual.endereco || '';
+    const editorArea = document.getElementById('busca-editor-area');
+    if (!editorArea) return;
+    editorArea.innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;">⏳ Carregando moradores...</div>';
+    const cartoes = await obterCartoesMesmoEnderecoBusca(enderecoOriginal);
     if (!cartoes.length) return;
     let listaHtml = '<ul style="list-style:none; padding:0; margin:10px 0; max-height:200px; overflow:auto;">';
     cartoes.forEach(cartao => {
@@ -960,8 +1164,6 @@ function abrirListaMoradoresBusca(enderecoOriginal, linhaAtual) {
             </li>`;
     });
     listaHtml += '</ul>';
-    const editorArea = document.getElementById('busca-editor-area');
-    if (!editorArea) return;
     editorArea.innerHTML = `
         <h4>👥 Moradores do endereço</h4>
         <p style="background:#e8f5e9; padding:6px; border-radius:6px;">📍 ${escapeHtml(enderecoOriginal)}</p>
@@ -969,13 +1171,19 @@ function abrirListaMoradoresBusca(enderecoOriginal, linhaAtual) {
         <button class="btn-cancelar" onclick="cancelarEdicaoBusca(${Number(linhaAtual)})">Fechar</button>`;
 }
 
-function abrirEdicaoMassivaBusca(chaveEndereco, linhaAtual) {
-    const cartoes = todosResultadosBusca.filter(it => normalizarEndereco(it.endereco) === chaveEndereco);
-    if (cartoes.length <= 1) return;
-    const linhas = cartoes.map(it => Number(it.linha));
-    const nomes = [...new Set(cartoes.map(it => it.nome))];
+async function abrirEdicaoMassivaBusca(linhaAtual) {
+    const atual = todosResultadosBusca.find(item => Number(item.linha) === Number(linhaAtual));
+    if (!atual) return;
     const editorArea = document.getElementById('busca-editor-area');
     if (!editorArea) return;
+    editorArea.innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;">⏳ Carregando cartões do endereço...</div>';
+    const cartoes = await obterCartoesMesmoEnderecoBusca(atual.endereco || '');
+    if (cartoes.length <= 1) {
+        editorArea.innerHTML = `<div style="text-align:center;padding:30px;color:#64748b;">Nenhum outro cartão foi encontrado neste endereço.<br><button class="btn-voltar" style="margin:15px auto 0;" onclick="cancelarEdicaoBusca(${Number(linhaAtual)})">← Voltar</button></div>`;
+        return;
+    }
+    const linhas = cartoes.map(it => Number(it.linha));
+    const nomes = [...new Set(cartoes.map(it => it.nome))];
     editorArea.style.display = 'block';
     editorArea.innerHTML = `
         <div id="editorMassaBusca" class="editor-massa active">
