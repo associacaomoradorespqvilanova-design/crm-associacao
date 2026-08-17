@@ -13,6 +13,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js"></script>
 
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -189,8 +190,62 @@
     <!-- MODAL MÚLTIPLAS ENTREGAS -->
     <!-- ====================================================== -->
     <div id="modal-multiplas-entregas" class="modal-overlay">
-        <div class="modal-box modal-box-large" style="padding:25px;"><span class="close-btn" onclick="fecharModal('modal-multiplas-entregas')">×</span><h3><i class="fas fa-truck"></i> Múltiplas Entregas</h3>
-            <p style="font-size:13px; color:#555; margin-bottom:15px;">Pressione <strong>TAB</strong> ou <strong>ENTER</strong> no campo de endereço para adicionar automaticamente o próximo.</p>
+        <div class="modal-box modal-box-large cartoes-modal-box" style="padding:25px;"><span class="close-btn" onclick="fecharModal('modal-multiplas-entregas')">×</span><h3><i class="fas fa-id-card"></i> Adicionar Cartões</h3>
+
+            <div class="cartoes-mode-tabs" role="tablist" aria-label="Modo de cadastro">
+                <button id="cartoes-tab-manual" class="cartoes-mode-tab active" type="button" role="tab" aria-selected="true" onclick="selecionarModoCadastroCartoes('manual')">✍️ Manual</button>
+                <button id="cartoes-tab-digitalizado" class="cartoes-mode-tab" type="button" role="tab" aria-selected="false" onclick="selecionarModoCadastroCartoes('digitalizado')">📷 Digitalizado</button>
+            </div>
+
+            <p id="cartoes-manual-ajuda" class="cartoes-mode-help">Digite normalmente. Pressione <strong>TAB</strong> ou <strong>ENTER</strong> no endereço para adicionar o próximo cartão.</p>
+
+            <section id="cartoes-digitalizado-area" class="cartoes-scanner-panel" style="display:none;" aria-label="Digitalização de cartões">
+                <div class="cartoes-scanner-header">
+                    <div>
+                        <strong>Leitura do destinatário</strong>
+                        <small>Enquadre somente o nome e a rua do destinatário dentro da moldura.</small>
+                    </div>
+                    <span id="cartoes-scanner-alvo" class="scanner-target-badge">Cartão 1</span>
+                </div>
+
+                <div class="cartoes-scanner-grid">
+                    <div class="scanner-camera-wrap">
+                        <video id="cartoes-scanner-video" autoplay playsinline muted></video>
+                        <div class="scanner-frame-guide"><span>NOME + RUA/NÚMERO</span></div>
+                        <canvas id="cartoes-scanner-canvas" hidden></canvas>
+                        <div id="cartoes-scanner-sem-camera" class="scanner-no-camera" style="display:none;">Câmera indisponível. Use “Escolher foto”.</div>
+                    </div>
+
+                    <div class="scanner-controls">
+                        <div id="cartoes-scanner-status" class="scanner-status">Clique em “Iniciar câmera”.</div>
+                        <div class="scanner-progress"><span id="cartoes-scanner-progress-bar"></span></div>
+                        <div class="scanner-button-row">
+                            <button type="button" class="scanner-btn scanner-btn-primary" onclick="iniciarCameraCartoes()">▶ Iniciar câmera</button>
+                            <button type="button" id="cartoes-btn-capturar" class="scanner-btn scanner-btn-capture" onclick="capturarCartaoParaOCR()" disabled>📸 Capturar</button>
+                        </div>
+                        <div class="scanner-button-row">
+                            <button type="button" class="scanner-btn scanner-btn-file" onclick="document.getElementById('cartoes-scanner-file').click()">🖼️ Escolher foto</button>
+                            <button type="button" class="scanner-btn scanner-btn-stop" onclick="pararCameraCartoes()">■ Parar câmera</button>
+                        </div>
+                        <input id="cartoes-scanner-file" type="file" accept="image/*" capture="environment" hidden onchange="processarArquivoCartaoOCR(event)">
+                    </div>
+                </div>
+
+                <div id="cartoes-ocr-review" class="ocr-review" style="display:none;">
+                    <div class="ocr-review-title">Confira antes de adicionar</div>
+                    <div class="ocr-review-grid">
+                        <div><label for="cartoes-ocr-nome">Nome detectado</label><input id="cartoes-ocr-nome" type="text" autocomplete="off"></div>
+                        <div><label for="cartoes-ocr-endereco">Endereço detectado</label><input id="cartoes-ocr-endereco" type="text" autocomplete="off"></div>
+                    </div>
+                    <details><summary>Ver texto reconhecido</summary><pre id="cartoes-ocr-texto-bruto"></pre></details>
+                    <div class="scanner-button-row scanner-review-actions">
+                        <button type="button" class="scanner-btn scanner-btn-primary" onclick="usarDadosCartaoOCR(false)">✓ Preencher este</button>
+                        <button type="button" class="scanner-btn scanner-btn-capture" onclick="usarDadosCartaoOCR(true)">✓ Adicionar e próximo</button>
+                        <button type="button" class="scanner-btn scanner-btn-file" onclick="limparResultadoCartaoOCR()">↻ Ler novamente</button>
+                    </div>
+                </div>
+            </section>
+
             <div style="background:#f9fffb; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e0f2e0;">
                 <h4 style="margin:0 0 12px 0; color:#196E3A; font-size:15px;">Dados Gerais</h4>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
