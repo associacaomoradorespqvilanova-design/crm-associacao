@@ -1,7 +1,7 @@
 // ============================================================
 // CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzS6RUbpptfPggHMIsOTHPmHJK2p4SZOb3AFW2qnesgiXgmBHddLHt4KH889SX7Ks-tZw/exec";
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbx9wIzhHW736YYx12oLcGfRNYZgFw4YpOEvJZOwCaHYu2ep7jm_VtFX6R51-lndvRud/exec";
 
 // ============================================================
 // GET VIA JSONP
@@ -543,6 +543,14 @@ async function iniciarCameraCartoes() {
         });
         video.srcObject = cartoesScannerStream;
         await video.play();
+        try {
+            const track = cartoesScannerStream.getVideoTracks()[0];
+            const capacidades = track?.getCapabilities?.() || {};
+            const avancado = {};
+            if (Array.isArray(capacidades.focusMode) && capacidades.focusMode.includes('continuous')) avancado.focusMode = 'continuous';
+            if (Array.isArray(capacidades.exposureMode) && capacidades.exposureMode.includes('continuous')) avancado.exposureMode = 'continuous';
+            if (Object.keys(avancado).length) await track.applyConstraints({ advanced: [avancado] });
+        } catch (ignorar) {}
         if (semCamera) semCamera.style.display = 'none';
         if (capturar) capturar.disabled = false;
         atualizarStatusScannerCartoes('C\u00E2mera pronta. Evite reflexos e aproxime o bloco do destinat\u00E1rio.', 0);
@@ -595,34 +603,6 @@ async function obterWorkerCartoesOCR() {
     return cartoesScannerWorkerPromise;
 }
 
-function obterRecorteRealDaGuiaCartoes(fonte) {
-    const video = document.getElementById('cartoes-scanner-video');
-    const guia = document.querySelector('.scanner-frame-guide');
-    if (!video || !guia || fonte !== video) return null;
-    const larguraFonte = video.videoWidth;
-    const alturaFonte = video.videoHeight;
-    const videoRect = video.getBoundingClientRect();
-    const guiaRect = guia.getBoundingClientRect();
-    if (!larguraFonte || !alturaFonte || !videoRect.width || !videoRect.height) return null;
-
-    // O preview usa object-fit: cover. Converte a moldura visivel para as
-    // coordenadas reais da camera; sem isto o OCR lia areas fora da moldura.
-    const escala = Math.max(videoRect.width / larguraFonte, videoRect.height / alturaFonte);
-    const larguraRenderizada = larguraFonte * escala;
-    const alturaRenderizada = alturaFonte * escala;
-    const deslocamentoX = (videoRect.width - larguraRenderizada) / 2;
-    const deslocamentoY = (videoRect.height - alturaRenderizada) / 2;
-    let sx = (guiaRect.left - videoRect.left - deslocamentoX) / escala;
-    let sy = (guiaRect.top - videoRect.top - deslocamentoY) / escala;
-    let sw = guiaRect.width / escala;
-    let sh = guiaRect.height / escala;
-    sx = Math.max(0, Math.min(larguraFonte - 1, sx));
-    sy = Math.max(0, Math.min(alturaFonte - 1, sy));
-    sw = Math.max(1, Math.min(larguraFonte - sx, sw));
-    sh = Math.max(1, Math.min(alturaFonte - sy, sh));
-    return { sx, sy, sw, sh };
-}
-
 function desenharFonteNoCanvasCartoes(fonte, recortarGuia) {
     const canvas = document.getElementById('cartoes-scanner-canvas');
     if (!canvas) throw new Error('\u00C1rea de captura n\u00E3o encontrada.');
@@ -630,11 +610,11 @@ function desenharFonteNoCanvasCartoes(fonte, recortarGuia) {
     const alturaFonte = fonte.videoHeight || fonte.naturalHeight || fonte.height;
     if (!larguraFonte || !alturaFonte) throw new Error('A imagem ainda n\u00E3o est\u00E1 pronta.');
 
-    const recorteReal = recortarGuia ? obterRecorteRealDaGuiaCartoes(fonte) : null;
-    const sx = Math.round(recorteReal?.sx ?? (recortarGuia ? larguraFonte * 0.08 : 0));
-    const sy = Math.round(recorteReal?.sy ?? (recortarGuia ? alturaFonte * 0.18 : 0));
-    const sw = Math.round(recorteReal?.sw ?? (recortarGuia ? larguraFonte * 0.84 : larguraFonte));
-    const sh = Math.round(recorteReal?.sh ?? (recortarGuia ? alturaFonte * 0.64 : alturaFonte));
+    // Mantem o recorte simples que apresentou melhor resultado nos aparelhos reais.
+    const sx = recortarGuia ? Math.round(larguraFonte * 0.08) : 0;
+    const sy = recortarGuia ? Math.round(alturaFonte * 0.18) : 0;
+    const sw = recortarGuia ? Math.round(larguraFonte * 0.84) : larguraFonte;
+    const sh = recortarGuia ? Math.round(alturaFonte * 0.64) : alturaFonte;
     const escala = Math.min(2, 1800 / sw);
     canvas.width = Math.max(900, Math.round(sw * escala));
     canvas.height = Math.round(canvas.width * sh / sw);
@@ -741,19 +721,24 @@ function normalizarNomeDetectadoOCR(valor) {
 function linhaPareceNomeOCR(valor) {
     const linha = semAcentoCartaoOCR(normalizarNomeDetectadoOCR(valor));
     const original = semAcentoCartaoOCR(valor);
-    if (linha.length < 6 || linha.length > 75 || /\d/.test(linha) || linhaPareceEnderecoOCR(linha)) return false;
+    if (linha.length < 6 || linha.length > 75 || /^[-.,]/.test(linha) || /\d/.test(linha) || linhaPareceEnderecoOCR(linha)) return false;
     const bloqueios = /DESTINATARIO|REMETENTE|PEQUENA ENCOMENDA|STATUS VISITA|NOME.*RECEBEDOR|ASSINATURA|PROTOCOLO|LOCAL PARA DEVOLUCAO|FLASH|COURIER|CEP\b|BAIRRO|DUQUE DE CAXIA(?:S)?|RIO DE JANEIRO|SAO PAULO|SAO BERNARDO|ENCOMENDA|RASTREADA|VISITA|AUSENTE|DATA\b|HORA\b|PARQUE\b|PQE\b|PRQ\b|JARDIM\b|JD\b|VILA\b|COOPERATIVA|\bRJ\b|\bSP\b/;
     const prefixoLocalidade = /^(?:JD|JARDIM|PQE|PRQ|PARQUE|VILA|BAIRRO)\b/;
-    if (bloqueios.test(linha) || prefixoLocalidade.test(original)) return false;
+    if (bloqueios.test(linha) || prefixoLocalidade.test(original) || linhaEhOpcaoStatusVisitaOCR(linha)) return false;
     const palavras = linha.split(/\s+/).filter(Boolean);
     if (palavras.length < 2 || palavras.length > 7) return false;
     const letras = (linha.match(/[A-Z]/g) || []).length;
     return letras / Math.max(1, linha.replace(/\s/g, '').length) > 0.72;
 }
 
+function linhaEhOpcaoStatusVisitaOCR(valor) {
+    const linha = semAcentoCartaoOCR(valor);
+    return /INSUFIC|NSUFIC|DESCONHEC|ESCONHEC|ESCONN|\bE?NAO\b|INEXIST|RECUSAD|FALECID|MUDOU|CEP ERRAD|AREA DE RISCO|DANIFIC|ZONA RURAL|STATUS VISITA/.test(linha);
+}
+
 function linhaPareceEnderecoComNumeroOCR(valor) {
     const linha = semAcentoCartaoOCR(valor);
-    if (!linha || /CEP\b|PROTOCOLO|N[O0]?\s*WO|DATA\b|VISITA|AUSENTE|TELEFONE|CPF|CNPJ/.test(linha)) return false;
+    if (!linha || linhaEhOpcaoStatusVisitaOCR(linha) || /CEP\b|PROTOCOLO|N[O0]?\s*WO|DATA\b|VISITA|AUSENTE|TELEFONE|CPF|CNPJ/.test(linha)) return false;
     if (/DUQUE DE CAXIA(?:S)?|RIO DE JANEIRO|SAO PAULO|SAO BERNARDO/.test(linha)) return false;
     const temNumeroResidencial = /(?:^|\s)\d{1,5}[A-Z]?(?:\s|,|$)/.test(linha) || /[A-Z]\d{1,5}(?:\s|,|$)/.test(linha);
     const letras = (linha.match(/[A-Z]/g) || []).length;
