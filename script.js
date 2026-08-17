@@ -1,7 +1,7 @@
 // ============================================================
 // CONFIGURAÇÃO DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzWDl8XKvWVkS7QBSYqRxS55MSD7BHAIXoOqj6SgFFD0hX3IK-KOnFR-tSZTxWeLJV6aQ/exec";
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwb7u0uQIAg_8vev9OjTN6y6zkIj7og1CVBRAY7kccG9HNZOyyXBsQQ-kndbd5qgan5tQ/exec";
 
 // ============================================================
 // GET VIA JSONP
@@ -295,12 +295,82 @@ function abrirModal(id) {
     const modal = document.getElementById(id);
     if (!modal) return;
     modal.classList.add('active');
-    if(id === 'modal-multiplas-entregas') { const lista = document.getElementById('mult-lista-entregas'); if(lista){ lista.innerHTML = ''; contadorEntregas = 0; adicionarEntrega(); document.getElementById('mult-data').value = new Date().toLocaleDateString('pt-BR'); setTimeout(() => { const p = document.querySelector('#mult-lista-entregas .nome-input'); if(p) p.focus(); },200); } } if(id === 'modal-busca') prepararModalBusca(); 
+    if (id === 'modal-multiplas-entregas') {
+        const lista = document.getElementById('mult-lista-entregas');
+        if (lista) {
+            pararCameraCartoes();
+            limparResultadoCartaoOCR();
+            lista.innerHTML = '';
+            contadorEntregas = 0;
+            const primeira = adicionarEntrega();
+            const data = document.getElementById('mult-data');
+            if (data) data.value = new Date().toLocaleDateString('pt-BR');
+            selecionarModoCadastroCartoes('manual', false);
+            setTimeout(() => primeira?.querySelector('.nome-input')?.focus(), 200);
+        }
+    }
+    if (id === 'modal-busca') prepararModalBusca();
 }
 
-function adicionarEntrega() { contadorEntregas++; const lista = document.getElementById('mult-lista-entregas'); if(!lista) return; const novaEntrega = document.createElement('div'); novaEntrega.className = 'entrega-item'; novaEntrega.dataset.index = contadorEntregas-1; novaEntrega.style.cssText = 'background:white; padding:12px; border-radius:8px; border:1px solid #e0e0e0; margin-bottom:10px;'; novaEntrega.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:#fafafa; padding:5px 8px; border-radius:6px;"><div style="background:#4a7c2e; color:white; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:bold;">${contadorEntregas}</div><button type="button" style="background:#ffebee; color:#d32f2f; border:none; border-radius:50%; width:30px; height:30px; cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center;" onclick="removerEntrega(this)" title="Remover esta linha"><i class="fas fa-trash-alt"></i></button></div><div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"><div><label style="display:block; font-weight:600; font-size:11px; color:#444;">Nome</label><input type="text" class="nome-input" placeholder="Nome completo" style="width:100%; padding:6px; border:1px solid #ddd; border-radius:4px; font-size:13px; text-transform:uppercase;"></div><div><label style="display:block; font-weight:600; font-size:11px; color:#444;">Endereço</label><input type="text" class="endereco-input" placeholder="Endereço completo" style="width:100%; padding:6px; border:1px solid #ddd; border-radius:4px; font-size:13px; text-transform:uppercase;"></div></div>`; lista.appendChild(novaEntrega); atualizarContador(); const nomeInp = novaEntrega.querySelector('.nome-input'); const endInp = novaEntrega.querySelector('.endereco-input'); if(nomeInp){ nomeInp.addEventListener('keydown', function(e) { if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();this.closest('.entrega-item').querySelector('.endereco-input').focus();} }); } if(endInp){ endInp.addEventListener('keydown', function(e) { if(e.key==='Enter'||e.key==='Tab'){e.preventDefault(); const enderecos = document.querySelectorAll('#mult-lista-entregas .endereco-input'); if(this === enderecos[enderecos.length-1]) adicionarEntrega(); else { const index = Array.from(enderecos).indexOf(this); const proxNome = document.querySelectorAll('#mult-lista-entregas .nome-input')[index+1]; if(proxNome) proxNome.focus(); } }}); } if(contadorEntregas===1 && nomeInp) nomeInp.focus(); }
+function adicionarEntrega(dadosIniciais = {}) {
+    const lista = document.getElementById('mult-lista-entregas');
+    if (!lista) return null;
+    contadorEntregas++;
+    const novaEntrega = document.createElement('div');
+    novaEntrega.className = 'entrega-item';
+    novaEntrega.dataset.index = String(contadorEntregas - 1);
+    novaEntrega.style.cssText = 'background:white; padding:12px; border-radius:8px; border:1px solid #e0e0e0; margin-bottom:10px;';
+    novaEntrega.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;background:#fafafa;padding:5px 8px;border-radius:6px;">
+            <div class="entrega-numero" style="background:#4a7c2e;color:white;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:bold;">${contadorEntregas}</div>
+            <div style="display:flex;gap:6px;">
+                <button type="button" class="btn-scan-entrega" onclick="abrirScannerCartoesParaLinha(this.closest('.entrega-item'))" title="Digitalizar neste cartão">📷</button>
+                <button type="button" style="background:#ffebee;color:#d32f2f;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;" onclick="removerEntrega(this)" title="Remover esta linha"><i class="fas fa-trash-alt"></i></button>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div><label style="display:block;font-weight:600;font-size:11px;color:#444;">Nome</label><input type="text" class="nome-input" placeholder="Nome completo" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px;font-size:13px;text-transform:uppercase;"></div>
+            <div><label style="display:block;font-weight:600;font-size:11px;color:#444;">Endereço</label><input type="text" class="endereco-input" placeholder="Endereço completo" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px;font-size:13px;text-transform:uppercase;"></div>
+        </div>`;
+    lista.appendChild(novaEntrega);
+    const nomeInp = novaEntrega.querySelector('.nome-input');
+    const endInp = novaEntrega.querySelector('.endereco-input');
+    if (nomeInp) nomeInp.value = String(dadosIniciais.nome || '').toUpperCase();
+    if (endInp) endInp.value = String(dadosIniciais.endereco || '').toUpperCase();
+    nomeInp?.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            this.closest('.entrega-item')?.querySelector('.endereco-input')?.focus();
+        }
+    });
+    endInp?.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            const enderecos = [...document.querySelectorAll('#mult-lista-entregas .endereco-input')];
+            const index = enderecos.indexOf(this);
+            if (index === enderecos.length - 1) adicionarEntrega()?.querySelector('.nome-input')?.focus();
+            else document.querySelectorAll('#mult-lista-entregas .nome-input')[index + 1]?.focus();
+        }
+    });
+    atualizarContador();
+    if (contadorEntregas === 1 && nomeInp) nomeInp.focus();
+    return novaEntrega;
+}
 
-function removerEntrega(botao) { const entregaItem = botao.closest('.entrega-item'); if(contadorEntregas<=1) { alert('É necessário pelo menos uma entrega!'); return; } entregaItem.remove(); contadorEntregas--; const itens = document.querySelectorAll('#mult-lista-entregas .entrega-item'); itens.forEach((item, idx) => { item.dataset.index = idx; const numero = item.querySelector('div:first-child div:first-child'); if(numero) numero.textContent = idx+1; }); atualizarContador(); }
+function removerEntrega(botao) {
+    const entregaItem = botao.closest('.entrega-item');
+    if (contadorEntregas <= 1) { alert('É necessário pelo menos uma entrega!'); return; }
+    if (entregaItem === cartoesScannerAlvo) cartoesScannerAlvo = null;
+    entregaItem?.remove();
+    contadorEntregas--;
+    document.querySelectorAll('#mult-lista-entregas .entrega-item').forEach((item, idx) => {
+        item.dataset.index = String(idx);
+        const numero = item.querySelector('.entrega-numero');
+        if (numero) numero.textContent = String(idx + 1);
+    });
+    atualizarContador();
+    atualizarAlvoScannerCartoes();
+}
 
 function atualizarContador() { const contador = document.getElementById('mult-contador'); if(!contador) return; contador.textContent = `${contadorEntregas} ${contadorEntregas===1?'entrega':'entregas'}`; }
 
@@ -311,6 +381,417 @@ function coletarDadosParaEnvio() { const dadosComuns = { quantidade: document.ge
 function limparCamposNomeEndereco() { document.querySelectorAll('#mult-lista-entregas .nome-input').forEach(n => { n.value=''; n.style.borderColor='#ddd'; }); document.querySelectorAll('#mult-lista-entregas .endereco-input').forEach(e => { e.value=''; e.style.borderColor='#ddd'; }); }
 
 async function enviarTodasEntregas() { if(!validarCampos())return; const entregas = coletarDadosParaEnvio(); if(entregas.length===0){alert('Adicione pelo menos uma entrega válida!');return;} const btnEnviar = document.getElementById('btnEnviarMulti'); if(!btnEnviar)return; btnEnviar.innerText='Enviando...'; btnEnviar.disabled=true; const statusDiv = document.getElementById('mult-status-message'); if(statusDiv) statusDiv.style.display='none'; await postParaGoogleSheets('salvarLoteCartoesEntrega', entregas); if(statusDiv){ statusDiv.style.display='block'; statusDiv.style.background='#e8f5e9'; statusDiv.style.color='#2e7d32'; statusDiv.style.border='2px solid #a5d6a7'; statusDiv.innerText=`✅ ${entregas.length} registro(s) salvos com sucesso!`; } limparCamposNomeEndereco(); const nomes = document.querySelectorAll('#mult-lista-entregas .nome-input'); if(nomes.length>0) nomes[0].focus(); btnEnviar.innerText='Enviar Tudo'; btnEnviar.disabled=false; }
+
+// ============================================================
+// ADC CARTÕES — CAMERA E OCR DO DESTINATÁRIO
+// ============================================================
+let cartoesScannerStream = null;
+let cartoesScannerWorkerPromise = null;
+let cartoesScannerAlvo = null;
+let cartoesScannerProcessando = false;
+
+function selecionarModoCadastroCartoes(modo, iniciarCamera = true) {
+    const digitalizado = modo === 'digitalizado';
+    const area = document.getElementById('cartoes-digitalizado-area');
+    const ajuda = document.getElementById('cartoes-manual-ajuda');
+    const tabManual = document.getElementById('cartoes-tab-manual');
+    const tabDigital = document.getElementById('cartoes-tab-digitalizado');
+    if (area) area.style.display = digitalizado ? 'block' : 'none';
+    if (ajuda) ajuda.style.display = digitalizado ? 'none' : 'block';
+    tabManual?.classList.toggle('active', !digitalizado);
+    tabDigital?.classList.toggle('active', digitalizado);
+    tabManual?.setAttribute('aria-selected', String(!digitalizado));
+    tabDigital?.setAttribute('aria-selected', String(digitalizado));
+    if (digitalizado) {
+        atualizarAlvoScannerCartoes();
+        if (iniciarCamera) iniciarCameraCartoes();
+    } else {
+        pararCameraCartoes();
+        document.querySelectorAll('.entrega-item.scanner-target').forEach(item => item.classList.remove('scanner-target'));
+    }
+}
+
+function abrirScannerCartoesParaLinha(item) {
+    if (item) cartoesScannerAlvo = item;
+    selecionarModoCadastroCartoes('digitalizado');
+    atualizarAlvoScannerCartoes();
+}
+
+function obterAlvoScannerCartoes() {
+    if (cartoesScannerAlvo?.isConnected) return cartoesScannerAlvo;
+    const itens = [...document.querySelectorAll('#mult-lista-entregas .entrega-item')];
+    cartoesScannerAlvo = itens.find(item => {
+        const nome = item.querySelector('.nome-input')?.value.trim();
+        const endereco = item.querySelector('.endereco-input')?.value.trim();
+        return !nome && !endereco;
+    }) || itens[itens.length - 1] || null;
+    return cartoesScannerAlvo;
+}
+
+function atualizarAlvoScannerCartoes() {
+    document.querySelectorAll('#mult-lista-entregas .entrega-item').forEach(item => item.classList.remove('scanner-target'));
+    const alvo = obterAlvoScannerCartoes();
+    alvo?.classList.add('scanner-target');
+    const itens = [...document.querySelectorAll('#mult-lista-entregas .entrega-item')];
+    const numero = alvo ? itens.indexOf(alvo) + 1 : 1;
+    const badge = document.getElementById('cartoes-scanner-alvo');
+    if (badge) badge.textContent = `Cartão ${Math.max(numero, 1)}`;
+}
+
+function atualizarStatusScannerCartoes(mensagem, progresso) {
+    const status = document.getElementById('cartoes-scanner-status');
+    const barra = document.getElementById('cartoes-scanner-progress-bar');
+    if (status && mensagem) status.textContent = mensagem;
+    if (barra && Number.isFinite(progresso)) barra.style.width = `${Math.max(0, Math.min(100, progresso))}%`;
+}
+
+async function iniciarCameraCartoes() {
+    const video = document.getElementById('cartoes-scanner-video');
+    const semCamera = document.getElementById('cartoes-scanner-sem-camera');
+    const capturar = document.getElementById('cartoes-btn-capturar');
+    if (!video) return;
+    if (cartoesScannerStream) {
+        if (capturar) capturar.disabled = false;
+        atualizarStatusScannerCartoes('Câmera pronta. Centralize apenas o nome e a rua dentro da moldura.', 0);
+        return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+        if (semCamera) { semCamera.style.display = 'flex'; }
+        atualizarStatusScannerCartoes('Este navegador não liberou a câmera. Use “Escolher foto”.', 0);
+        return;
+    }
+    try {
+        atualizarStatusScannerCartoes('Solicitando acesso à câmera...', 0);
+        cartoesScannerStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+            audio: false
+        });
+        video.srcObject = cartoesScannerStream;
+        await video.play();
+        if (semCamera) semCamera.style.display = 'none';
+        if (capturar) capturar.disabled = false;
+        atualizarStatusScannerCartoes('Câmera pronta. Evite reflexos e aproxime o bloco do destinatário.', 0);
+    } catch (erro) {
+        console.warn('Câmera não iniciada:', erro);
+        cartoesScannerStream = null;
+        if (semCamera) semCamera.style.display = 'flex';
+        if (capturar) capturar.disabled = true;
+        atualizarStatusScannerCartoes('Não foi possível abrir a câmera. Autorize a permissão ou use “Escolher foto”.', 0);
+    }
+}
+
+function pararCameraCartoes() {
+    if (cartoesScannerStream) cartoesScannerStream.getTracks().forEach(track => track.stop());
+    cartoesScannerStream = null;
+    const video = document.getElementById('cartoes-scanner-video');
+    if (video) video.srcObject = null;
+    const capturar = document.getElementById('cartoes-btn-capturar');
+    if (capturar) capturar.disabled = true;
+}
+
+function mensagemProgressoOCR(info) {
+    const nomes = {
+        'loading tesseract core': 'Carregando leitor de texto...',
+        'initializing tesseract': 'Inicializando leitor...',
+        'loading language traineddata': 'Carregando idioma português...',
+        'initializing api': 'Preparando reconhecimento...',
+        'recognizing text': 'Lendo nome e endereço...'
+    };
+    atualizarStatusScannerCartoes(nomes[info.status] || 'Processando imagem...', Math.round(Number(info.progress || 0) * 100));
+}
+
+async function obterWorkerCartoesOCR() {
+    if (typeof Tesseract === 'undefined') throw new Error('O leitor OCR não foi carregado. Verifique a internet e recarregue a página.');
+    if (!cartoesScannerWorkerPromise) {
+        const oem = Tesseract.OEM?.LSTM_ONLY ?? 1;
+        cartoesScannerWorkerPromise = Tesseract.createWorker('por', oem, { logger: mensagemProgressoOCR })
+            .then(async worker => {
+                await worker.setParameters({
+                    tessedit_pageseg_mode: '6',
+                    preserve_interword_spaces: '1'
+                });
+                return worker;
+            })
+            .catch(erro => {
+                cartoesScannerWorkerPromise = null;
+                throw erro;
+            });
+    }
+    return cartoesScannerWorkerPromise;
+}
+
+function desenharFonteNoCanvasCartoes(fonte, recortarGuia) {
+    const canvas = document.getElementById('cartoes-scanner-canvas');
+    if (!canvas) throw new Error('Área de captura não encontrada.');
+    const larguraFonte = fonte.videoWidth || fonte.naturalWidth || fonte.width;
+    const alturaFonte = fonte.videoHeight || fonte.naturalHeight || fonte.height;
+    if (!larguraFonte || !alturaFonte) throw new Error('A imagem ainda não está pronta.');
+
+    const sx = recortarGuia ? Math.round(larguraFonte * 0.08) : 0;
+    const sy = recortarGuia ? Math.round(alturaFonte * 0.18) : 0;
+    const sw = recortarGuia ? Math.round(larguraFonte * 0.84) : larguraFonte;
+    const sh = recortarGuia ? Math.round(alturaFonte * 0.64) : alturaFonte;
+    const escala = Math.min(2, 1800 / sw);
+    canvas.width = Math.max(900, Math.round(sw * escala));
+    canvas.height = Math.round(canvas.width * sh / sw);
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(fonte, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+
+    // Tons de cinza + contraste automático: ajuda papel amarelo, branco e reflexos.
+    const imagem = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const pixels = imagem.data;
+    const histograma = new Uint32Array(256);
+    for (let i = 0; i < pixels.length; i += 4) {
+        const cinza = Math.round(pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114);
+        histograma[cinza]++;
+    }
+    const total = canvas.width * canvas.height;
+    const margem = total * 0.015;
+    let baixo = 0, alto = 255, soma = 0;
+    for (let i = 0; i < 256; i++) { soma += histograma[i]; if (soma >= margem) { baixo = i; break; } }
+    soma = 0;
+    for (let i = 255; i >= 0; i--) { soma += histograma[i]; if (soma >= margem) { alto = i; break; } }
+    const faixa = Math.max(30, alto - baixo);
+    for (let i = 0; i < pixels.length; i += 4) {
+        const cinza = pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114;
+        const ajustado = Math.max(0, Math.min(255, (cinza - baixo) * 255 / faixa));
+        pixels[i] = pixels[i + 1] = pixels[i + 2] = ajustado;
+    }
+    ctx.putImageData(imagem, 0, 0);
+    return canvas;
+}
+
+function linhaLimpaCartaoOCR(valor) {
+    let linha = String(valor || '')
+        .replace(/[|\[\]{}“”"']/g, ' ')
+        .replace(/[^A-Za-zÀ-ÖØ-öø-ÿ0-9ºª°.,/\-\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toUpperCase();
+    const palavras = linha.split(/\s+/).filter(Boolean);
+    if (palavras.length >= 4 && palavras.length % 2 === 0) {
+        const metade = palavras.length / 2;
+        if (palavras.slice(0, metade).join(' ') === palavras.slice(metade).join(' ')) linha = palavras.slice(0, metade).join(' ');
+    }
+    return linha;
+}
+
+function semAcentoCartaoOCR(valor) {
+    return linhaLimpaCartaoOCR(valor).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function indiceInicioEnderecoOCR(valor) {
+    const linha = semAcentoCartaoOCR(valor);
+    const padrao = /(?:^|\s)(?:RUA\b|R(?:\.?\s+|[A-Z]{2,3}\s+)(?=[A-Z])|AVENIDA\b|AV\.?\s+(?=[A-Z])|TRAVESSA\b|TRAV\.?\s+(?=[A-Z])|TV\.?\s+(?=[A-Z])|ALAMEDA\b|ESTRADA\b|EST\.?\s+(?=[A-Z])|RODOVIA\b|ROD\.?\s+(?=[A-Z])|BECO\b|PRACA\b)/;
+    const match = padrao.exec(linha);
+    return match ? match.index + (match[0].startsWith(' ') ? 1 : 0) : -1;
+}
+
+function normalizarEnderecoDetectadoOCR(valor) {
+    let linha = linhaLimpaCartaoOCR(valor);
+    const inicio = indiceInicioEnderecoOCR(linha);
+    if (inicio > 0) linha = linha.slice(inicio).trim();
+    const repeticao = linha.slice(4).search(/\s(?:RUA\b|R(?:\.?\s+|[A-Z]{2,3}\s+)(?=[A-Z])|AVENIDA\b|AV\.?\s+(?=[A-Z])|TRAVESSA\b|ESTRADA\b)/i);
+    if (repeticao >= 0) linha = linha.slice(0, repeticao + 4).trim();
+    linha = linha.replace(/^RUA\s*/i, 'RUA ')
+        .replace(/^R(?!UA)(?:\.?\s+|(?=[A-ZÀ-ÖØ-Þ]{1,3}\s))/i, 'RUA ')
+        .replace(/^AV\.?\s+/i, 'AVENIDA ')
+        .replace(/^TRAV\.?\s+/i, 'TRAVESSA ')
+        .replace(/^TV\.?\s+/i, 'TRAVESSA ')
+        .replace(/([A-ZÀ-ÖØ-Þ])(?=\d{1,5}\b)/g, '$1 ')
+        .replace(/\s+[A-Z]$/i, '')
+        .replace(/\s*,\s*/g, ', ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    return linha;
+}
+
+function linhaPareceEnderecoOCR(valor) {
+    return indiceInicioEnderecoOCR(valor) >= 0;
+}
+
+function normalizarNomeDetectadoOCR(valor) {
+    let linha = linhaLimpaCartaoOCR(valor).replace(/^\d+\s+/, '');
+    const palavrasOriginais = linha.split(/\s+/).filter(Boolean);
+    const indicesNumericos = palavrasOriginais.map((p, i) => /\d/.test(p) ? i : -1).filter(i => i >= 0);
+    if (indicesNumericos.length) {
+        const primeiro = indicesNumericos[0];
+        const ultimo = indicesNumericos[indicesNumericos.length - 1];
+        const opcoes = [palavrasOriginais.slice(0, primeiro), palavrasOriginais.slice(ultimo + 1)]
+            .map(p => p.join(' ').trim())
+            .filter(p => p.split(/\s+/).length >= 2);
+        const bloqueioCurto = /PROTOCOLO|ENCOMENDA|RASTREADA|STATUS|VISITA|CEP|DATA|HORA|LOCAL PARA|DESTINATARIO|REMETENTE/;
+        linha = opcoes.find(p => !bloqueioCurto.test(semAcentoCartaoOCR(p))) || opcoes[0] || linha;
+    }
+    let palavras = linha.split(/\s+/).filter(Boolean);
+    if (palavras.length >= 4 && palavras.length % 2 === 0) {
+        const metade = palavras.length / 2;
+        if (palavras.slice(0, metade).join(' ') === palavras.slice(metade).join(' ')) palavras = palavras.slice(0, metade);
+    }
+    const preposicoes = new Set(['DA', 'DE', 'DO', 'DAS', 'DOS']);
+    if (palavras.length >= 3 && palavras[0].length <= 2 && !preposicoes.has(palavras[0])) palavras.shift();
+    while (palavras.length >= 3 && palavras[palavras.length - 1].length === 1) palavras.pop();
+    return palavras.join(' ');
+}
+
+function linhaPareceNomeOCR(valor) {
+    const linha = semAcentoCartaoOCR(normalizarNomeDetectadoOCR(valor));
+    const original = semAcentoCartaoOCR(valor);
+    if (linha.length < 6 || linha.length > 75 || /\d/.test(linha) || linhaPareceEnderecoOCR(linha)) return false;
+    const bloqueios = /DESTINATARIO|REMETENTE|PEQUENA ENCOMENDA|STATUS VISITA|NOME.*RECEBEDOR|ASSINATURA|PROTOCOLO|LOCAL PARA DEVOLUCAO|FLASH|COURIER|CEP\b|BAIRRO|DUQUE DE CAXIAS|SAO BERNARDO|ENCOMENDA|RASTREADA|VISITA|AUSENTE|DATA\b|HORA\b|PARQUE\b|PQE\b|PRQ\b|JARDIM\b|JD\b|VILA\b|COOPERATIVA/;
+    const prefixoLocalidade = /^(?:JD|JARDIM|PQE|PRQ|PARQUE|VILA|BAIRRO)\b/;
+    if (bloqueios.test(linha) || prefixoLocalidade.test(original)) return false;
+    const palavras = linha.split(/\s+/).filter(Boolean);
+    if (palavras.length < 2 || palavras.length > 7) return false;
+    const letras = (linha.match(/[A-Z]/g) || []).length;
+    return letras / Math.max(1, linha.replace(/\s/g, '').length) > 0.72;
+}
+
+function extrairNomeEnderecoCartaoOCR(texto) {
+    const linhas = String(texto || '').split(/\r?\n/).map(linhaLimpaCartaoOCR).filter(l => l.length >= 2);
+    const simples = linhas.map(semAcentoCartaoOCR);
+    let melhor = null;
+
+    for (let i = 0; i < linhas.length; i++) {
+        if (!linhaPareceEnderecoOCR(linhas[i])) continue;
+        for (let j = i - 1; j >= Math.max(0, i - 20); j--) {
+            if (!linhaPareceNomeOCR(linhas[j])) continue;
+            const temRotulo = simples.slice(Math.max(0, j - 4), j + 1).some(l => l.includes('DESTINATARIO'));
+            const distancia = i - j;
+            const pontuacao = 220 - distancia * 14 + (temRotulo ? 120 : 0) + Math.min(30, linhas[j].split(/\s+/).length * 5);
+            if (!melhor || pontuacao > melhor.pontuacao) melhor = { nome: normalizarNomeDetectadoOCR(linhas[j]), endereco: normalizarEnderecoDetectadoOCR(linhas[i]), pontuacao };
+        }
+    }
+
+    if (!melhor) {
+        const indiceNome = linhas.findIndex(linhaPareceNomeOCR);
+        const indiceEndereco = linhas.findIndex(linhaPareceEnderecoOCR);
+        melhor = {
+            nome: indiceNome >= 0 ? normalizarNomeDetectadoOCR(linhas[indiceNome]) : '',
+            endereco: indiceEndereco >= 0 ? normalizarEnderecoDetectadoOCR(linhas[indiceEndereco]) : '',
+            pontuacao: 0
+        };
+    }
+    return { nome: melhor.nome || '', endereco: melhor.endereco || '', linhas };
+}
+
+async function processarFonteCartaoOCR(fonte, recortarGuia) {
+    if (cartoesScannerProcessando) return;
+    cartoesScannerProcessando = true;
+    const capturar = document.getElementById('cartoes-btn-capturar');
+    if (capturar) capturar.disabled = true;
+    const review = document.getElementById('cartoes-ocr-review');
+    if (review) review.style.display = 'none';
+    try {
+        atualizarStatusScannerCartoes('Preparando a imagem...', 3);
+        const canvas = desenharFonteNoCanvasCartoes(fonte, recortarGuia);
+        const worker = await obterWorkerCartoesOCR();
+        const resultado = await worker.recognize(canvas);
+        const texto = resultado?.data?.text || '';
+        const dados = extrairNomeEnderecoCartaoOCR(texto);
+        const nome = document.getElementById('cartoes-ocr-nome');
+        const endereco = document.getElementById('cartoes-ocr-endereco');
+        const bruto = document.getElementById('cartoes-ocr-texto-bruto');
+        if (nome) nome.value = dados.nome;
+        if (endereco) endereco.value = dados.endereco;
+        if (bruto) bruto.textContent = texto.trim() || '(nenhum texto reconhecido)';
+        if (review) review.style.display = 'block';
+        if (dados.nome && dados.endereco) atualizarStatusScannerCartoes('Leitura concluída. Confira principalmente o número da rua.', 100);
+        else atualizarStatusScannerCartoes('Leitura parcial. Corrija os campos ou aproxime mais o cartão e tente novamente.', 100);
+        nome?.focus();
+    } catch (erro) {
+        console.error('Erro no OCR:', erro);
+        atualizarStatusScannerCartoes(`Erro na leitura: ${erro.message || erro}`, 0);
+    } finally {
+        cartoesScannerProcessando = false;
+        if (capturar) capturar.disabled = !cartoesScannerStream;
+    }
+}
+
+async function capturarCartaoParaOCR() {
+    const video = document.getElementById('cartoes-scanner-video');
+    if (!video || !cartoesScannerStream || video.readyState < 2) {
+        alert('Inicie a câmera e aguarde a imagem aparecer.');
+        return;
+    }
+    await processarFonteCartaoOCR(video, true);
+}
+
+async function processarArquivoCartaoOCR(evento) {
+    const arquivo = evento.target.files?.[0];
+    if (!arquivo) return;
+    try {
+        let imagem;
+        if ('createImageBitmap' in window) imagem = await createImageBitmap(arquivo, { imageOrientation: 'from-image' });
+        else {
+            imagem = await new Promise((resolve, reject) => {
+                const img = new Image();
+                const url = URL.createObjectURL(arquivo);
+                img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+                img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Não foi possível abrir a foto.')); };
+                img.src = url;
+            });
+        }
+        await processarFonteCartaoOCR(imagem, false);
+        if (typeof imagem.close === 'function') imagem.close();
+    } catch (erro) {
+        console.error(erro);
+        atualizarStatusScannerCartoes(`Erro ao abrir a foto: ${erro.message || erro}`, 0);
+    } finally {
+        evento.target.value = '';
+    }
+}
+
+function limparResultadoCartaoOCR() {
+    const review = document.getElementById('cartoes-ocr-review');
+    if (review) review.style.display = 'none';
+    const nome = document.getElementById('cartoes-ocr-nome');
+    const endereco = document.getElementById('cartoes-ocr-endereco');
+    const bruto = document.getElementById('cartoes-ocr-texto-bruto');
+    if (nome) nome.value = '';
+    if (endereco) endereco.value = '';
+    if (bruto) bruto.textContent = '';
+    atualizarStatusScannerCartoes(cartoesScannerStream ? 'Pronto para capturar o próximo cartão.' : 'Clique em “Iniciar câmera”.', 0);
+}
+
+function usarDadosCartaoOCR(adicionarProximo) {
+    const nome = document.getElementById('cartoes-ocr-nome')?.value.trim().toUpperCase();
+    const endereco = document.getElementById('cartoes-ocr-endereco')?.value.trim().toUpperCase();
+    if (!nome || !endereco) {
+        alert('Confira e preencha o nome e o endereço antes de adicionar.');
+        return;
+    }
+    const alvo = obterAlvoScannerCartoes();
+    if (!alvo) return;
+    const nomeInput = alvo.querySelector('.nome-input');
+    const enderecoInput = alvo.querySelector('.endereco-input');
+    if (nomeInput) nomeInput.value = nome;
+    if (enderecoInput) enderecoInput.value = endereco;
+    alvo.classList.remove('scanner-target');
+    alvo.classList.add('scanner-filled');
+    setTimeout(() => alvo.classList.remove('scanner-filled'), 900);
+
+    if (adicionarProximo) {
+        const itens = [...document.querySelectorAll('#mult-lista-entregas .entrega-item')];
+        const indice = itens.indexOf(alvo);
+        cartoesScannerAlvo = itens.slice(indice + 1).find(item => {
+            return !item.querySelector('.nome-input')?.value.trim() && !item.querySelector('.endereco-input')?.value.trim();
+        }) || adicionarEntrega();
+        limparResultadoCartaoOCR();
+        atualizarAlvoScannerCartoes();
+        cartoesScannerAlvo?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else {
+        limparResultadoCartaoOCR();
+        cartoesScannerAlvo = alvo;
+        atualizarAlvoScannerCartoes();
+        atualizarStatusScannerCartoes('Dados preenchidos. Você pode conferir na lista ou capturar novamente.', 0);
+    }
+}
+
+window.addEventListener('beforeunload', () => {
+    pararCameraCartoes();
+    if (cartoesScannerWorkerPromise) cartoesScannerWorkerPromise.then(worker => worker.terminate()).catch(() => {});
+});
 
 // ============================================================
 // CESTA BÁSICA
@@ -660,7 +1141,14 @@ function gerarHTMLImpressaoCRM(v){ return `<!DOCTYPE html><html><head><style>bod
 async function salvarDadosComprovante(){ const dados=[document.getElementById('print-numero').value,document.getElementById('print-data').value,document.getElementById('print-ano').value,document.getElementById('print-nome').value.toUpperCase(),document.getElementById('print-endereco').value.toUpperCase(),document.getElementById('print-numero_endereco').value.toUpperCase(),document.getElementById('print-complemento').value.toUpperCase(),document.getElementById('print-cep').value,document.getElementById('print-bairro').value.toUpperCase(),document.getElementById('print-uf').value.toUpperCase(),document.getElementById('print-nacionalidade').value.toUpperCase(),document.getElementById('print-estado_civil').value.toUpperCase(),document.getElementById('print-cpf').value,document.getElementById('print-rg').value,document.getElementById('print-emissor').value.toUpperCase(),document.getElementById('print-propria').checked?"Casa Própria":"",document.getElementById('print-alugada').checked?"Alugada":"",document.getElementById('print-emprestada').checked?"Emprestada":""]; await postParaGoogleSheets('salvarDeclaracao',dados); }
 async function salvarApenas(){ const btn=document.querySelector('#modal-comprovante-print .btn-save'); if(!btn)return; btn.innerText='Salvando...'; btn.disabled=true; try{ await salvarDadosComprovante(); alert("Dados salvos com sucesso!"); fecharComprovantePrint(); }catch(e){alert("Erro ao salvar: "+e.message);}finally{btn.innerText='💾 Salvar';btn.disabled=false;} }
 async function salvarEImprimir(){ const btn=document.querySelector('#modal-comprovante-print .btn-print'); if(!btn)return; btn.innerText='Salvando...'; btn.disabled=true; try{ await salvarDadosComprovante(); const v=obterValoresComprovante(); let htmlPrint=gerarHTMLImpressaoCRM(v); htmlPrint=htmlPrint.replace('</body>',`<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},800);});<\/script></body>`); const win=window.open('','_blank'); if(win){win.document.write(htmlPrint);win.document.close();win.focus();}else{alert("Pop-up bloqueado! Permita pop-ups.");} fecharComprovantePrint(); }catch(e){alert("Erro ao salvar e imprimir: "+e.message);}finally{btn.innerText='🖨️ Imprimir';btn.disabled=false;} }
-function fecharModal(id){ const modal=document.getElementById(id); if(modal) modal.classList.remove('active'); }
+function fecharModal(id){
+    const modal=document.getElementById(id);
+    if(modal) modal.classList.remove('active');
+    if(id==='modal-multiplas-entregas'){
+        pararCameraCartoes();
+        limparResultadoCartaoOCR();
+    }
+}
 function fecharComprovantePrint(){ const modal=document.getElementById('modal-comprovante-print'); if(modal) modal.style.display='none'; }
 
 // ============================================================
@@ -678,6 +1166,7 @@ var buscaSequencia = 0;
 var buscaUltimaConsulta = null;
 var buscaCacheMemoria = new Map();
 var buscaContagemEnderecos = new Map();
+var buscaResultadosAuxiliares = new Map();
 const BUSCA_DEBOUNCE_MS = 650;
 const BUSCA_CACHE_MS = 60000;
 
@@ -893,6 +1382,7 @@ async function executarBusca() {
 
 function processarResultados(resposta) {
     todosResultadosBusca = Array.isArray(resposta?.resultados) ? resposta.resultados : [];
+    buscaResultadosAuxiliares.clear();
     buscaContagemEnderecos = new Map();
     todosResultadosBusca.forEach(item => {
         const chave = normalizarEndereco(item.endereco);
@@ -949,6 +1439,7 @@ function limparBusca(recarregarTotal = true) {
     buscaSequencia++;
     todosResultadosBusca = [];
     buscaContagemEnderecos = new Map();
+    buscaResultadosAuxiliares.clear();
     buscaUltimaConsulta = null;
     if (buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">Digite algo para buscar.</div>';
     if (contadorBusca && recarregarTotal) contadorBusca.textContent = '⏳ ...';
@@ -976,7 +1467,7 @@ function escapeHtml(v) { return String(v ?? '').replace(/&/g, '&amp;').replace(/
 // ✨ EDITOR RÁPIDO PREMIUM COM BOTÃO VOLTAR, POSIÇÃO PISCANTE E NÚMERO GIGANTE
 // ============================================================
 function abrirEditorBuscaRapido(linha) {
-    const item = todosResultadosBusca.find(it => Number(it.linha) === Number(linha));
+    const item = obterResultadoBuscaPorLinha(linha);
     if (!item) return;
     const qtdMesmoEndereco = contarIguaisPorEndereco(item);
     const temOutros = qtdMesmoEndereco > 1;
@@ -1066,7 +1557,7 @@ function cancelarEdicaoBusca(linha) {
 }
 
 window.salvarEdicaoBusca = async function (linha) {
-    const itemOriginal = todosResultadosBusca.find(it => Number(it.linha) === Number(linha)) || {};
+    const itemOriginal = obterResultadoBuscaPorLinha(linha) || {};
     const get = id => document.getElementById(id)?.value;
     const dados = {
         nome: get(`edit-nome-busca-${Number(linha)}`) || itemOriginal.nome || '',
@@ -1093,7 +1584,7 @@ window.salvarEdicaoBusca = async function (linha) {
 };
 
 window.confirmarEntregaBusca = function (linha) {
-    const itemOriginal = todosResultadosBusca.find(item => Number(item.linha) === Number(linha));
+    const itemOriginal = obterResultadoBuscaPorLinha(linha);
     if (!itemOriginal) return;
     const nomeQuemRecebeu = prompt(`📦 PARA QUEM FOI ENTREGUE O CARTÃO DE ${itemOriginal.nome}?`);
     if (!nomeQuemRecebeu || nomeQuemRecebeu.trim() === '') { alert('Entrega cancelada.'); return; }
@@ -1131,7 +1622,8 @@ async function finalizarEntregaBusca(linha, nomeEntregueA, dataEntrega, telefone
 
 async function obterCartoesMesmoEnderecoBusca(enderecoOriginal) {
     const enderecoNorm = normalizarEndereco(enderecoOriginal);
-    let cartoes = todosResultadosBusca.filter(item => normalizarEndereco(item.endereco) === enderecoNorm);
+    const conhecidos = [...todosResultadosBusca, ...buscaResultadosAuxiliares.values()];
+    let cartoes = conhecidos.filter(item => normalizarEndereco(item.endereco) === enderecoNorm);
     const totalEsperado = cartoes.reduce((maior, item) => Math.max(maior, Number(item.qtdEndereco || 0)), cartoes.length);
     if (cartoes.length >= totalEsperado) return cartoes;
     try {
@@ -1145,8 +1637,34 @@ async function obterCartoesMesmoEnderecoBusca(enderecoOriginal) {
     return cartoes;
 }
 
+function incluirResultadosAuxiliaresBusca(itens) {
+    (itens || []).forEach(item => {
+        const existe = todosResultadosBusca.some(atual => Number(atual.linha) === Number(item.linha));
+        if (!existe) buscaResultadosAuxiliares.set(Number(item.linha), item);
+    });
+    buscaContagemEnderecos = new Map();
+    const conhecidos = [...todosResultadosBusca, ...buscaResultadosAuxiliares.values()];
+    conhecidos.forEach(item => {
+        const chave = normalizarEndereco(item.endereco);
+        if (chave) buscaContagemEnderecos.set(chave, (buscaContagemEnderecos.get(chave) || 0) + 1);
+    });
+    conhecidos.forEach(item => {
+        const chave = normalizarEndereco(item.endereco);
+        const totalServidor = Number(item.qtdEndereco || 0);
+        if (chave && totalServidor > (buscaContagemEnderecos.get(chave) || 0)) buscaContagemEnderecos.set(chave, totalServidor);
+    });
+}
+
+function obterResultadoBuscaPorLinha(linha) {
+    return todosResultadosBusca.find(item => Number(item.linha) === Number(linha)) || buscaResultadosAuxiliares.get(Number(linha)) || null;
+}
+
+function abrirCartaoDaListaBusca(linha) {
+    abrirEditorBuscaRapido(Number(linha));
+}
+
 async function abrirListaMoradoresBusca(linhaAtual) {
-    const atual = todosResultadosBusca.find(item => Number(item.linha) === Number(linhaAtual));
+    const atual = obterResultadoBuscaPorLinha(linhaAtual);
     if (!atual) return;
     const enderecoOriginal = atual.endereco || '';
     const editorArea = document.getElementById('busca-editor-area');
@@ -1154,13 +1672,14 @@ async function abrirListaMoradoresBusca(linhaAtual) {
     editorArea.innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;">⏳ Carregando moradores...</div>';
     const cartoes = await obterCartoesMesmoEnderecoBusca(enderecoOriginal);
     if (!cartoes.length) return;
+    incluirResultadosAuxiliaresBusca(cartoes);
     let listaHtml = '<ul style="list-style:none; padding:0; margin:10px 0; max-height:200px; overflow:auto;">';
     cartoes.forEach(cartao => {
         const isAtual = Number(cartao.linha) === Number(linhaAtual);
         listaHtml += `
-            <li style="margin:4px 0; padding:6px; background:${isAtual ? '#e3f2fd' : '#f9f9f9'}; border-radius:6px; display:flex; justify-content:space-between;">
+            <li role="button" tabindex="0" onclick="abrirCartaoDaListaBusca(${Number(cartao.linha)})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirCartaoDaListaBusca(${Number(cartao.linha)});}" style="margin:4px 0; padding:9px; background:${isAtual ? '#e3f2fd' : '#f9f9f9'}; border:1px solid ${isAtual ? '#90caf9' : '#e5e7eb'}; border-radius:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:.2s;" onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
                 <div><strong>${escapeHtml(cartao.nome)}</strong><br><small>📍 Nº ${escapeHtml(cartao.numero || '-')}</small></div>
-                ${isAtual ? '<span style="font-size:12px; background:#2196f3; color:white; padding:2px 8px; border-radius:12px;">ATUAL</span>' : ''}
+                ${isAtual ? '<span style="font-size:12px; background:#2196f3; color:white; padding:4px 10px; border-radius:12px;">ATUAL</span>' : '<span style="font-size:12px; background:#1B4F1F; color:white; padding:4px 10px; border-radius:12px;">ABRIR →</span>'}
             </li>`;
     });
     listaHtml += '</ul>';
@@ -1172,7 +1691,7 @@ async function abrirListaMoradoresBusca(linhaAtual) {
 }
 
 async function abrirEdicaoMassivaBusca(linhaAtual) {
-    const atual = todosResultadosBusca.find(item => Number(item.linha) === Number(linhaAtual));
+    const atual = obterResultadoBuscaPorLinha(linhaAtual);
     if (!atual) return;
     const editorArea = document.getElementById('busca-editor-area');
     if (!editorArea) return;
