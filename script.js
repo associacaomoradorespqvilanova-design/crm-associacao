@@ -1,7 +1,7 @@
 // ============================================================
 // CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbypq84IazknexpAXIYg1SL0LuQVBkfw3YaHAOR1lWwF3vIjUV8LcX1Ay_9-LZ-YEr_7Iw/exec";
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbyCsTXuHu6DgtRuzMF1LgLCnEg3DLuvb4ZD03XZzmCpC4Y73xZ1qHZ8lutrCxe_Q8hSuA/exec";
 const CRM_BACKEND_VERSAO = '20260817-4';
 
 // ============================================================
@@ -1336,10 +1336,250 @@ async function abrirComprovantePrint(tipo){ state.tipoComprovanteAtual=tipo; con
 async function buscarCEPPrint(){ const cep=document.getElementById('print-cep').value.replace(/\D/g,''); if(cep.length!==8){alert("CEP inv\u00E1lido");return;} try{ const resp=await fetch(`https://viacep.com.br/ws/${cep}/json/`); const dados=await resp.json(); if(dados.erro){alert("CEP n\u00E3o encontrado na API dos Correios");return;} const enderecoEl=document.getElementById('print-endereco'); if(enderecoEl) enderecoEl.value=(dados.logradouro||'').toUpperCase(); const bairro=(dados.bairro||'').toUpperCase(); const cidade=(dados.localidade||'').toUpperCase(); const bairroEl=document.getElementById('print-bairro'); if(bairroEl) bairroEl.value=bairro+'/'+cidade; const ufEl=document.getElementById('print-uf'); if(ufEl) ufEl.value=(dados.uf||'').toUpperCase(); }catch(e){console.error(e);alert("Erro de conex\u00E3o ao buscar o CEP.");} }
 async function buscarCPFPrint(){ const cpf=document.getElementById('print-cpf').value.replace(/\D/g,''); if(cpf.length!==11){alert("CPF inv\u00E1lido");return;} try{ const r=await fetchFromGS('buscarCPF',{cpf}); if(r.erro){alert("ERRO DO APPS SCRIPT: "+r.erro);return;} if(!r.encontrado){alert("CPF N\u00C3O LOCALIZADO na planilha.");return;} const d=r.dados; const nomeEl=document.getElementById('print-nome'); if(nomeEl) nomeEl.value=d.nome||''; const enderecoEl=document.getElementById('print-endereco'); if(enderecoEl) enderecoEl.value=d.endereco||''; const numEndEl=document.getElementById('print-numero_endereco'); if(numEndEl) numEndEl.value=d.numero_endereco||''; const complEl=document.getElementById('print-complemento'); if(complEl) complEl.value=d.complemento||''; const cepEl=document.getElementById('print-cep'); if(cepEl) cepEl.value=d.cep||''; const bairroEl=document.getElementById('print-bairro'); if(bairroEl) bairroEl.value=d.bairro||''; const ufEl=document.getElementById('print-uf'); if(ufEl) ufEl.value=d.uf||''; const nacEl=document.getElementById('print-nacionalidade'); if(nacEl) nacEl.value=d.nacionalidade||''; const civilEl=document.getElementById('print-estado_civil'); if(civilEl) civilEl.value=d.estado_civil||''; const cpfEl=document.getElementById('print-cpf'); if(cpfEl) cpfEl.value=d.cpf||''; const rgEl=document.getElementById('print-rg'); if(rgEl) rgEl.value=d.rg||''; const emissorEl=document.getElementById('print-emissor'); if(emissorEl) emissorEl.value=d.emissor||''; const propEl=document.getElementById('print-propria'); if(propEl) propEl.checked=d.propria||false; const alugEl=document.getElementById('print-alugada'); if(alugEl) alugEl.checked=d.alugada||false; const empEl=document.getElementById('print-emprestada'); if(empEl) empEl.checked=d.emprestada||false; }catch(e){console.error(e);alert("Erro de comunica\u00E7\u00E3o: "+e.message);} }
 function detectarGeneroENacionalidadeComprovante(){ const nomeInput=document.getElementById('print-nome'); const nome=nomeInput.value.trim().toUpperCase(); if(nome.length<2)return; const primeiroNome=nome.split(' ')[0].toLowerCase(); let genero='MASCULINO'; const excecoesMasculinas=['joaquim','luca','noa','nicola']; if(excecoesMasculinas.includes(primeiroNome))genero='MASCULINO'; else if(['mar','luz','flor','marjorie','alice','constance'].includes(primeiroNome))genero='FEMININO'; else if(primeiroNome.endsWith('a')||primeiroNome.endsWith('e')||primeiroNome.endsWith('i')||primeiroNome.endsWith('ad')||primeiroNome.endsWith('ra')||primeiroNome.endsWith('na')||primeiroNome.endsWith('la')||primeiroNome.endsWith('da')||primeiroNome.endsWith('ia'))genero='FEMININO'; else genero='MASCULINO'; if(genero==='FEMININO'){ const nacEl=document.getElementById('print-nacionalidade'); if(nacEl) nacEl.value='BRASILEIRA'; const civilEl=document.getElementById('print-estado_civil'); if(civilEl) civilEl.value='SOLTEIRA'; }else{ const nacEl=document.getElementById('print-nacionalidade'); if(nacEl) nacEl.value='BRASILEIRO'; const civilEl=document.getElementById('print-estado_civil'); if(civilEl) civilEl.value='SOLTEIRO'; } }
-let debounceTimerEndereco; let enderecoCache={}; let searchController=null;
-function buscarSugestoesEndereco(){ const input=document.getElementById('print-endereco'); const container=document.getElementById('address-suggestions'); if(!container) return; const queryOriginal=input.value.trim().toUpperCase(); if(searchController){searchController.abort();searchController=null;} clearTimeout(debounceTimerEndereco); if(queryOriginal.length<2){container.style.display='none';return;} if(enderecoCache[queryOriginal]){exibirSugestoes(container,enderecoCache[queryOriginal]);return;} debounceTimerEndereco=setTimeout(async()=>{ try{ container.innerHTML='<div class="suggestion-item" style="text-align:center;color:#888;cursor:default;">\uD83D\uDD0D Buscando...</div>'; container.style.display='block'; searchController=new AbortController(); const resultados=await fetchFromGS('buscarEnderecos',{q:removerAcentos(queryOriginal)},searchController.signal); const querySemAcento=removerAcentos(queryOriginal); const resultadosFiltrados=(resultados||[]).filter(item=>{ const enderecoSemAcento=removerAcentos(String(item.endereco||'').toUpperCase()); return enderecoSemAcento.startsWith(querySemAcento)||enderecoSemAcento.includes(querySemAcento); }); enderecoCache[queryOriginal]=resultadosFiltrados; exibirSugestoes(container,resultadosFiltrados); }catch(e){if(e.name!=='AbortError'){console.warn("Erro ao buscar endere\u00E7os:",e);container.style.display='none';}}finally{searchController=null;} },100); }
-function exibirSugestoes(container,resultados){ if(!container) return; container.innerHTML=''; if(!resultados||resultados.length===0){container.style.display='none';return;} resultados.forEach(item=>{ const div=document.createElement('div'); div.className='suggestion-item'; const strong=document.createElement('strong'); strong.textContent=item.endereco||''; const small=document.createElement('small'); small.textContent=`${item.bairro||''} - ${item.uf||''} (CEP: ${item.cep||'N/I'})`; div.appendChild(strong); div.appendChild(small); div.onclick=()=>{ document.getElementById('print-endereco').value=item.endereco||''; const bairro=(item.bairro||'').toUpperCase(); const cidade=(item.cidade||'').toUpperCase(); document.getElementById('print-bairro').value=bairro+'/'+cidade; document.getElementById('print-uf').value=item.uf||''; document.getElementById('print-cep').value=item.cep||''; container.style.display='none'; }; container.appendChild(div); }); container.style.display='block'; }
-document.addEventListener('click',function(e){ const container=document.getElementById('address-suggestions'); const input=document.getElementById('print-endereco'); if(container&&input&&!container.contains(e.target)&&e.target!==input)container.style.display='none'; });
+let debounceTimerEndereco;
+let enderecoCache = {};
+let searchController = null;
+
+function posicionarSugestoesEndereco(input, container) {
+    if (!input || !container) return;
+
+    const inputRect = input.getBoundingClientRect();
+    const pai = container.offsetParent || input.offsetParent || document.body;
+    const paiRect = pai === document.body
+        ? { left: 0, top: 0 }
+        : pai.getBoundingClientRect();
+
+    container.style.position = 'absolute';
+    container.style.left = `${inputRect.left - paiRect.left}px`;
+    container.style.top = `${inputRect.bottom - paiRect.top + 4}px`;
+    container.style.width = `${inputRect.width}px`;
+    container.style.zIndex = '999999';
+    container.style.background = '#ffffff';
+    container.style.border = '1px solid #b7c9bd';
+    container.style.borderRadius = '6px';
+    container.style.boxShadow = '0 8px 20px rgba(0,0,0,.18)';
+    container.style.maxHeight = '220px';
+    container.style.overflowY = 'auto';
+    container.style.overflowX = 'hidden';
+    container.style.padding = '0';
+    container.style.margin = '0';
+    container.style.fontFamily = 'Arial, sans-serif';
+}
+
+function buscarSugestoesEndereco() {
+    const input = document.getElementById('print-endereco');
+    const container = document.getElementById('address-suggestions');
+
+    if (!input || !container) return;
+
+    const queryOriginal = input.value.trim().toUpperCase();
+
+    if (searchController) {
+        searchController.abort();
+        searchController = null;
+    }
+
+    clearTimeout(debounceTimerEndereco);
+
+    if (queryOriginal.length < 2) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+
+    posicionarSugestoesEndereco(input, container);
+
+    if (enderecoCache[queryOriginal]) {
+        exibirSugestoes(container, enderecoCache[queryOriginal]);
+        return;
+    }
+
+    debounceTimerEndereco = setTimeout(async () => {
+        try {
+            posicionarSugestoesEndereco(input, container);
+
+            container.innerHTML = `
+                <div style="
+                    padding:10px;
+                    text-align:center;
+                    color:#777;
+                    background:#fff;
+                    font-size:12px;
+                    line-height:1.2;
+                ">
+                    🔍 Buscando...
+                </div>
+            `;
+            container.style.display = 'block';
+
+            searchController = new AbortController();
+
+            const resultados = await fetchFromGS(
+                'buscarEnderecos',
+                { q: removerAcentos(queryOriginal) },
+                searchController.signal
+            );
+
+            const querySemAcento = removerAcentos(queryOriginal);
+
+            const resultadosFiltrados = (resultados || [])
+                .filter(item => {
+                    const enderecoSemAcento = removerAcentos(
+                        String(item.endereco || '').toUpperCase()
+                    );
+                    return enderecoSemAcento.startsWith(querySemAcento) ||
+                           enderecoSemAcento.includes(querySemAcento);
+                })
+                .slice(0, 5);
+
+            enderecoCache[queryOriginal] = resultadosFiltrados;
+            exibirSugestoes(container, resultadosFiltrados);
+
+        } catch (e) {
+            if (e.name !== 'AbortError') {
+                console.warn('Erro ao buscar endereços:', e);
+                container.style.display = 'none';
+            }
+        } finally {
+            searchController = null;
+        }
+    }, 180);
+}
+
+function exibirSugestoes(container, resultados) {
+    if (!container) return;
+
+    const input = document.getElementById('print-endereco');
+    if (input) posicionarSugestoesEndereco(input, container);
+
+    container.innerHTML = '';
+
+    if (!resultados || resultados.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    resultados.forEach((item, index) => {
+        const div = document.createElement('div');
+
+        div.className = 'suggestion-item';
+        div.style.display = 'block';
+        div.style.position = 'relative';
+        div.style.boxSizing = 'border-box';
+        div.style.width = '100%';
+        div.style.background = '#ffffff';
+        div.style.padding = '9px 12px';
+        div.style.margin = '0';
+        div.style.cursor = 'pointer';
+        div.style.borderBottom = index < resultados.length - 1
+            ? '1px solid #eeeeee'
+            : 'none';
+        div.style.lineHeight = '1.25';
+        div.style.transition = 'background .15s ease';
+        div.style.whiteSpace = 'normal';
+        div.style.textAlign = 'left';
+
+        const strong = document.createElement('strong');
+        strong.textContent = item.endereco || '';
+        strong.style.display = 'block';
+        strong.style.position = 'static';
+        strong.style.fontSize = '12px';
+        strong.style.lineHeight = '1.25';
+        strong.style.color = '#173d28';
+        strong.style.margin = '0 0 3px 0';
+        strong.style.padding = '0';
+        strong.style.whiteSpace = 'normal';
+
+        const small = document.createElement('small');
+
+        const detalhes = [];
+        if (item.bairro) detalhes.push(item.bairro);
+        if (item.uf) detalhes.push(item.uf);
+        if (item.cep) detalhes.push('CEP: ' + item.cep);
+
+        small.textContent = detalhes.join(' • ');
+        small.style.display = 'block';
+        small.style.position = 'static';
+        small.style.fontSize = '10px';
+        small.style.lineHeight = '1.25';
+        small.style.fontWeight = 'normal';
+        small.style.color = '#666666';
+        small.style.margin = '0';
+        small.style.padding = '0';
+        small.style.whiteSpace = 'normal';
+
+        div.appendChild(strong);
+        div.appendChild(small);
+
+        div.addEventListener('mouseenter', function () {
+            this.style.background = '#eef8f1';
+        });
+
+        div.addEventListener('mouseleave', function () {
+            this.style.background = '#ffffff';
+        });
+
+        div.onclick = function () {
+            const endereco = document.getElementById('print-endereco');
+            const bairro = document.getElementById('print-bairro');
+            const uf = document.getElementById('print-uf');
+            const cep = document.getElementById('print-cep');
+            const numero = document.getElementById('print-numero_endereco');
+
+            if (endereco) {
+                endereco.value = String(item.endereco || '').toUpperCase();
+            }
+
+            if (bairro) {
+                bairro.value = String(item.bairro || '').toUpperCase();
+            }
+
+            if (uf) {
+                uf.value = String(item.uf || '').toUpperCase();
+            }
+
+            if (cep) {
+                cep.value = item.cep || '';
+            }
+
+            container.style.display = 'none';
+            container.innerHTML = '';
+
+            if (numero) numero.focus();
+        };
+
+        container.appendChild(div);
+    });
+
+    container.style.display = 'block';
+}
+
+document.addEventListener('click', function (e) {
+    const container = document.getElementById('address-suggestions');
+    const input = document.getElementById('print-endereco');
+
+    if (
+        container &&
+        input &&
+        !container.contains(e.target) &&
+        e.target !== input
+    ) {
+        container.style.display = 'none';
+    }
+});
+
+window.addEventListener('resize', function () {
+    const input = document.getElementById('print-endereco');
+    const container = document.getElementById('address-suggestions');
+
+    if (
+        input &&
+        container &&
+        container.style.display !== 'none'
+    ) {
+        posicionarSugestoesEndereco(input, container);
+    }
+});
 function obterValoresComprovante(){ return { numero:document.getElementById('print-numero').value, data:document.getElementById('print-data').value, ano:document.getElementById('print-ano').value, nome:document.getElementById('print-nome').value.toUpperCase(), endereco:document.getElementById('print-endereco').value.toUpperCase(), numero_endereco:document.getElementById('print-numero_endereco').value.toUpperCase(), complemento:document.getElementById('print-complemento').value.toUpperCase(), cep:document.getElementById('print-cep').value, bairro:document.getElementById('print-bairro').value.toUpperCase(), uf:document.getElementById('print-uf').value.toUpperCase(), nacionalidade:document.getElementById('print-nacionalidade').value.toUpperCase(), estado_civil:document.getElementById('print-estado_civil').value.toUpperCase(), cpf:document.getElementById('print-cpf').value, rg:document.getElementById('print-rg').value, emissor:document.getElementById('print-emissor').value.toUpperCase(), propria:document.getElementById('print-propria').checked, alugada:document.getElementById('print-alugada').checked, emprestada:document.getElementById('print-emprestada').checked }; }
 function gerarHTMLImpressaoCRM(v){ return `<!DOCTYPE html><html><head><style>body{margin:0;padding:0;font-family:Arial,sans-serif;}.popup{position:relative;width:794px;height:1123px;background-color:white;overflow:hidden;margin:0 auto;}.popup-content{position:relative;width:100%;height:100%;}.popup-content img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;z-index:0;}.input-field{position:absolute;font-size:13px;padding:2px 4px;z-index:1;font-weight:bold;background:transparent;border:none;outline:none;color:black;text-transform:uppercase;}.input-field[type="checkbox"]{width:16px;height:16px;accent-color:black;}@media print{body{margin:0!important;padding:0!important;}}</style></head><body><div class="popup"><div class="popup-content"><img src="https://i.imgur.com/lFhk0Hq.png"><input class="input-field" style="top:386px;left:230px;width:80px" value="${v.numero}" readonly><input class="input-field" style="top:386px;left:390px;width:130px" value="${v.data}" readonly><input class="input-field" style="top:386px;left:580px;width:80px" value="${v.ano}" readonly><input class="input-field" style="top:437px;left:167px;width:500px;font-size:18px" value="${v.nome}" readonly><input class="input-field" style="top:508px;left:216px;width:350px" value="${v.endereco}" readonly><input class="input-field" style="top:508px;left:629px;width:90px" value="${v.numero_endereco}" readonly><input class="input-field" style="top:568px;left:240px;width:210px" value="${v.complemento}" readonly><input class="input-field" style="top:568px;left:530px;width:150px" value="${v.cep}" readonly><input class="input-field" style="top:633px;left:165px;width:350px" value="${v.bairro}" readonly><input class="input-field" style="top:633px;left:630px;width:80px" value="${v.uf}" readonly><input class="input-field" style="top:695px;left:247px;width:150px" value="${v.nacionalidade}" readonly><input class="input-field" style="top:695px;left:555px;width:150px" value="${v.estado_civil}" readonly><input class="input-field" style="top:758px;left:135px;width:188px" value="${v.cpf}" readonly><input class="input-field" style="top:758px;left:395px;width:100px" value="${v.rg}" readonly><input class="input-field" style="top:758px;left:625px;width:120px" value="${v.emissor}" readonly><input type="checkbox" class="input-field" style="top:844px;left:249px" ${v.propria?'checked':''} readonly><input type="checkbox" class="input-field" style="top:844px;left:425px" ${v.alugada?'checked':''} readonly><input type="checkbox" class="input-field" style="top:844px;left:652px" ${v.emprestada?'checked':''} readonly></div></div></body></html>`; }
 async function salvarDadosComprovante(){ const dados=[document.getElementById('print-numero').value,document.getElementById('print-data').value,document.getElementById('print-ano').value,document.getElementById('print-nome').value.toUpperCase(),document.getElementById('print-endereco').value.toUpperCase(),document.getElementById('print-numero_endereco').value.toUpperCase(),document.getElementById('print-complemento').value.toUpperCase(),document.getElementById('print-cep').value,document.getElementById('print-bairro').value.toUpperCase(),document.getElementById('print-uf').value.toUpperCase(),document.getElementById('print-nacionalidade').value.toUpperCase(),document.getElementById('print-estado_civil').value.toUpperCase(),document.getElementById('print-cpf').value,document.getElementById('print-rg').value,document.getElementById('print-emissor').value.toUpperCase(),document.getElementById('print-propria').checked?"Casa Pr\u00F3pria":"",document.getElementById('print-alugada').checked?"Alugada":"",document.getElementById('print-emprestada').checked?"Emprestada":""]; await postParaGoogleSheets('salvarDeclaracao',dados); }
