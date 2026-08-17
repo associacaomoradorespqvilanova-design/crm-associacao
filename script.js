@@ -1,7 +1,7 @@
 // ============================================================
 // CONFIGURAÇÃO DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbx-mQ1d8-uCTx4Bk26KL8CZR9-hQO9QvMq5jCBoH8O59AQYfmCy8KB4GdtayygDu4Uu/exec";
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwGDr-a88fQtYOs53t2w1F0NkMQO0Q9ZkSP9xgj3dfEiKBBQjzS1VuKO81vnWaAy5FG4g/exec";
 
 // ============================================================
 // GET VIA JSONP
