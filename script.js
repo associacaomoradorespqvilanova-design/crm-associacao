@@ -1,7 +1,7 @@
 // ============================================================
 // CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzERWNkxyZjyuSWkZVdMD3QQHLmO9EewF6huQU5s4eDg7GPtvasdNKKmBBegNlkIExjbQ/exec";
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzxq-6DQYzo_6NGHdXdSD2nRZqW_CYgQuuQZ4aqtmhNYuEE0qsaQ5cGkxEUQ-XvzsYS/exec";
 const CRM_BACKEND_VERSAO = '20260818-6';
 
 // ============================================================
@@ -1155,6 +1155,12 @@ function abrirModal(id) {
         }
     }
     if (id === 'modal-busca') prepararModalBusca();
+
+    // O formulário de currículo é grande. Ele precisa ter a própria área
+    // de rolagem para funcionar tanto no computador quanto no celular.
+    if (id === 'modal-curriculo') {
+        prepararModalCurriculoResponsivo();
+    }
 }
 
 function adicionarEntrega(dadosIniciais = {}) {
@@ -1875,6 +1881,172 @@ if(btnSaveCesta){
     btnSaveCesta.addEventListener('click',async()=>{if(!cestaState.currentLine){alert("Nenhum morador selecionado.");return;}const inputs=document.querySelectorAll('#cesta-fields .field, #cesta-monthsContainer input');const payload={};inputs.forEach(inp=>{payload[inp.id]=inp.value;});await postParaGoogleSheets('salvarMoradorCesta',{linha:cestaState.currentLine,payload});alert("\u2705 Dados salvos com sucesso!");atualizarMesesUICesta();renderizarPendentesCestaHome();});
 }
 async function gerarCarteirinha(){const nome=document.getElementById('cesta-search').value.trim();if(!nome){alert("Busque um morador antes de gerar a carteirinha.");return;}const qrContainer=document.getElementById('card-qrcode');if(!qrContainer)return;qrContainer.innerHTML='';document.getElementById('card-nome').innerText=nome;try{cestaState.qrCodeInstance=new QRCode(qrContainer,{text:nome,width:75,height:75,colorDark:"#4a7c2e",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.H});}catch(e){alert("Erro ao gerar QR Code");return;}setTimeout(async()=>{try{const cardDiv=document.getElementById('carteirinha-print-area');const canvas=await html2canvas(cardDiv,{scale:2});const{jsPDF}=window.jspdf;const pdf=new jsPDF('l','mm','a6');const imgData=canvas.toDataURL('image/jpeg',0.95);pdf.addImage(imgData,'JPEG',0,0,148,105);const pdfBlob=pdf.output('blob');window.open(URL.createObjectURL(pdfBlob),'_blank');}catch(error){console.error(error);alert("Erro ao gerar a imagem da carteirinha.");}},300);}
+
+
+// ============================================================
+// CURRÍCULO — RESPONSIVIDADE E ROLAGEM DO MODAL
+// ============================================================
+function prepararModalCurriculoResponsivo() {
+    const modal = document.getElementById('modal-curriculo');
+    if (!modal) return;
+
+    // Injeta uma única vez. Usamos !important porque o modal já possui
+    // estilos antigos no HTML que estavam bloqueando a rolagem.
+    if (!document.getElementById('curriculo-responsive-fix')) {
+        const style = document.createElement('style');
+        style.id = 'curriculo-responsive-fix';
+        style.textContent = `
+            /* O overlay inteiro também pode rolar caso o conteúdo ultrapasse a tela */
+            #modal-curriculo {
+                box-sizing: border-box !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                align-items: flex-start !important;
+                justify-content: center !important;
+                padding: 12px !important;
+                height: 100vh !important;
+                height: 100dvh !important;
+                max-height: 100vh !important;
+                max-height: 100dvh !important;
+                overscroll-behavior: contain !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+
+            /*
+             * Compatível com os nomes de container mais comuns usados no CRM.
+             * O :first-child garante a correção mesmo que o painel não tenha
+             * uma classe específica.
+             */
+            #modal-curriculo > .modal-content,
+            #modal-curriculo > .modal-box,
+            #modal-curriculo > .modal-container,
+            #modal-curriculo > div:first-child {
+                box-sizing: border-box !important;
+                width: min(820px, 100%) !important;
+                max-width: 820px !important;
+                max-height: calc(100dvh - 24px) !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                margin: 0 auto !important;
+                overscroll-behavior: contain !important;
+                -webkit-overflow-scrolling: touch !important;
+                scrollbar-gutter: stable;
+            }
+
+            /* Impede que algum campo estoure horizontalmente o modal */
+            #modal-curriculo input,
+            #modal-curriculo select,
+            #modal-curriculo textarea {
+                box-sizing: border-box !important;
+                max-width: 100% !important;
+            }
+
+            #modal-curriculo input[type="file"] {
+                width: 100% !important;
+                min-width: 0 !important;
+            }
+
+            /* Conteúdos adicionados dinamicamente não podem bloquear a rolagem */
+            #modal-curriculo #cursos-container,
+            #modal-curriculo #exp-container {
+                max-width: 100% !important;
+                overflow: visible !important;
+            }
+
+            @media (max-width: 700px) {
+                #modal-curriculo {
+                    padding: 0 !important;
+                    align-items: stretch !important;
+                    width: 100vw !important;
+                    height: 100dvh !important;
+                    max-height: 100dvh !important;
+                }
+
+                #modal-curriculo > .modal-content,
+                #modal-curriculo > .modal-box,
+                #modal-curriculo > .modal-container,
+                #modal-curriculo > div:first-child {
+                    width: 100% !important;
+                    max-width: none !important;
+                    height: 100dvh !important;
+                    max-height: 100dvh !important;
+                    margin: 0 !important;
+                    border-radius: 0 !important;
+                    overflow-y: auto !important;
+                    overflow-x: hidden !important;
+                    padding-bottom: max(28px, env(safe-area-inset-bottom)) !important;
+                }
+
+                /* Campos que eram duas colunas passam para uma no celular */
+                #modal-curriculo .grid-cv {
+                    grid-template-columns: minmax(0, 1fr) !important;
+                    gap: 10px !important;
+                }
+
+                #modal-curriculo .grid-cv.full {
+                    display: grid !important;
+                    grid-template-columns: minmax(0, 1fr) !important;
+                }
+
+                #modal-curriculo button {
+                    max-width: 100% !important;
+                }
+
+                #modal-curriculo textarea {
+                    resize: vertical !important;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Além do CSS, força as propriedades essenciais no elemento real.
+    modal.style.overflowY = 'auto';
+    modal.style.overflowX = 'hidden';
+    modal.style.webkitOverflowScrolling = 'touch';
+
+    const painel =
+        modal.querySelector(':scope > .modal-content') ||
+        modal.querySelector(':scope > .modal-box') ||
+        modal.querySelector(':scope > .modal-container') ||
+        modal.firstElementChild;
+
+    if (painel) {
+        painel.style.overflowY = 'auto';
+        painel.style.overflowX = 'hidden';
+        painel.style.webkitOverflowScrolling = 'touch';
+        painel.scrollTop = 0;
+    }
+
+    // Ao abrir, começa sempre no topo.
+    modal.scrollTop = 0;
+
+    // Em celular, o teclado virtual altera a altura útil da tela.
+    // Reaplica o limite usando visualViewport quando disponível.
+    const ajustarAltura = () => {
+        if (!window.visualViewport) return;
+
+        const altura = Math.round(window.visualViewport.height);
+
+        modal.style.height = `${altura}px`;
+        modal.style.maxHeight = `${altura}px`;
+
+        if (painel && window.matchMedia('(max-width: 700px)').matches) {
+            painel.style.height = `${altura}px`;
+            painel.style.maxHeight = `${altura}px`;
+        }
+    };
+
+    ajustarAltura();
+
+    if (!modal.dataset.curriculoViewportListener) {
+        modal.dataset.curriculoViewportListener = '1';
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', ajustarAltura);
+        }
+    }
+}
 
 // ============================================================
 // CURR\u00CDCULO (CORRIGIDO E COMPLETO)
