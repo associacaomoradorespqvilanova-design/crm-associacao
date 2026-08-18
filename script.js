@@ -1,8 +1,8 @@
 // ============================================================
 // CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwwTp1ffz0fuw7oXxT1jsI570r9Fyg3Jq_hlTLDf5YWaP8KnJMAeydJEmItVS6myk1mQA/exec";
-const CRM_BACKEND_VERSAO = '20260818-2';
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbyZ1BBPR7tVeUbO9nhUDqMYXjimVINmSKv1wFqhRBRlxh43Gt2qlYhfTJ98YAxtPCLZzg/exec";
+const CRM_BACKEND_VERSAO = '20260818-4';
 
 // ============================================================
 // GET VIA JSONP
@@ -2195,7 +2195,10 @@ async function salvarEdicaoMassivaBusca(linhas) {
 const whatsappCRMState = {
     itens: [],
     aba: 'enviar',
-    carregando: false
+    carregando: false,
+    atualizandoTelefones: false,
+    relatorio: [],
+    relatorioAberto: false
 };
 
 function localizarBotaoWhatsapp() {
@@ -2343,16 +2346,110 @@ function garantirModalWhatsapp() {
         #modal-whatsapp-crm .wa-toolbar {
             display: flex;
             justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 8px;
             margin-bottom: 10px;
         }
-        #modal-whatsapp-crm .wa-refresh {
+        #modal-whatsapp-crm .wa-refresh,
+        #modal-whatsapp-crm .wa-report-btn {
             border: 1px solid #b9d3bf;
             background: #fff;
             color: #2f6f35;
             border-radius: 999px;
-            padding: 8px 12px;
+            padding: 9px 13px;
             cursor: pointer;
+            font-weight: 800;
+        }
+        #modal-whatsapp-crm .wa-refresh {
+            background: #2f7a38;
+            border-color: #2f7a38;
+            color: #fff;
+        }
+        #modal-whatsapp-crm .wa-refresh:disabled,
+        #modal-whatsapp-crm .wa-report-btn:disabled {
+            opacity: .55;
+            cursor: wait;
+        }
+        #modal-whatsapp-crm .wa-update-result {
+            display: none;
+            margin-bottom: 10px;
+            border-radius: 12px;
+            padding: 10px 12px;
+            font-size: 12px;
             font-weight: 700;
+        }
+        #modal-whatsapp-crm .wa-update-result.ok {
+            display: block;
+            background: #e8f5eb;
+            border: 1px solid #b9dfc0;
+            color: #277034;
+        }
+        #modal-whatsapp-crm .wa-update-result.error {
+            display: block;
+            background: #fff0f0;
+            border: 1px solid #efb8b8;
+            color: #a53a3a;
+        }
+        #modal-whatsapp-crm .wa-report-panel {
+            display: none;
+            margin-bottom: 12px;
+            background: #fff;
+            border: 1px solid #dce8df;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        #modal-whatsapp-crm .wa-report-panel.active {
+            display: block;
+        }
+        #modal-whatsapp-crm .wa-report-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 11px 13px;
+            background: #edf6ef;
+            border-bottom: 1px solid #dce8df;
+            color: #285c32;
+            font-weight: 900;
+        }
+        #modal-whatsapp-crm .wa-report-close {
+            border: 0;
+            background: transparent;
+            color: #46644d;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+        }
+        #modal-whatsapp-crm .wa-report-list {
+            max-height: 280px;
+            overflow: auto;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+        #modal-whatsapp-crm .wa-report-item {
+            border: 1px solid #e2ebe5;
+            border-radius: 11px;
+            padding: 10px;
+            background: #fbfdfb;
+            font-size: 12px;
+            color: #536158;
+            line-height: 1.4;
+        }
+        #modal-whatsapp-crm .wa-report-route {
+            color: #24362a;
+            font-weight: 800;
+            margin-bottom: 5px;
+        }
+        #modal-whatsapp-crm .wa-report-arrow {
+            color: #2f7a38;
+            font-weight: 900;
+            padding: 0 4px;
+        }
+        #modal-whatsapp-crm .wa-report-meta {
+            color: #758078;
+            font-size: 11px;
         }
         #modal-whatsapp-crm .wa-lista {
             display: flex;
@@ -2444,6 +2541,9 @@ function garantirModalWhatsapp() {
             #modal-whatsapp-crm .wa-item { grid-template-columns: 1fr; }
             #modal-whatsapp-crm .wa-send,
             #modal-whatsapp-crm .wa-enviado { width: 100%; min-width: 0; }
+            #modal-whatsapp-crm .wa-toolbar { display: grid; grid-template-columns: 1fr 1fr; }
+            #modal-whatsapp-crm .wa-refresh,
+            #modal-whatsapp-crm .wa-report-btn { width: 100%; }
         }
     `;
     document.head.appendChild(style);
@@ -2459,7 +2559,7 @@ function garantirModalWhatsapp() {
             </div>
             <div class="wa-content">
                 <div class="wa-info">
-                    Pessoas com cartão ainda pendente aparecem aqui. Depois de abrir a mensagem no WhatsApp, o contato fica em <b>ENVIADO</b> por 3 dias. Se o cartão continuar sem status <b>ENTREGUE</b>, ele volta automaticamente para <b>ENVIAR MENSAGEM</b>.
+                    Pessoas com cartão ainda pendente aparecem aqui. Para maior segurança, números antigos só são reaproveitados quando você clicar em <b>ATUALIZAR</b>. O CRM cruza um registro já <b>ENTREGUE</b> com o pendente pelo endereço e pela semelhança do nome. O botão <b>RELATÓRIO</b> mostra exatamente de qual cadastro cada telefone foi copiado.
                 </div>
 
                 <div class="wa-stats">
@@ -2473,7 +2573,18 @@ function garantirModalWhatsapp() {
                 </div>
 
                 <div class="wa-toolbar">
-                    <button type="button" class="wa-refresh" onclick="carregarWhatsappPendentes()">↻ Atualizar</button>
+                    <button type="button" id="wa-btn-atualizar-telefones" class="wa-refresh" onclick="atualizarTelefonesWhatsappCRM()">↻ ATUALIZAR</button>
+                    <button type="button" id="wa-btn-relatorio" class="wa-report-btn" onclick="abrirRelatorioWhatsappCRM()">📋 RELATÓRIO</button>
+                </div>
+
+                <div id="wa-update-result" class="wa-update-result"></div>
+
+                <div id="wa-report-panel" class="wa-report-panel">
+                    <div class="wa-report-head">
+                        <span>📋 Relatório de telefones reaproveitados</span>
+                        <button type="button" class="wa-report-close" onclick="fecharRelatorioWhatsappCRM()" aria-label="Fechar relatório">×</button>
+                    </div>
+                    <div id="wa-report-list" class="wa-report-list"></div>
                 </div>
 
                 <div id="wa-lista-crm" class="wa-lista"></div>
@@ -2495,6 +2606,9 @@ async function abrirModalWhatsapp() {
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     whatsappCRMState.aba = 'enviar';
+    whatsappCRMState.relatorioAberto = false;
+    const painelRelatorio = document.getElementById('wa-report-panel');
+    if (painelRelatorio) painelRelatorio.classList.remove('active');
     atualizarAbasWhatsapp();
     await carregarWhatsappPendentes();
 }
@@ -2552,6 +2666,176 @@ async function carregarWhatsappPendentes() {
     } finally {
         whatsappCRMState.carregando = false;
     }
+}
+
+
+function mostrarResultadoAtualizacaoWhatsapp(texto, tipo = 'ok') {
+    const el = document.getElementById('wa-update-result');
+    if (!el) return;
+
+    el.className = 'wa-update-result ' + (tipo === 'error' ? 'error' : 'ok');
+    el.textContent = texto;
+
+    clearTimeout(mostrarResultadoAtualizacaoWhatsapp._timer);
+    mostrarResultadoAtualizacaoWhatsapp._timer = setTimeout(() => {
+        if (el) {
+            el.className = 'wa-update-result';
+            el.textContent = '';
+        }
+    }, 7000);
+}
+
+async function atualizarTelefonesWhatsappCRM() {
+    if (whatsappCRMState.atualizandoTelefones) return;
+
+    const btn = document.getElementById('wa-btn-atualizar-telefones');
+    whatsappCRMState.atualizandoTelefones = true;
+
+    const textoOriginal = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ ATUALIZANDO...';
+    }
+
+    try {
+        const resposta = await fetchFromGS(
+            'atualizarTelefonesWhatsapp',
+            { _: String(Date.now()) },
+            undefined,
+            45000
+        );
+
+        if (!resposta || resposta.success === false) {
+            throw new Error(resposta?.message || resposta?.error || 'Não foi possível atualizar os telefones.');
+        }
+
+        const total = Number(resposta.atualizados || 0);
+
+        mostrarResultadoAtualizacaoWhatsapp(
+            total > 0
+                ? `✅ ${total} telefone(s) encontrado(s) e copiado(s) para novos pendentes.`
+                : 'ℹ️ Nenhum novo telefone compatível foi encontrado.',
+            'ok'
+        );
+
+        // Recarrega a lista: quem recebeu telefone agora passa a aparecer no modal.
+        await carregarWhatsappPendentes();
+
+        // Se o relatório estiver aberto, atualiza também.
+        if (whatsappCRMState.relatorioAberto) {
+            await carregarRelatorioWhatsappCRM();
+        }
+
+    } catch (erro) {
+        console.error('Erro ao atualizar telefones WhatsApp:', erro);
+        mostrarResultadoAtualizacaoWhatsapp(
+            '❌ ' + String(erro.message || erro),
+            'error'
+        );
+    } finally {
+        whatsappCRMState.atualizandoTelefones = false;
+
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = textoOriginal || '↻ ATUALIZAR';
+        }
+    }
+}
+
+function fecharRelatorioWhatsappCRM() {
+    whatsappCRMState.relatorioAberto = false;
+    const painel = document.getElementById('wa-report-panel');
+    if (painel) painel.classList.remove('active');
+}
+
+async function abrirRelatorioWhatsappCRM() {
+    const painel = document.getElementById('wa-report-panel');
+    if (!painel) return;
+
+    whatsappCRMState.relatorioAberto = true;
+    painel.classList.add('active');
+
+    await carregarRelatorioWhatsappCRM();
+}
+
+async function carregarRelatorioWhatsappCRM() {
+    const lista = document.getElementById('wa-report-list');
+    const btn = document.getElementById('wa-btn-relatorio');
+
+    if (!lista) return;
+
+    const original = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ CARREGANDO...';
+    }
+
+    lista.innerHTML = '<div class="wa-loading">⏳ Carregando relatório...</div>';
+
+    try {
+        const resposta = await fetchFromGS(
+            'listarRelatorioWhatsapp',
+            { _: String(Date.now()) },
+            undefined,
+            30000
+        );
+
+        if (!resposta || resposta.success === false) {
+            throw new Error(resposta?.message || resposta?.error || 'Não foi possível carregar o relatório.');
+        }
+
+        whatsappCRMState.relatorio = Array.isArray(resposta.itens) ? resposta.itens : [];
+        renderizarRelatorioWhatsappCRM();
+
+    } catch (erro) {
+        console.error('Erro ao carregar relatório WhatsApp:', erro);
+        lista.innerHTML = `<div class="wa-vazio">❌ ${escapeHtml(String(erro.message || erro))}</div>`;
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = original || '📋 RELATÓRIO';
+        }
+    }
+}
+
+function renderizarRelatorioWhatsappCRM() {
+    const lista = document.getElementById('wa-report-list');
+    if (!lista) return;
+
+    const itens = whatsappCRMState.relatorio || [];
+
+    if (!itens.length) {
+        lista.innerHTML = `
+            <div class="wa-vazio">
+                Nenhum telefone foi reaproveitado ainda.<br>
+                Clique em <b>ATUALIZAR</b> para procurar correspondências.
+            </div>`;
+        return;
+    }
+
+    lista.innerHTML = itens.map(item => {
+        const telefone = formatarTelefoneWhatsappTela(item.telefone);
+        const data = formatarDataHoraWhatsapp(item.data);
+        const score = Number(item.score || 0);
+
+        return `
+            <div class="wa-report-item">
+                <div class="wa-report-route">
+                    ${escapeHtml(String(item.nomeOrigem || ''))}
+                    (${escapeHtml(String(item.enderecoOrigem || ''))})
+                    <span class="wa-report-arrow">→</span>
+                    ${escapeHtml(String(item.nomeDestino || ''))}
+                    (${escapeHtml(String(item.enderecoDestino || ''))})
+                </div>
+                <div>📱 <b>${escapeHtml(telefone)}</b></div>
+                <div class="wa-report-meta">
+                    ${data ? `🕒 ${escapeHtml(data)} · ` : ''}
+                    Origem: linha ${Number(item.linhaOrigem || 0)} ·
+                    Destino: linha ${Number(item.linhaDestino || 0)} ·
+                    Correspondência: ${score}%
+                </div>
+            </div>`;
+    }).join('');
 }
 
 function formatarTelefoneWhatsappTela(valor) {
