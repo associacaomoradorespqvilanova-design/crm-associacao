@@ -1,8 +1,8 @@
 // ============================================================
 // CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbx9HDk1Z-WyDE8EHZgKzx6RsnVCPPiisk1q8spBndIpKiDtLvS788ONssrWms4-xrkDNg/exec";
-const CRM_BACKEND_VERSAO = '20260818-5';
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzERWNkxyZjyuSWkZVdMD3QQHLmO9EewF6huQU5s4eDg7GPtvasdNKKmBBegNlkIExjbQ/exec";
+const CRM_BACKEND_VERSAO = '20260818-6';
 
 // ============================================================
 // GET VIA JSONP
@@ -193,7 +193,8 @@ document.addEventListener('keydown', function (e) {
 // ============================================================
 async function carregarDashboard() {
     try {
-        const dados = await fetchFromGS('carregarDashboard');
+        // Timestamp evita qualquer reaproveitamento de resposta antiga no navegador/proxy.
+        const dados = await fetchFromGS('carregarDashboard', { _: String(Date.now()) });
         state.dadosAgenda = dados.agenda || [];
         state.dadosCartoes = dados.cartoes || [];
         state.responsaveis = dados.responsaveis || [];
@@ -301,24 +302,24 @@ async function deletarItemAgenda(id) { if (!confirm('Tem certeza que deseja excl
 // CARTÕES
 // ============================================================
 
+let cartoesFiltroResponsavel = 'TODOS';
+let cartoesDadosAtuais = [];
+let cartoesResponsaveisAtuais = [];
+let cartoesDiaGerenciado = null;
+
 // Interpreta datas do módulo CARTÕES SEM usar o padrão americano do JavaScript.
-// Aceita:
-//   dd/mm/yyyy
-//   yyyy-mm-dd
-//   Date/string ISO
 function interpretarDataCartao(valor) {
     if (!valor && valor !== 0) return null;
 
     const texto = String(valor).trim();
     if (!texto) return null;
 
-    // PRIORIDADE 1: padrão brasileiro dd/mm/yyyy
     let match = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
     if (match) {
         const dia = Number(match[1]);
         const mes = Number(match[2]);
         const ano = Number(match[3]);
-
         const data = new Date(ano, mes - 1, dia, 12, 0, 0);
 
         if (
@@ -338,13 +339,12 @@ function interpretarDataCartao(valor) {
         return null;
     }
 
-    // PRIORIDADE 2: yyyy-mm-dd
     match = texto.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:T.*)?$/);
+
     if (match) {
         const ano = Number(match[1]);
         const mes = Number(match[2]);
         const dia = Number(match[3]);
-
         const data = new Date(ano, mes - 1, dia, 12, 0, 0);
 
         if (
@@ -364,7 +364,6 @@ function interpretarDataCartao(valor) {
         return null;
     }
 
-    // Último recurso para valores ISO completos.
     const fallback = new Date(texto);
 
     if (!isNaN(fallback.getTime())) {
@@ -391,13 +390,439 @@ function formatarDataCartaoDiaMes(valor) {
     return `${String(info.dia).padStart(2, '0')}/${String(info.mes).padStart(2, '0')}`;
 }
 
+function formatarDataCartaoCompleta(valor) {
+    const info = interpretarDataCartao(valor);
+    if (!info) return String(valor || '');
+
+    return `${String(info.dia).padStart(2, '0')}/${String(info.mes).padStart(2, '0')}/${info.ano}`;
+}
+
+function escapeAtributoCartoes(valor) {
+    return String(valor ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function garantirControlesFiltroCartoes(nomes) {
+    const thead = document.getElementById('cards-header');
+    const tabela = thead?.closest('table');
+
+    if (!tabela || !tabela.parentElement) return;
+
+    let toolbar = document.getElementById('cartoes-filtro-colunas');
+
+    if (!toolbar) {
+        toolbar = document.createElement('div');
+        toolbar.id = 'cartoes-filtro-colunas';
+        toolbar.style.cssText = `
+            display:flex;
+            align-items:center;
+            gap:6px;
+            flex-wrap:wrap;
+            margin:0 0 10px 0;
+            padding:7px 8px;
+            background:rgba(255,255,255,.55);
+            border:1px solid rgba(74,124,46,.18);
+            border-radius:10px;
+            font-size:11px;
+        `;
+
+        tabela.parentElement.insertBefore(toolbar, tabela);
+    }
+
+    const nomesValidos = nomes || [];
+
+    if (
+        cartoesFiltroResponsavel !== 'TODOS' &&
+        !nomesValidos.includes(cartoesFiltroResponsavel)
+    ) {
+        cartoesFiltroResponsavel = 'TODOS';
+    }
+
+    toolbar.innerHTML = '';
+
+    const label = document.createElement('span');
+    label.textContent = 'Mostrar:';
+    label.style.cssText = 'font-weight:800;color:#52645a;margin-right:2px;';
+    toolbar.appendChild(label);
+
+    const criarBotao = (texto, valor) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = texto;
+
+        const ativo = cartoesFiltroResponsavel === valor;
+
+        btn.style.cssText = `
+            border:1px solid ${ativo ? '#4a7c2e' : '#b8cdbd'};
+            background:${ativo ? '#4a7c2e' : '#fff'};
+            color:${ativo ? '#fff' : '#38633f'};
+            border-radius:999px;
+            padding:5px 9px;
+            font-size:10px;
+            font-weight:800;
+            cursor:pointer;
+        `;
+
+        btn.addEventListener('click', () => {
+            cartoesFiltroResponsavel = valor;
+
+            renderizarCartoesComDados(
+                cartoesDadosAtuais,
+                cartoesResponsaveisAtuais
+            );
+        });
+
+        toolbar.appendChild(btn);
+    };
+
+    criarBotao('TODOS', 'TODOS');
+
+    nomesValidos.forEach(nome => {
+        criarBotao(String(nome).toUpperCase(), nome);
+    });
+}
+
+function garantirModalGerenciarLinhasCartoes() {
+    let modal = document.getElementById('modal-gerenciar-linhas-cartoes');
+
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = 'modal-gerenciar-linhas-cartoes';
+
+    modal.style.cssText = `
+        position:fixed;
+        inset:0;
+        z-index:1000000;
+        background:rgba(15,25,20,.58);
+        display:none;
+        align-items:center;
+        justify-content:center;
+        padding:14px;
+    `;
+
+    modal.innerHTML = `
+        <div style="
+            width:min(680px, 96vw);
+            max-height:88vh;
+            overflow:auto;
+            background:#fff;
+            border-radius:18px;
+            box-shadow:0 20px 60px rgba(0,0,0,.28);
+        ">
+            <div style="
+                position:sticky;
+                top:0;
+                z-index:2;
+                display:flex;
+                align-items:center;
+                justify-content:space-between;
+                gap:10px;
+                padding:14px 16px;
+                background:#edf6ef;
+                border-bottom:1px solid #d8e8dc;
+            ">
+                <div>
+                    <div style="font-weight:900;color:#2f6d37;">✏️ GERENCIAR CARTÕES</div>
+                    <div id="ger-cartoes-subtitulo" style="font-size:11px;color:#708177;margin-top:2px;"></div>
+                </div>
+
+                <button
+                    type="button"
+                    onclick="fecharGerenciadorLinhasCartoes()"
+                    style="
+                        border:0;
+                        background:transparent;
+                        font-size:24px;
+                        cursor:pointer;
+                        color:#52645a;
+                    "
+                >×</button>
+            </div>
+
+            <div id="ger-cartoes-lista" style="padding:12px;"></div>
+        </div>
+    `;
+
+    modal.addEventListener('click', e => {
+        if (e.target === modal) fecharGerenciadorLinhasCartoes();
+    });
+
+    document.body.appendChild(modal);
+    return modal;
+}
+
+function fecharGerenciadorLinhasCartoes() {
+    const modal = document.getElementById('modal-gerenciar-linhas-cartoes');
+
+    if (modal) {
+        modal.style.display = 'none';
+    }
+
+    cartoesDiaGerenciado = null;
+}
+
+function gerenciarLinhasCartao(dataChave) {
+    cartoesDiaGerenciado = dataChave;
+
+    const modal = garantirModalGerenciarLinhasCartoes();
+    const lista = document.getElementById('ger-cartoes-lista');
+    const subtitulo = document.getElementById('ger-cartoes-subtitulo');
+
+    if (!modal || !lista) return;
+
+    const info = interpretarDataCartao(dataChave);
+
+    if (subtitulo) {
+        subtitulo.textContent = info
+            ? `Registros de ${String(info.dia).padStart(2, '0')}/${String(info.mes).padStart(2, '0')}/${info.ano}`
+            : dataChave;
+    }
+
+    let itens = (cartoesDadosAtuais || []).filter(item => {
+        const d = interpretarDataCartao(item.data);
+        return d && d.chave === dataChave;
+    });
+
+    // Se o usuário escolheu "somente Cezar" ou "somente Walter",
+    // o gerenciador acompanha o mesmo filtro.
+    if (cartoesFiltroResponsavel !== 'TODOS') {
+        itens = itens.filter(
+            item => String(item.responsavel || '') === cartoesFiltroResponsavel
+        );
+    }
+
+    if (!itens.length) {
+        lista.innerHTML = `
+            <div style="padding:24px;text-align:center;color:#718078;">
+                Nenhuma linha encontrada para este filtro.
+            </div>
+        `;
+
+        modal.style.display = 'flex';
+        return;
+    }
+
+    lista.innerHTML = itens.map(item => {
+        const data = formatarDataCartaoCompleta(item.data);
+
+        return `
+            <div style="
+                display:grid;
+                grid-template-columns:minmax(140px,1fr) 90px 110px auto;
+                gap:8px;
+                align-items:center;
+                border:1px solid #e1ebe4;
+                border-radius:12px;
+                padding:10px;
+                margin-bottom:8px;
+                background:#fbfdfb;
+            ">
+                <div>
+                    <div style="font-weight:900;color:#2f5136;">
+                        ${escapeHtml(String(item.responsavel || ''))}
+                    </div>
+                    <div style="font-size:10px;color:#839087;margin-top:2px;">
+                        ID ${escapeHtml(String(item.id || ''))}
+                    </div>
+                </div>
+
+                <div>
+                    <div style="font-size:10px;color:#819087;">QUANTIDADE</div>
+                    <div style="font-weight:900;">${Number(item.qtd) || 0}</div>
+                </div>
+
+                <div>
+                    <div style="font-size:10px;color:#819087;">DATA</div>
+                    <div style="font-weight:800;">${escapeHtml(data)}</div>
+                </div>
+
+                <div style="display:flex;gap:5px;justify-content:flex-end;">
+                    <button
+                        type="button"
+                        onclick="editarLinhaCartaoCRM('${escapeAtributoCartoes(String(item.id || ''))}')"
+                        title="Editar esta linha"
+                        style="
+                            border:1px solid #c8dccd;
+                            background:#edf7ef;
+                            color:#2f6d37;
+                            border-radius:8px;
+                            padding:7px 9px;
+                            cursor:pointer;
+                            font-weight:900;
+                        "
+                    >✏️</button>
+
+                    <button
+                        type="button"
+                        onclick="deletarLinhaCartaoCRM('${escapeAtributoCartoes(String(item.id || ''))}')"
+                        title="Excluir somente esta linha"
+                        style="
+                            border:1px solid #efc7c7;
+                            background:#fff0f0;
+                            color:#b22d2d;
+                            border-radius:8px;
+                            padding:7px 9px;
+                            cursor:pointer;
+                            font-weight:900;
+                        "
+                    >🗑️</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    modal.style.display = 'flex';
+}
+
+async function deletarLinhaCartaoCRM(id) {
+    const item = (cartoesDadosAtuais || []).find(
+        registro => String(registro.id) === String(id)
+    );
+
+    if (!item) {
+        alert('Registro não encontrado.');
+        return;
+    }
+
+    const data = formatarDataCartaoCompleta(item.data);
+
+    if (
+        !confirm(
+            `Excluir SOMENTE esta linha?\n\n` +
+            `${item.responsavel}\n` +
+            `Quantidade: ${item.qtd}\n` +
+            `Data: ${data}`
+        )
+    ) {
+        return;
+    }
+
+    try {
+        await postParaGoogleSheets('deletarLinhaCartao', {
+            id: String(id)
+        });
+
+        await carregarDashboard();
+
+        // Atualiza o modal caso ainda existam outras linhas no dia.
+        if (cartoesDiaGerenciado) {
+            const dia = cartoesDiaGerenciado;
+            gerenciarLinhasCartao(dia);
+        }
+
+    } catch (erro) {
+        console.error('Erro ao excluir linha de cartão:', erro);
+        alert(
+            'Não foi possível excluir esta linha: ' +
+            (erro.message || erro)
+        );
+    }
+}
+
+async function editarLinhaCartaoCRM(id) {
+    const item = (cartoesDadosAtuais || []).find(
+        registro => String(registro.id) === String(id)
+    );
+
+    if (!item) {
+        alert('Registro não encontrado.');
+        return;
+    }
+
+    const responsavelAtual = String(item.responsavel || '');
+    const qtdAtual = Number(item.qtd) || 0;
+    const dataAtual = formatarDataCartaoCompleta(item.data);
+
+    const novoResponsavel = prompt(
+        'Responsável:',
+        responsavelAtual
+    );
+
+    if (novoResponsavel === null) return;
+
+    const responsavel = novoResponsavel.trim();
+
+    if (!responsavel) {
+        alert('Responsável não pode ficar vazio.');
+        return;
+    }
+
+    const novaQtdTexto = prompt(
+        'Quantidade:',
+        String(qtdAtual)
+    );
+
+    if (novaQtdTexto === null) return;
+
+    const qtd = Number(novaQtdTexto);
+
+    if (!Number.isFinite(qtd) || qtd <= 0) {
+        alert('Quantidade inválida.');
+        return;
+    }
+
+    const novaDataTexto = prompt(
+        'Data (dd/mm/aaaa):',
+        dataAtual
+    );
+
+    if (novaDataTexto === null) return;
+
+    const infoNovaData = interpretarDataCartao(
+        novaDataTexto.trim()
+    );
+
+    if (!infoNovaData) {
+        alert('Data inválida. Use dd/mm/aaaa.');
+        return;
+    }
+
+    try {
+        await postParaGoogleSheets('editarLinhaCartao', {
+            id: String(id),
+            responsavel,
+            qtd,
+            data: infoNovaData.chave
+        });
+
+        const diaAnterior = cartoesDiaGerenciado;
+
+        await carregarDashboard();
+
+        // Se a data mudou, abre o novo dia; senão continua no mesmo.
+        if (diaAnterior) {
+            gerenciarLinhasCartao(infoNovaData.chave);
+        }
+
+    } catch (erro) {
+        console.error('Erro ao editar linha de cartão:', erro);
+        alert(
+            'Não foi possível editar esta linha: ' +
+            (erro.message || erro)
+        );
+    }
+}
+
 function renderizarCartoesComDados(dadosCartoes, dadosResponsaveis) {
+    cartoesDadosAtuais = Array.isArray(dadosCartoes)
+        ? dadosCartoes.map(item => ({ ...item }))
+        : [];
+
+    cartoesResponsaveisAtuais = Array.isArray(dadosResponsaveis)
+        ? [...dadosResponsaveis]
+        : [];
+
     const select = document.getElementById('card-responsavel');
 
     if (select) {
         select.innerHTML = '<option value="">Selecione um responsável</option>';
 
-        dadosResponsaveis.forEach(nome => {
+        cartoesResponsaveisAtuais.forEach(nome => {
             const nomeLimpo = String(nome)
                 .replace(/^"|"$/g, '')
                 .replace(/^'|'$/g, '');
@@ -406,19 +831,28 @@ function renderizarCartoesComDados(dadosCartoes, dadosResponsaveis) {
         });
     }
 
-    const nomesOrdenados = dadosResponsaveis.map(n =>
+    const nomesOrdenados = cartoesResponsaveisAtuais.map(n =>
         String(n)
             .replace(/^"|"$/g, '')
             .replace(/^'|'$/g, '')
     );
+
+    garantirControlesFiltroCartoes(nomesOrdenados);
+
+    const nomesVisiveis =
+        cartoesFiltroResponsavel === 'TODOS'
+            ? nomesOrdenados
+            : nomesOrdenados.filter(
+                nome => nome === cartoesFiltroResponsavel
+            );
 
     const thead = document.getElementById('cards-header');
 
     if (thead) {
         let headerHtml = '<tr><th>DATA</th>';
 
-        if (nomesOrdenados.length > 0) {
-            nomesOrdenados.forEach(nome => {
+        if (nomesVisiveis.length > 0) {
+            nomesVisiveis.forEach(nome => {
                 headerHtml += `<th style="text-align:center;">${nome}</th>`;
             });
         } else {
@@ -430,29 +864,17 @@ function renderizarCartoesComDados(dadosCartoes, dadosResponsaveis) {
     }
 
     const tbody = document.getElementById('cards-list');
+
     if (!tbody) return;
 
     tbody.innerHTML = '';
 
-    // Totais gerais por responsável.
     const totais = {};
-
-    (dadosCartoes || []).forEach(item => {
-        const responsavel = String(item.responsavel || '');
-
-        if (!totais[responsavel]) {
-            totais[responsavel] = 0;
-        }
-
-        totais[responsavel] += Number(item.qtd) || 0;
-    });
-
-    // Agrupa por DIA REAL.
-    // A chave interna continua com o ano para que 07/07/2025 e 07/07/2026
-    // nunca sejam misturados, mas a tela mostra somente DIA/MÊS.
     const agrupado = {};
 
-    (dadosCartoes || []).forEach(item => {
+    cartoesDadosAtuais.forEach(item => {
+        const responsavel = String(item.responsavel || '');
+        const qtd = Number(item.qtd) || 0;
         const infoData = interpretarDataCartao(item.data);
 
         if (!infoData) {
@@ -460,35 +882,45 @@ function renderizarCartoesComDados(dadosCartoes, dadosResponsaveis) {
             return;
         }
 
-        const chave = infoData.chave;
+        totais[responsavel] = (totais[responsavel] || 0) + qtd;
 
-        if (!agrupado[chave]) {
-            agrupado[chave] = {};
+        if (!agrupado[infoData.chave]) {
+            agrupado[infoData.chave] = {
+                valores: {},
+                linhas: []
+            };
         }
 
-        const responsavel = String(item.responsavel || '');
+        agrupado[infoData.chave].valores[responsavel] =
+            (agrupado[infoData.chave].valores[responsavel] || 0) + qtd;
 
-        if (!agrupado[chave][responsavel]) {
-            agrupado[chave][responsavel] = 0;
-        }
-
-        agrupado[chave][responsavel] += Number(item.qtd) || 0;
+        agrupado[infoData.chave].linhas.push(item);
     });
 
-    const diasOrdenados = Object.entries(agrupado).sort((a, b) =>
-        a[0].localeCompare(b[0])
+    const diasOrdenados = Object.entries(agrupado).sort(
+        (a, b) => a[0].localeCompare(b[0])
     );
 
-    for (const [dataChave, valores] of diasOrdenados) {
-        const tr = document.createElement('tr');
+    for (const [dataChave, grupo] of diasOrdenados) {
+        const valores = grupo.valores;
 
+        // Se está mostrando somente um responsável e neste dia ele não tem nada,
+        // esconde a linha inteira.
+        if (
+            cartoesFiltroResponsavel !== 'TODOS' &&
+            !(Number(valores[cartoesFiltroResponsavel]) > 0)
+        ) {
+            continue;
+        }
+
+        const tr = document.createElement('tr');
         const dataFormatada = formatarDataCartaoDiaMes(dataChave);
 
         let totalDia = 0;
         let colunasHtml = '';
 
-        nomesOrdenados.forEach(nome => {
-            const qtd = valores[nome] || 0;
+        nomesVisiveis.forEach(nome => {
+            const qtd = Number(valores[nome]) || 0;
 
             if (qtd > 0) {
                 colunasHtml += `<td style="text-align:center;"><strong>${qtd}</strong></td>`;
@@ -496,7 +928,7 @@ function renderizarCartoesComDados(dadosCartoes, dadosResponsaveis) {
                 colunasHtml += '<td style="text-align:center;color:#ccc;">-</td>';
             }
 
-            totalDia += Number(qtd) || 0;
+            totalDia += qtd;
         });
 
         tr.innerHTML = `
@@ -505,20 +937,36 @@ function renderizarCartoesComDados(dadosCartoes, dadosResponsaveis) {
             <td style="color:#4a7c2e;font-weight:700;text-align:center;">
                 ${totalDia}
             </td>
-            <td style="text-align:center;">
+            <td style="text-align:center;white-space:nowrap;">
+                <button
+                    type="button"
+                    onclick="gerenciarLinhasCartao('${dataChave}')"
+                    title="Editar ou excluir uma linha"
+                    aria-label="Gerenciar linhas deste dia"
+                    style="
+                        border:0;
+                        background:transparent;
+                        color:#3f7447;
+                        cursor:pointer;
+                        font-size:16px;
+                        line-height:1;
+                        padding:4px 3px;
+                    "
+                >✏️</button>
+
                 <button
                     type="button"
                     onclick="excluirDiaCartao('${dataChave}')"
-                    title="Excluir os cartões deste dia"
-                    aria-label="Excluir os cartões deste dia"
+                    title="Excluir TODOS os registros deste dia"
+                    aria-label="Excluir todos os cartões deste dia"
                     style="
                         border:0;
                         background:transparent;
                         color:#d32f2f;
                         cursor:pointer;
-                        font-size:18px;
+                        font-size:16px;
                         line-height:1;
-                        padding:5px 7px;
+                        padding:4px 3px;
                     "
                 >🗑️</button>
             </td>
@@ -528,36 +976,38 @@ function renderizarCartoesComDados(dadosCartoes, dadosResponsaveis) {
     }
 
     if (tbody.children.length === 0) {
-        const colspan = Math.max(4, nomesOrdenados.length + 3);
+        const colspan = Math.max(4, nomesVisiveis.length + 3);
+
         tbody.innerHTML = `
             <tr>
-                <td colspan="${colspan}" style="text-align:center;padding:20px;">
-                    Nenhum registro de cartão.
+                <td colspan="${colspan}" style="text-align:center;padding:20px;color:#76827a;">
+                    Nenhum registro para este filtro.
                 </td>
             </tr>
         `;
     }
 
     const totaisDiv = document.getElementById('totais-gerais');
+
     if (!totaisDiv) return;
 
     let htmlTotais = '';
     let totalGeral = 0;
 
-    nomesOrdenados.forEach(nome => {
-        if (totais[nome]) {
-            htmlTotais += `
-                <span>
-                    Total ${nome}:
-                    <span style="font-weight:700;">${totais[nome]}</span>
-                </span>
-            `;
+    nomesVisiveis.forEach(nome => {
+        const total = Number(totais[nome]) || 0;
 
-            totalGeral += Number(totais[nome]) || 0;
-        }
+        htmlTotais += `
+            <span>
+                Total ${nome}:
+                <span style="font-weight:700;">${total}</span>
+            </span>
+        `;
+
+        totalGeral += total;
     });
 
-    if (htmlTotais) {
+    if (nomesVisiveis.length > 0) {
         htmlTotais += `
             <span>
                 Total Geral:
@@ -573,8 +1023,8 @@ function renderizarCartoesComDados(dadosCartoes, dadosResponsaveis) {
     }
 }
 
-// Exclui SOMENTE o dia exibido na linha.
-// Antes, o botão estava chamando uma exclusão do mês inteiro.
+// Exclui TODOS os registros do dia.
+// Para excluir apenas uma linha, use o botão ✏️ e depois a lixeira da linha.
 async function excluirDiaCartao(dataChave) {
     const infoData = interpretarDataCartao(dataChave);
 
@@ -588,7 +1038,7 @@ async function excluirDiaCartao(dataChave) {
 
     if (
         !confirm(
-            `Excluir TODOS os cartões registrados no dia ${diaMes}/${infoData.ano}?`
+            `ATENÇÃO: excluir TODOS os cartões registrados no dia ${diaMes}/${infoData.ano}?`
         )
     ) {
         return;
@@ -599,12 +1049,11 @@ async function excluirDiaCartao(dataChave) {
             data: infoData.chave
         });
 
-        // O POST só termina depois que o Apps Script respondeu ao iframe.
-        // Recarregamos o dashboard após a exclusão.
         await carregarDashboard();
 
     } catch (erro) {
         console.error('Erro ao excluir cartões do dia:', erro);
+
         alert(
             'Não foi possível excluir os cartões deste dia: ' +
             (erro.message || erro)
@@ -612,7 +1061,6 @@ async function excluirDiaCartao(dataChave) {
     }
 }
 
-// Mantida por compatibilidade com qualquer chamada antiga.
 async function excluirMesCartao(data) {
     return excluirDiaCartao(data);
 }
@@ -644,6 +1092,7 @@ async function salvarCartoes() {
 
     } catch (erro) {
         console.error('Erro ao salvar cartões:', erro);
+
         alert(
             'Não foi possível salvar os cartões: ' +
             (erro.message || erro)
@@ -665,7 +1114,9 @@ async function adicionarResponsavel() {
     }
 
     await postParaGoogleSheets('salvarResponsavel', nome);
+
     input.value = '';
+
     await carregarDashboard();
 }
 
@@ -675,6 +1126,7 @@ async function deletarResponsavel(nome) {
     }
 
     await postParaGoogleSheets('deletarResponsavel', nome);
+
     await carregarDashboard();
 }
 
