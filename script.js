@@ -1,8 +1,8 @@
 // ============================================================
 // CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbyZ1BBPR7tVeUbO9nhUDqMYXjimVINmSKv1wFqhRBRlxh43Gt2qlYhfTJ98YAxtPCLZzg/exec";
-const CRM_BACKEND_VERSAO = '20260818-4';
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbx9HDk1Z-WyDE8EHZgKzx6RsnVCPPiisk1q8spBndIpKiDtLvS788ONssrWms4-xrkDNg/exec";
+const CRM_BACKEND_VERSAO = '20260818-5';
 
 // ============================================================
 // GET VIA JSONP
@@ -298,47 +298,385 @@ async function salvarAgenda() {
 async function deletarItemAgenda(id) { if (!confirm('Tem certeza que deseja excluir este compromisso?')) return; await postParaGoogleSheets('deletarAgenda', id); carregarDashboard(); }
 
 // ============================================================
-// CART\u00D5ES
+// CARTÕES
 // ============================================================
-function renderizarCartoesComDados(dadosCartoes, dadosResponsaveis) {
-    const select = document.getElementById('card-responsavel');
-    if (select) { select.innerHTML = '<option value="">Selecione um respons\u00E1vel</option>'; dadosResponsaveis.forEach(nome => { const nomeLimpo = String(nome).replace(/^"|"$/g,'').replace(/^'|'$/g,''); select.innerHTML += `<option value="${nomeLimpo}">${nomeLimpo}</option>`; }); }
-    const nomesOrdenados = dadosResponsaveis.map(n => n.replace(/^"|"$/g,'').replace(/^'|'$/g,''));
-    const thead = document.getElementById('cards-header');
-    if (thead) { let headerHtml = '<tr><th>DATA</th>'; if(nomesOrdenados.length > 0) nomesOrdenados.forEach(nome => { headerHtml += `<th style="text-align:center;">${nome}</th>`; }); else headerHtml += '<th style="text-align:center;">RESPONS\u00C1VEIS</th>'; headerHtml += '<th style="text-align:center;">TOTAL DIA</th><th>A\u00C7\u00D5ES</th></tr>'; thead.innerHTML = headerHtml; }
-    const tbody = document.getElementById('cards-list'); if (!tbody) return; tbody.innerHTML = '';
-    const totais = {}; dadosCartoes.forEach(item => { if (!totais[item.responsavel]) totais[item.responsavel] = 0; totais[item.responsavel] += Number(item.qtd)||0; });
-    const agrupado = {};
-    dadosCartoes.forEach(item => {
-        let dataObj = new Date(item.data);
-        if (isNaN(dataObj.getTime())) { const partes = String(item.data || '').split('/'); if (partes.length === 3) dataObj = new Date(partes[2], partes[1]-1, partes[0]); }
-        if (isNaN(dataObj.getTime())) return;
-        const dataStr = dataObj.toISOString().split('T')[0];
-        if (!agrupado[dataStr]) agrupado[dataStr] = {};
-        if (!agrupado[dataStr][item.responsavel]) agrupado[dataStr][item.responsavel] = 0;
-        agrupado[dataStr][item.responsavel] += Number(item.qtd)||0;
-    });
-    for (const [data, valores] of Object.entries(agrupado).sort((a,b) => new Date(a[0]) - new Date(b[0]))) {
-        const tr = document.createElement('tr');
-        const dataFormatada = formatarDataBR(data);
-        let totalDia = 0; let colunasHtml = '';
-        nomesOrdenados.forEach(nome => { const qtd = valores[nome] || 0; if(qtd>0) colunasHtml += `<td style="text-align:center;"><strong>${qtd}</strong></td>`; else colunasHtml += '<td style="text-align:center; color:#ccc;">-</td>'; totalDia += Number(qtd)||0; });
-        tr.innerHTML = `<td>${dataFormatada}</td>${colunasHtml}<td style="color:#4a7c2e; font-weight:700; text-align:center;">${totalDia}</td><td><button class="btn-edit" onclick="excluirMesCartao('${data}')" title="Excluir M\u00EAs" style="color:#ff4757;">\uD83D\uDCC6\uD83D\uDDD1\uFE0F</button></td>`;
-        tbody.appendChild(tr);
+
+// Interpreta datas do módulo CARTÕES SEM usar o padrão americano do JavaScript.
+// Aceita:
+//   dd/mm/yyyy
+//   yyyy-mm-dd
+//   Date/string ISO
+function interpretarDataCartao(valor) {
+    if (!valor && valor !== 0) return null;
+
+    const texto = String(valor).trim();
+    if (!texto) return null;
+
+    // PRIORIDADE 1: padrão brasileiro dd/mm/yyyy
+    let match = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (match) {
+        const dia = Number(match[1]);
+        const mes = Number(match[2]);
+        const ano = Number(match[3]);
+
+        const data = new Date(ano, mes - 1, dia, 12, 0, 0);
+
+        if (
+            data.getFullYear() === ano &&
+            data.getMonth() === mes - 1 &&
+            data.getDate() === dia
+        ) {
+            return {
+                dia,
+                mes,
+                ano,
+                chave: `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`,
+                data
+            };
+        }
+
+        return null;
     }
-    if(tbody.children.length===0) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Nenhum registro de cart\u00E3o.</td></tr>';
-    const totaisDiv = document.getElementById('totais-gerais'); if(!totaisDiv) return;
-    let htmlTotais = ''; let totalGeral = 0;
-    nomesOrdenados.forEach(nome => { if(totais[nome]) { htmlTotais += `<span>Total ${nome}: <span style="font-weight:700;">${totais[nome]}</span></span>`; totalGeral += Number(totais[nome])||0; } });
-    if(htmlTotais) { htmlTotais += `<span>Total Geral: <span style="font-weight:700; color:#4a7c2e;">${totalGeral}</span></span>`; totaisDiv.innerHTML = htmlTotais; totaisDiv.style.display = 'flex'; } else { totaisDiv.style.display = 'none'; }
+
+    // PRIORIDADE 2: yyyy-mm-dd
+    match = texto.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:T.*)?$/);
+    if (match) {
+        const ano = Number(match[1]);
+        const mes = Number(match[2]);
+        const dia = Number(match[3]);
+
+        const data = new Date(ano, mes - 1, dia, 12, 0, 0);
+
+        if (
+            data.getFullYear() === ano &&
+            data.getMonth() === mes - 1 &&
+            data.getDate() === dia
+        ) {
+            return {
+                dia,
+                mes,
+                ano,
+                chave: `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`,
+                data
+            };
+        }
+
+        return null;
+    }
+
+    // Último recurso para valores ISO completos.
+    const fallback = new Date(texto);
+
+    if (!isNaN(fallback.getTime())) {
+        const dia = fallback.getDate();
+        const mes = fallback.getMonth() + 1;
+        const ano = fallback.getFullYear();
+
+        return {
+            dia,
+            mes,
+            ano,
+            chave: `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`,
+            data: new Date(ano, mes - 1, dia, 12, 0, 0)
+        };
+    }
+
+    return null;
 }
 
-async function excluirMesCartao(data) { let dataStr = data; if(data.includes('/')) { const partes = data.split('/'); if(partes.length===3) dataStr = `${partes[2]}-${partes[1]}-${partes[0]}`; } const dataObj = new Date(dataStr + 'T00:00:00'); if(isNaN(dataObj.getTime())) { alert("Data inv\u00E1lida"); return; } const mes = dataObj.getMonth()+1; const ano = dataObj.getFullYear(); if(!confirm(`Excluir TODOS os cart\u00F5es do m\u00EAs ${mes}/${ano}?`)) return; await postParaGoogleSheets('deletarMesGeral', { mes, ano }); carregarDashboard(); }
+function formatarDataCartaoDiaMes(valor) {
+    const info = interpretarDataCartao(valor);
+    if (!info) return String(valor || '');
 
-async function salvarCartoes() { const responsavel = document.getElementById('card-responsavel').value; const qtd = parseInt(document.getElementById('card-qtd').value); const data = document.getElementById('card-data').value; if(!responsavel || !qtd || !data) { alert("Preencha o Respons\u00E1vel, Quantidade e Data."); return; } await postParaGoogleSheets('salvarCartao', { id: Date.now(), responsavel, qtd, data }); fecharModal('modal-cartoes'); carregarDashboard(); document.getElementById('card-qtd').value = ''; document.getElementById('card-data').value = ''; }
+    return `${String(info.dia).padStart(2, '0')}/${String(info.mes).padStart(2, '0')}`;
+}
 
-async function adicionarResponsavel() { const input = document.getElementById('novo-responsavel-input'); let nome = input.value.trim(); nome = nome.replace(/^"|"$/g,'').replace(/^'|'$/g,''); if(!nome) { alert("Digite um nome."); return; } await postParaGoogleSheets('salvarResponsavel', nome); input.value = ''; carregarDashboard(); }
-async function deletarResponsavel(nome) { if(!confirm(`Remover o respons\u00E1vel "${nome}" da lista?`)) return; await postParaGoogleSheets('deletarResponsavel', nome); carregarDashboard(); }
+function renderizarCartoesComDados(dadosCartoes, dadosResponsaveis) {
+    const select = document.getElementById('card-responsavel');
+
+    if (select) {
+        select.innerHTML = '<option value="">Selecione um responsável</option>';
+
+        dadosResponsaveis.forEach(nome => {
+            const nomeLimpo = String(nome)
+                .replace(/^"|"$/g, '')
+                .replace(/^'|'$/g, '');
+
+            select.innerHTML += `<option value="${nomeLimpo}">${nomeLimpo}</option>`;
+        });
+    }
+
+    const nomesOrdenados = dadosResponsaveis.map(n =>
+        String(n)
+            .replace(/^"|"$/g, '')
+            .replace(/^'|'$/g, '')
+    );
+
+    const thead = document.getElementById('cards-header');
+
+    if (thead) {
+        let headerHtml = '<tr><th>DATA</th>';
+
+        if (nomesOrdenados.length > 0) {
+            nomesOrdenados.forEach(nome => {
+                headerHtml += `<th style="text-align:center;">${nome}</th>`;
+            });
+        } else {
+            headerHtml += '<th style="text-align:center;">RESPONSÁVEIS</th>';
+        }
+
+        headerHtml += '<th style="text-align:center;">TOTAL DIA</th><th>AÇÕES</th></tr>';
+        thead.innerHTML = headerHtml;
+    }
+
+    const tbody = document.getElementById('cards-list');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    // Totais gerais por responsável.
+    const totais = {};
+
+    (dadosCartoes || []).forEach(item => {
+        const responsavel = String(item.responsavel || '');
+
+        if (!totais[responsavel]) {
+            totais[responsavel] = 0;
+        }
+
+        totais[responsavel] += Number(item.qtd) || 0;
+    });
+
+    // Agrupa por DIA REAL.
+    // A chave interna continua com o ano para que 07/07/2025 e 07/07/2026
+    // nunca sejam misturados, mas a tela mostra somente DIA/MÊS.
+    const agrupado = {};
+
+    (dadosCartoes || []).forEach(item => {
+        const infoData = interpretarDataCartao(item.data);
+
+        if (!infoData) {
+            console.warn('Data de cartão inválida ignorada:', item);
+            return;
+        }
+
+        const chave = infoData.chave;
+
+        if (!agrupado[chave]) {
+            agrupado[chave] = {};
+        }
+
+        const responsavel = String(item.responsavel || '');
+
+        if (!agrupado[chave][responsavel]) {
+            agrupado[chave][responsavel] = 0;
+        }
+
+        agrupado[chave][responsavel] += Number(item.qtd) || 0;
+    });
+
+    const diasOrdenados = Object.entries(agrupado).sort((a, b) =>
+        a[0].localeCompare(b[0])
+    );
+
+    for (const [dataChave, valores] of diasOrdenados) {
+        const tr = document.createElement('tr');
+
+        const dataFormatada = formatarDataCartaoDiaMes(dataChave);
+
+        let totalDia = 0;
+        let colunasHtml = '';
+
+        nomesOrdenados.forEach(nome => {
+            const qtd = valores[nome] || 0;
+
+            if (qtd > 0) {
+                colunasHtml += `<td style="text-align:center;"><strong>${qtd}</strong></td>`;
+            } else {
+                colunasHtml += '<td style="text-align:center;color:#ccc;">-</td>';
+            }
+
+            totalDia += Number(qtd) || 0;
+        });
+
+        tr.innerHTML = `
+            <td>${dataFormatada}</td>
+            ${colunasHtml}
+            <td style="color:#4a7c2e;font-weight:700;text-align:center;">
+                ${totalDia}
+            </td>
+            <td style="text-align:center;">
+                <button
+                    type="button"
+                    onclick="excluirDiaCartao('${dataChave}')"
+                    title="Excluir os cartões deste dia"
+                    aria-label="Excluir os cartões deste dia"
+                    style="
+                        border:0;
+                        background:transparent;
+                        color:#d32f2f;
+                        cursor:pointer;
+                        font-size:18px;
+                        line-height:1;
+                        padding:5px 7px;
+                    "
+                >🗑️</button>
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+    }
+
+    if (tbody.children.length === 0) {
+        const colspan = Math.max(4, nomesOrdenados.length + 3);
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="${colspan}" style="text-align:center;padding:20px;">
+                    Nenhum registro de cartão.
+                </td>
+            </tr>
+        `;
+    }
+
+    const totaisDiv = document.getElementById('totais-gerais');
+    if (!totaisDiv) return;
+
+    let htmlTotais = '';
+    let totalGeral = 0;
+
+    nomesOrdenados.forEach(nome => {
+        if (totais[nome]) {
+            htmlTotais += `
+                <span>
+                    Total ${nome}:
+                    <span style="font-weight:700;">${totais[nome]}</span>
+                </span>
+            `;
+
+            totalGeral += Number(totais[nome]) || 0;
+        }
+    });
+
+    if (htmlTotais) {
+        htmlTotais += `
+            <span>
+                Total Geral:
+                <span style="font-weight:700;color:#4a7c2e;">${totalGeral}</span>
+            </span>
+        `;
+
+        totaisDiv.innerHTML = htmlTotais;
+        totaisDiv.style.display = 'flex';
+    } else {
+        totaisDiv.innerHTML = '';
+        totaisDiv.style.display = 'none';
+    }
+}
+
+// Exclui SOMENTE o dia exibido na linha.
+// Antes, o botão estava chamando uma exclusão do mês inteiro.
+async function excluirDiaCartao(dataChave) {
+    const infoData = interpretarDataCartao(dataChave);
+
+    if (!infoData) {
+        alert('Data inválida.');
+        return;
+    }
+
+    const diaMes =
+        `${String(infoData.dia).padStart(2, '0')}/${String(infoData.mes).padStart(2, '0')}`;
+
+    if (
+        !confirm(
+            `Excluir TODOS os cartões registrados no dia ${diaMes}/${infoData.ano}?`
+        )
+    ) {
+        return;
+    }
+
+    try {
+        await postParaGoogleSheets('deletarDiaCartao', {
+            data: infoData.chave
+        });
+
+        // O POST só termina depois que o Apps Script respondeu ao iframe.
+        // Recarregamos o dashboard após a exclusão.
+        await carregarDashboard();
+
+    } catch (erro) {
+        console.error('Erro ao excluir cartões do dia:', erro);
+        alert(
+            'Não foi possível excluir os cartões deste dia: ' +
+            (erro.message || erro)
+        );
+    }
+}
+
+// Mantida por compatibilidade com qualquer chamada antiga.
+async function excluirMesCartao(data) {
+    return excluirDiaCartao(data);
+}
+
+async function salvarCartoes() {
+    const responsavel = document.getElementById('card-responsavel').value;
+    const qtd = parseInt(document.getElementById('card-qtd').value, 10);
+    const data = document.getElementById('card-data').value;
+
+    if (!responsavel || !qtd || !data) {
+        alert('Preencha o Responsável, Quantidade e Data.');
+        return;
+    }
+
+    try {
+        await postParaGoogleSheets('salvarCartao', {
+            id: Date.now(),
+            responsavel,
+            qtd,
+            data
+        });
+
+        fecharModal('modal-cartoes');
+
+        document.getElementById('card-qtd').value = '';
+        document.getElementById('card-data').value = '';
+
+        await carregarDashboard();
+
+    } catch (erro) {
+        console.error('Erro ao salvar cartões:', erro);
+        alert(
+            'Não foi possível salvar os cartões: ' +
+            (erro.message || erro)
+        );
+    }
+}
+
+async function adicionarResponsavel() {
+    const input = document.getElementById('novo-responsavel-input');
+    let nome = input.value.trim();
+
+    nome = nome
+        .replace(/^"|"$/g, '')
+        .replace(/^'|'$/g, '');
+
+    if (!nome) {
+        alert('Digite um nome.');
+        return;
+    }
+
+    await postParaGoogleSheets('salvarResponsavel', nome);
+    input.value = '';
+    await carregarDashboard();
+}
+
+async function deletarResponsavel(nome) {
+    if (!confirm(`Remover o responsável "${nome}" da lista?`)) {
+        return;
+    }
+
+    await postParaGoogleSheets('deletarResponsavel', nome);
+    await carregarDashboard();
+}
 
 // ============================================================
 // ADC CART\u00D5ES (M\u00FAltiplas Entregas)
