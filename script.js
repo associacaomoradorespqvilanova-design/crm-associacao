@@ -1,8 +1,8 @@
 // ============================================================
 // CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbyCsTXuHu6DgtRuzMF1LgLCnEg3DLuvb4ZD03XZzmCpC4Y73xZ1qHZ8lutrCxe_Q8hSuA/exec";
-const CRM_BACKEND_VERSAO = '20260817-4';
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwwTp1ffz0fuw7oXxT1jsI570r9Fyg3Jq_hlTLDf5YWaP8KnJMAeydJEmItVS6myk1mQA/exec";
+const CRM_BACKEND_VERSAO = '20260818-2';
 
 // ============================================================
 // GET VIA JSONP
@@ -124,6 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (dashboard && dashboard.style.display !== 'none') renderizarPendentesCestaHome();
     }, 45000);
     inicializarEventosBusca();
+    inicializarBotaoWhatsapp();
 });
 
 function login() {
@@ -2187,3 +2188,517 @@ async function salvarEdicaoMassivaBusca(linhas) {
         alert('Erro: ' + erro.message);
     }
 }
+
+// ============================================================
+// WHATSAPP - CARTÕES PENDENTES
+// ============================================================
+const whatsappCRMState = {
+    itens: [],
+    aba: 'enviar',
+    carregando: false
+};
+
+function localizarBotaoWhatsapp() {
+    const porId = document.getElementById('btn-whatsapp') || document.getElementById('btnWhatsapp');
+    if (porId) return porId;
+
+    const candidatos = [...document.querySelectorAll('button, a, [role="button"]')];
+    return candidatos.find(el => String(el.textContent || '').trim().toUpperCase() === 'WHATSAPP') || null;
+}
+
+function inicializarBotaoWhatsapp(tentativa = 0) {
+    const botao = localizarBotaoWhatsapp();
+
+    if (!botao) {
+        if (tentativa < 15) setTimeout(() => inicializarBotaoWhatsapp(tentativa + 1), 300);
+        return;
+    }
+
+    if (botao.dataset.whatsappCrmAtivo === '1') return;
+
+    botao.dataset.whatsappCrmAtivo = '1';
+    botao.removeAttribute('onclick');
+    botao.onclick = function(e) {
+        e.preventDefault();
+        abrirModalWhatsapp();
+    };
+}
+
+function garantirModalWhatsapp() {
+    let modal = document.getElementById('modal-whatsapp-crm');
+    if (modal) return modal;
+
+    const style = document.createElement('style');
+    style.id = 'whatsapp-crm-styles';
+    style.textContent = `
+        #modal-whatsapp-crm {
+            position: fixed;
+            inset: 0;
+            z-index: 1000000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            background: rgba(20, 31, 25, .46);
+            backdrop-filter: blur(4px);
+        }
+        #modal-whatsapp-crm.active { display: flex; }
+        #modal-whatsapp-crm .wa-box {
+            width: min(860px, 100%);
+            max-height: min(760px, 92vh);
+            background: #fff;
+            border-radius: 22px;
+            overflow: hidden;
+            box-shadow: 0 24px 70px rgba(0,0,0,.28);
+            display: flex;
+            flex-direction: column;
+        }
+        #modal-whatsapp-crm .wa-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 18px 22px;
+            border-bottom: 1px solid #e7eee9;
+        }
+        #modal-whatsapp-crm .wa-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #1f5d2c;
+            font-size: 20px;
+            font-weight: 800;
+        }
+        #modal-whatsapp-crm .wa-close {
+            border: 0;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: #f1f5f2;
+            color: #435249;
+            font-size: 22px;
+        }
+        #modal-whatsapp-crm .wa-content {
+            overflow: auto;
+            padding: 18px 22px 24px;
+            background: #f7faf8;
+        }
+        #modal-whatsapp-crm .wa-info {
+            background: #eef8f0;
+            border: 1px solid #cfe8d4;
+            border-radius: 14px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            color: #35573d;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+        #modal-whatsapp-crm .wa-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        #modal-whatsapp-crm .wa-stat {
+            background: #fff;
+            border: 1px solid #e2ebe5;
+            border-radius: 13px;
+            padding: 11px 12px;
+        }
+        #modal-whatsapp-crm .wa-stat strong {
+            display: block;
+            font-size: 20px;
+            color: #2f6f35;
+        }
+        #modal-whatsapp-crm .wa-stat span {
+            font-size: 11px;
+            color: #6d786f;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        #modal-whatsapp-crm .wa-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding: 5px;
+            background: #eaf1ec;
+            border-radius: 14px;
+            margin-bottom: 14px;
+        }
+        #modal-whatsapp-crm .wa-tab {
+            border: 0;
+            border-radius: 10px;
+            padding: 11px 12px;
+            cursor: pointer;
+            font-weight: 800;
+            background: transparent;
+            color: #597060;
+        }
+        #modal-whatsapp-crm .wa-tab.active {
+            background: #2f7a38;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(47,122,56,.20);
+        }
+        #modal-whatsapp-crm .wa-toolbar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+        }
+        #modal-whatsapp-crm .wa-refresh {
+            border: 1px solid #b9d3bf;
+            background: #fff;
+            color: #2f6f35;
+            border-radius: 999px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        #modal-whatsapp-crm .wa-lista {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #modal-whatsapp-crm .wa-item {
+            background: #fff;
+            border: 1px solid #e0e9e3;
+            border-radius: 15px;
+            padding: 14px;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 14px;
+            align-items: center;
+        }
+        #modal-whatsapp-crm .wa-nome {
+            font-size: 15px;
+            font-weight: 900;
+            color: #24362a;
+            margin-bottom: 4px;
+        }
+        #modal-whatsapp-crm .wa-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 10px;
+            font-size: 12px;
+            color: #667169;
+        }
+        #modal-whatsapp-crm .wa-meta b { color: #405347; }
+        #modal-whatsapp-crm .wa-send {
+            border: 0;
+            border-radius: 12px;
+            padding: 11px 14px;
+            min-width: 150px;
+            cursor: pointer;
+            background: #25D366;
+            color: #fff;
+            font-weight: 900;
+            box-shadow: 0 5px 14px rgba(37,211,102,.23);
+        }
+        #modal-whatsapp-crm .wa-send:disabled {
+            cursor: not-allowed;
+            box-shadow: none;
+            background: #d8ddd9;
+            color: #79827b;
+        }
+        #modal-whatsapp-crm .wa-enviado {
+            min-width: 150px;
+            text-align: center;
+            background: #e8f5eb;
+            border: 1px solid #b9dfc0;
+            color: #277034;
+            border-radius: 12px;
+            padding: 9px 12px;
+            font-size: 12px;
+            font-weight: 900;
+        }
+        #modal-whatsapp-crm .wa-enviado small {
+            display: block;
+            margin-top: 3px;
+            color: #65806a;
+            font-weight: 600;
+        }
+        #modal-whatsapp-crm .wa-vazio {
+            background: #fff;
+            border: 1px dashed #cbd8cf;
+            border-radius: 16px;
+            padding: 28px 16px;
+            text-align: center;
+            color: #738078;
+        }
+        #modal-whatsapp-crm .wa-loading {
+            padding: 34px 12px;
+            text-align: center;
+            color: #55715d;
+            font-weight: 700;
+        }
+        @media (max-width: 640px) {
+            #modal-whatsapp-crm { padding: 8px; align-items: stretch; }
+            #modal-whatsapp-crm .wa-box { max-height: 100%; border-radius: 16px; }
+            #modal-whatsapp-crm .wa-header { padding: 14px 15px; }
+            #modal-whatsapp-crm .wa-title { font-size: 17px; }
+            #modal-whatsapp-crm .wa-content { padding: 12px; }
+            #modal-whatsapp-crm .wa-stats { grid-template-columns: 1fr 1fr; gap: 6px; }
+            #modal-whatsapp-crm .wa-stat { padding: 9px 7px; text-align: center; }
+            #modal-whatsapp-crm .wa-stat strong { font-size: 17px; }
+            #modal-whatsapp-crm .wa-stat span { font-size: 9px; }
+            #modal-whatsapp-crm .wa-item { grid-template-columns: 1fr; }
+            #modal-whatsapp-crm .wa-send,
+            #modal-whatsapp-crm .wa-enviado { width: 100%; min-width: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+
+    modal = document.createElement('div');
+    modal.id = 'modal-whatsapp-crm';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="wa-box" role="dialog" aria-modal="true" aria-labelledby="wa-crm-title">
+            <div class="wa-header">
+                <div class="wa-title" id="wa-crm-title">💬 WhatsApp — Cartões Pendentes</div>
+                <button type="button" class="wa-close" onclick="fecharModalWhatsapp()" aria-label="Fechar">×</button>
+            </div>
+            <div class="wa-content">
+                <div class="wa-info">
+                    Pessoas com cartão ainda pendente aparecem aqui. Depois de abrir a mensagem no WhatsApp, o contato fica em <b>ENVIADO</b> por 3 dias. Se o cartão continuar sem status <b>ENTREGUE</b>, ele volta automaticamente para <b>ENVIAR MENSAGEM</b>.
+                </div>
+
+                <div class="wa-stats">
+                    <div class="wa-stat"><strong id="wa-total-enviar">0</strong><span>Enviar</span></div>
+                    <div class="wa-stat"><strong id="wa-total-enviado">0</strong><span>Enviado</span></div>
+                </div>
+
+                <div class="wa-tabs">
+                    <button type="button" id="wa-tab-enviar" class="wa-tab active" onclick="trocarAbaWhatsapp('enviar')">📨 Enviar mensagem</button>
+                    <button type="button" id="wa-tab-enviado" class="wa-tab" onclick="trocarAbaWhatsapp('enviado')">✅ Enviado</button>
+                </div>
+
+                <div class="wa-toolbar">
+                    <button type="button" class="wa-refresh" onclick="carregarWhatsappPendentes()">↻ Atualizar</button>
+                </div>
+
+                <div id="wa-lista-crm" class="wa-lista"></div>
+            </div>
+        </div>
+    `;
+
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) fecharModalWhatsapp();
+    });
+
+    document.body.appendChild(modal);
+    return modal;
+}
+
+async function abrirModalWhatsapp() {
+    const modal = garantirModalWhatsapp();
+    modal.classList.add('active');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    whatsappCRMState.aba = 'enviar';
+    atualizarAbasWhatsapp();
+    await carregarWhatsappPendentes();
+}
+
+function fecharModalWhatsapp() {
+    const modal = document.getElementById('modal-whatsapp-crm');
+    if (modal) {
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+    }
+    document.body.style.overflow = '';
+}
+
+function trocarAbaWhatsapp(aba) {
+    whatsappCRMState.aba = aba === 'enviado' ? 'enviado' : 'enviar';
+    atualizarAbasWhatsapp();
+    renderizarWhatsappPendentes();
+}
+
+function atualizarAbasWhatsapp() {
+    document.getElementById('wa-tab-enviar')?.classList.toggle('active', whatsappCRMState.aba === 'enviar');
+    document.getElementById('wa-tab-enviado')?.classList.toggle('active', whatsappCRMState.aba === 'enviado');
+}
+
+async function carregarWhatsappPendentes() {
+    if (whatsappCRMState.carregando) return;
+
+    whatsappCRMState.carregando = true;
+    const lista = document.getElementById('wa-lista-crm');
+    if (lista) lista.innerHTML = '<div class="wa-loading">⏳ Carregando cartões pendentes...</div>';
+
+    try {
+        const resposta = await fetchFromGS('listarWhatsappPendentes', { _: String(Date.now()) }, undefined, 30000);
+
+        if (!resposta || resposta.success === false) {
+            throw new Error(resposta?.message || resposta?.error || 'Não foi possível carregar os contatos.');
+        }
+
+        // Segurança extra no frontend: contatos sem telefone nunca entram no modal.
+        whatsappCRMState.itens = (Array.isArray(resposta.itens) ? resposta.itens : [])
+            .filter(item => item.temTelefone && normalizarTelefoneWhatsappLink(item.telefone));
+
+        const totalEnviar = whatsappCRMState.itens.filter(item => !item.enviado).length;
+        const totalEnviado = whatsappCRMState.itens.filter(item => item.enviado).length;
+
+        const elEnviar = document.getElementById('wa-total-enviar');
+        const elEnviado = document.getElementById('wa-total-enviado');
+        if (elEnviar) elEnviar.textContent = String(totalEnviar);
+        if (elEnviado) elEnviado.textContent = String(totalEnviado);
+
+        renderizarWhatsappPendentes();
+    } catch (erro) {
+        console.error('Erro ao carregar WhatsApp:', erro);
+        if (lista) lista.innerHTML = `<div class="wa-vazio">❌ ${escapeHtml(String(erro.message || erro))}</div>`;
+    } finally {
+        whatsappCRMState.carregando = false;
+    }
+}
+
+function formatarTelefoneWhatsappTela(valor) {
+    const d = String(valor || '').replace(/\D/g, '');
+    const nacional = d.startsWith('55') && d.length >= 12 ? d.slice(2) : d;
+
+    if (nacional.length === 11) {
+        return `(${nacional.slice(0,2)}) ${nacional.slice(2,7)}-${nacional.slice(7)}`;
+    }
+    if (nacional.length === 10) {
+        return `(${nacional.slice(0,2)}) ${nacional.slice(2,6)}-${nacional.slice(6)}`;
+    }
+    return valor || 'Sem telefone';
+}
+
+function normalizarTelefoneWhatsappLink(valor) {
+    let d = String(valor || '').replace(/\D/g, '');
+    if (d.startsWith('00')) d = d.slice(2);
+    if (d.startsWith('55') && (d.length === 12 || d.length === 13)) return d;
+    if (d.length === 10 || d.length === 11) return '55' + d;
+    return '';
+}
+
+function mensagemPadraoWhatsapp(item) {
+    const nome = String(item.nome || '').trim();
+    const plural = Number(item.quantidadeCartoes || 0) > 1;
+    return `Olá, ${nome}! Informamos que ${plural ? 'seus cartões já estão aqui e estão disponíveis' : 'seu cartão já está aqui e está disponível'} para retirada na Associação.`;
+}
+
+function formatarDataHoraWhatsapp(valor) {
+    const d = new Date(valor);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function textoRetornoWhatsapp(valor) {
+    const fim = new Date(valor);
+    if (isNaN(fim.getTime())) return '';
+
+    const ms = fim.getTime() - Date.now();
+    if (ms <= 0) return 'Disponível para novo envio';
+
+    const horas = Math.ceil(ms / (60 * 60 * 1000));
+    if (horas <= 24) return `Volta em ${horas}h`;
+
+    const dias = Math.ceil(horas / 24);
+    return `Volta em ${dias} dia${dias > 1 ? 's' : ''}`;
+}
+
+function renderizarWhatsappPendentes() {
+    const lista = document.getElementById('wa-lista-crm');
+    if (!lista) return;
+
+    let itens;
+    if (whatsappCRMState.aba === 'enviado') {
+        itens = whatsappCRMState.itens.filter(item => item.enviado);
+    } else {
+        itens = whatsappCRMState.itens.filter(item => !item.enviado);
+    }
+
+    if (!itens.length) {
+        lista.innerHTML = whatsappCRMState.aba === 'enviado'
+            ? '<div class="wa-vazio">✅ Nenhuma mensagem está no período de 3 dias.</div>'
+            : '<div class="wa-vazio">🎉 Nenhum cartão pendente para avisar agora.</div>';
+        return;
+    }
+
+    lista.innerHTML = itens.map(item => {
+        const chave = encodeURIComponent(String(item.chave || ''));
+        const telefone = formatarTelefoneWhatsappTela(item.telefone);
+        const numeros = Array.isArray(item.numeros) && item.numeros.length
+            ? item.numeros.join(', ')
+            : '—';
+        const qtd = Number(item.quantidadeCartoes || 1);
+
+        let acao;
+        if (item.enviado) {
+            acao = `
+                <div class="wa-enviado">
+                    ✅ ENVIADO
+                    <small>${escapeHtml(formatarDataHoraWhatsapp(item.enviadoEm))}</small>
+                    <small>${escapeHtml(textoRetornoWhatsapp(item.retornaEm))}</small>
+                </div>`;
+        } else {
+            acao = `<button type="button" class="wa-send" onclick="enviarMensagemWhatsappCRM('${chave}')">💬 Enviar mensagem</button>`;
+        }
+
+        return `
+            <div class="wa-item">
+                <div>
+                    <div class="wa-nome">${escapeHtml(String(item.nome || ''))}</div>
+                    <div class="wa-meta">
+                        <span>📱 <b>${escapeHtml(telefone)}</b></span>
+                        <span>💳 Cartão Nº <b>${escapeHtml(numeros)}</b></span>
+                        ${qtd > 1 ? `<span>📦 <b>${qtd}</b> cartões pendentes</span>` : ''}
+                    </div>
+                </div>
+                ${acao}
+            </div>`;
+    }).join('');
+}
+
+async function enviarMensagemWhatsappCRM(chaveCodificada) {
+    const chave = decodeURIComponent(String(chaveCodificada || ''));
+    const item = whatsappCRMState.itens.find(i => String(i.chave) === chave);
+    if (!item) return;
+
+    const telefone = normalizarTelefoneWhatsappLink(item.telefone);
+    if (!telefone) {
+        alert('O telefone desta pessoa está incompleto. Cadastre o DDD + número antes de enviar.');
+        return;
+    }
+
+    const mensagem = mensagemPadraoWhatsapp(item);
+    const url = `https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`;
+
+    // Abre imediatamente para não ser bloqueado pelo navegador.
+    const janela = window.open(url, '_blank');
+    if (!janela) {
+        alert('O navegador bloqueou a abertura do WhatsApp. Permita pop-ups para este site.');
+        return;
+    }
+
+    // O CRM registra o clique/abertura como envio. O WhatsApp não fornece
+    // confirmação de que a pessoa realmente apertou o botão Enviar.
+    try {
+        await postParaGoogleSheets('marcarWhatsappEnviado', { linhas: item.linhas });
+
+        // Atualização otimista: move imediatamente para a aba ENVIADO.
+        const agora = new Date();
+        item.enviado = true;
+        item.enviadoEm = agora.toISOString();
+        item.retornaEm = new Date(agora.getTime() + (3 * 24 * 60 * 60 * 1000)).toISOString();
+
+        renderizarWhatsappPendentes();
+
+        // Confirma com o servidor em seguida.
+        setTimeout(() => carregarWhatsappPendentes(), 900);
+    } catch (erro) {
+        console.error('Erro ao registrar envio do WhatsApp:', erro);
+        alert('O WhatsApp foi aberto, mas o CRM não conseguiu registrar o envio. Tente atualizar o modal.');
+    }
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Escape') return;
+    const modal = document.getElementById('modal-whatsapp-crm');
+    if (modal && modal.style.display === 'flex') fecharModalWhatsapp();
+});
+
