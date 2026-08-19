@@ -1,8 +1,8 @@
 // ============================================================
 // CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzxq-6DQYzo_6NGHdXdSD2nRZqW_CYgQuuQZ4aqtmhNYuEE0qsaQ5cGkxEUQ-XvzsYS/exec";
-const CRM_BACKEND_VERSAO = '20260818-6';
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbyQIV-jJJo4zMl1TJhdLWMBd3OJrGsNlNv8EH2w6A0OTnipMLYnZPdUSPagAawoYrlR2Q/exec";
+const CRM_BACKEND_VERSAO = '20260818-7';
 
 // ============================================================
 // GET VIA JSONP
@@ -2912,7 +2912,7 @@ function abrirEditorBuscaRapido(linha) {
                             <span style="color:#b45309; font-weight:bold; display:flex; align-items:center; gap:8px;"><span style="font-size:1.2rem;">\u26A0\uFE0F</span> H\u00E1 ${qtdMesmoEndereco} cart\u00F5es neste mesmo endere\u00E7o!</span>
                             <div>
                                 <button class="btn-sm" onclick="abrirListaMoradoresBusca(${Number(linha)})" style="background:#2563eb; color:white; border:none; padding:5px 14px; border-radius:30px; cursor:pointer;">\uD83D\uDC65 VER MORADORES</button>
-                                <button class="btn-sm" onclick="abrirEdicaoMassivaBusca(${Number(linha)})" style="background:#ea580c; color:white; border:none; padding:5px 14px; border-radius:30px; cursor:pointer;">\u270F\uFE0F EDITAR TODOS</button>
+                                <button id="btn-editar-todos-busca-${Number(linha)}" class="btn-sm" onclick="abrirEdicaoMassivaBusca(${Number(linha)})" style="display:none; background:#ea580c; color:white; border:none; padding:5px 14px; border-radius:30px; cursor:pointer;">\u270F\uFE0F EDITAR TODOS</button>
                             </div>
                         </div>` : ''}
                 </div>
@@ -2933,6 +2933,12 @@ function abrirEditorBuscaRapido(linha) {
                 <button class="btn-cancelar" onclick="cancelarEdicaoBusca(${Number(linha)})">Cancelar</button>
             </div>
         </div>`;
+
+    // EDITAR TODOS só aparece depois de validar:
+    // MESMO endereço + MESMA pessoa (nome completo ou abreviado).
+    if (temOutros) {
+        atualizarVisibilidadeEditarTodosBusca(Number(linha));
+    }
 
     if (numeroBloco) {
         fetchFromGS('obterPosicaoNoBlocoBackend', { numeroBloco, linhaAtual: Number(linha) })
@@ -3028,6 +3034,104 @@ async function finalizarEntregaBusca(linha, nomeEntregueA, dataEntrega, telefone
     }
 }
 
+
+function normalizarNomePessoaBusca(nome) {
+    return String(nome || '')
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function tokensNomePessoaBusca(nome) {
+    const ignorar = new Set(['DA', 'DE', 'DO', 'DAS', 'DOS', 'E']);
+
+    return normalizarNomePessoaBusca(nome)
+        .split(' ')
+        .filter(token => token && !ignorar.has(token));
+}
+
+// Considera a MESMA pessoa somente quando:
+// - nome é exatamente igual; OU
+// - é uma abreviação segura: primeiro nome igual, último sobrenome igual
+//   e todas as palavras do nome menor existem no nome maior.
+function nomesRepresentamMesmaPessoaBusca(nomeA, nomeB) {
+    const normA = normalizarNomePessoaBusca(nomeA);
+    const normB = normalizarNomePessoaBusca(nomeB);
+
+    if (!normA || !normB) return false;
+    if (normA === normB) return true;
+
+    const a = tokensNomePessoaBusca(nomeA);
+    const b = tokensNomePessoaBusca(nomeB);
+
+    if (a.length < 2 || b.length < 2) return false;
+
+    if (a[0] !== b[0]) return false;
+    if (a[a.length - 1] !== b[b.length - 1]) return false;
+
+    const menor = a.length <= b.length ? a : b;
+    const maior = a.length <= b.length ? b : a;
+    const setMaior = new Set(maior);
+
+    return menor.every(token => setMaior.has(token));
+}
+
+function filtrarCartoesMesmaPessoaMesmoEnderecoBusca(cartoes, referencia) {
+    const enderecoRef = normalizarEndereco(referencia?.endereco || '');
+    const nomeRef = referencia?.nome || '';
+
+    return (cartoes || []).filter(item => {
+        const mesmoEndereco =
+            normalizarEndereco(item?.endereco || '') === enderecoRef;
+
+        if (!mesmoEndereco) return false;
+
+        return nomesRepresentamMesmaPessoaBusca(
+            nomeRef,
+            item?.nome || ''
+        );
+    });
+}
+
+async function atualizarVisibilidadeEditarTodosBusca(linhaAtual) {
+    const atual = obterResultadoBuscaPorLinha(linhaAtual);
+    const btn = document.getElementById(
+        `btn-editar-todos-busca-${Number(linhaAtual)}`
+    );
+
+    if (!atual || !btn) return;
+
+    // Por segurança, o botão começa escondido.
+    btn.style.display = 'none';
+
+    try {
+        const cartoesEndereco =
+            await obterCartoesMesmoEnderecoBusca(atual.endereco || '');
+
+        const mesmaPessoa =
+            filtrarCartoesMesmaPessoaMesmoEnderecoBusca(
+                cartoesEndereco,
+                atual
+            );
+
+        if (mesmaPessoa.length > 1) {
+            btn.style.display = 'inline-block';
+            btn.textContent = `✏️ EDITAR TODOS (${mesmaPessoa.length})`;
+            btn.title =
+                'Editar somente cartões da mesma pessoa no mesmo endereço';
+        }
+    } catch (erro) {
+        console.warn(
+            'Não foi possível validar o botão EDITAR TODOS:',
+            erro
+        );
+        btn.style.display = 'none';
+    }
+}
+
 async function obterCartoesMesmoEnderecoBusca(enderecoOriginal) {
     const enderecoNorm = normalizarEndereco(enderecoOriginal);
     const conhecidos = [...todosResultadosBusca, ...buscaResultadosAuxiliares.values()];
@@ -3101,53 +3205,206 @@ async function abrirListaMoradoresBusca(linhaAtual) {
 async function abrirEdicaoMassivaBusca(linhaAtual) {
     const atual = obterResultadoBuscaPorLinha(linhaAtual);
     if (!atual) return;
+
     const editorArea = document.getElementById('busca-editor-area');
     if (!editorArea) return;
-    editorArea.innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;">\u23F3 Carregando cart\u00F5es do endere\u00E7o...</div>';
-    const cartoes = await obterCartoesMesmoEnderecoBusca(atual.endereco || '');
+
+    editorArea.innerHTML =
+        '<div style="text-align:center;padding:30px;color:#64748b;">⏳ Conferindo nome e endereço...</div>';
+
+    const cartoesDoEndereco =
+        await obterCartoesMesmoEnderecoBusca(atual.endereco || '');
+
+    // REGRA PRINCIPAL:
+    // NÃO usa todos os moradores do endereço.
+    // Filtra exclusivamente a MESMA pessoa.
+    const cartoes =
+        filtrarCartoesMesmaPessoaMesmoEnderecoBusca(
+            cartoesDoEndereco,
+            atual
+        );
+
     if (cartoes.length <= 1) {
-        editorArea.innerHTML = `<div style="text-align:center;padding:30px;color:#64748b;">Nenhum outro cart\u00E3o foi encontrado neste endere\u00E7o.<br><button class="btn-voltar" style="margin:15px auto 0;" onclick="cancelarEdicaoBusca(${Number(linhaAtual)})">\u2190 Voltar</button></div>`;
+        editorArea.innerHTML = `
+            <div style="text-align:center;padding:30px;color:#64748b;">
+                <div style="font-size:34px;margin-bottom:8px;">🛡️</div>
+                <strong>Nenhum outro cartão da mesma pessoa foi encontrado.</strong>
+                <br><br>
+                Existem outros moradores nesse endereço, mas eles
+                <b>não serão incluídos</b> na edição.
+                <br><br>
+                O EDITAR TODOS exige:
+                <b>mesmo endereço + mesmo nome/nome abreviado</b>.
+                <br>
+                <button
+                    class="btn-voltar"
+                    style="margin:15px auto 0;"
+                    onclick="cancelarEdicaoBusca(${Number(linhaAtual)})"
+                >
+                    ← Voltar
+                </button>
+            </div>`;
         return;
     }
+
     const linhas = cartoes.map(it => Number(it.linha));
-    const nomes = [...new Set(cartoes.map(it => it.nome))];
+    const nomes = [
+        ...new Set(
+            cartoes.map(it => String(it.nome || '').trim())
+        )
+    ];
+
     editorArea.style.display = 'block';
+
     editorArea.innerHTML = `
         <div id="editorMassaBusca" class="editor-massa active">
-            <h4>\u270F\uFE0F Edi\u00E7\u00E3o Massiva (${linhas.length} cart\u00F5es)</h4>
-            <p>\uD83D\uDCCD ${escapeHtml(cartoes[0].endereco || '')} \u2014 ${escapeHtml(nomes.join(', '))}</p>
+
+            <h4>
+                ✏️ Editar cartões da mesma pessoa
+                (${linhas.length})
+            </h4>
+
+            <div style="
+                background:#ecfdf5;
+                border:1px solid #86efac;
+                color:#166534;
+                padding:10px 12px;
+                border-radius:10px;
+                margin-bottom:12px;
+                line-height:1.45;
+            ">
+                <b>🛡️ Proteção ativa</b><br>
+                Somente cartões com <b>mesmo endereço</b> e
+                <b>mesmo nome ou nome abreviado</b>
+                serão alterados.
+            </div>
+
+            <p style="line-height:1.5;">
+                📍 ${escapeHtml(atual.endereco || '')}<br>
+                👤 ${escapeHtml(nomes.join(' / '))}
+            </p>
+
             <label>Status</label>
-            <select id="massa-status-busca"><option value="">Manter atual</option><option value="ENTREGUE">ENTREGUE</option><option value="BLOQUEADO">BLOQUEADO</option></select>
-            <label>Data Entrega</label><input id="massa-dataentrega-busca" placeholder="dd/mm/yyyy">
-            <label>CPF</label><input id="massa-cpf-busca" placeholder="CPF para todos">
-            <label>Entregue \u00C1</label><input id="massa-entrega-busca" placeholder="Entregue \u00C1 para todos">
-            <label>Telefone</label><input id="massa-telefone-busca" placeholder="Telefone para todos">
-            <div style="display:flex; gap:8px; margin-top:12px;">
-                <button class="btn-salvar" onclick='salvarEdicaoMassivaBusca(${JSON.stringify(linhas)})'>Salvar em todos</button>
-                <button class="btn-cancelar" onclick="cancelarEdicaoBusca(${Number(linhaAtual)})">Cancelar</button>
+            <select id="massa-status-busca">
+                <option value="">Manter atual</option>
+                <option value="ENTREGUE">ENTREGUE</option>
+                <option value="BLOQUEADO">BLOQUEADO</option>
+            </select>
+
+            <label>Data Entrega</label>
+            <input
+                id="massa-dataentrega-busca"
+                placeholder="dd/mm/yyyy"
+            >
+
+            <label>CPF</label>
+            <input
+                id="massa-cpf-busca"
+                placeholder="CPF para todos"
+            >
+
+            <label>Entregue À</label>
+            <input
+                id="massa-entrega-busca"
+                placeholder="Entregue À para todos"
+            >
+
+            <label>Telefone</label>
+            <input
+                id="massa-telefone-busca"
+                placeholder="Telefone para todos"
+            >
+
+            <div style="
+                display:flex;
+                gap:8px;
+                margin-top:12px;
+                flex-wrap:wrap;
+            ">
+                <button
+                    class="btn-salvar"
+                    onclick='salvarEdicaoMassivaBusca(
+                        ${JSON.stringify(linhas)},
+                        ${Number(linhaAtual)}
+                    )'
+                >
+                    Salvar somente nesta pessoa
+                </button>
+
+                <button
+                    class="btn-cancelar"
+                    onclick="cancelarEdicaoBusca(${Number(linhaAtual)})"
+                >
+                    Cancelar
+                </button>
             </div>
         </div>`;
 }
 
-async function salvarEdicaoMassivaBusca(linhas) {
+async function salvarEdicaoMassivaBusca(linhas, linhaReferencia) {
     const dados = {};
-    const status = document.getElementById('massa-status-busca')?.value;
-    const dataEntrega = document.getElementById('massa-dataentrega-busca')?.value.trim();
-    const cpf = document.getElementById('massa-cpf-busca')?.value.trim();
-    const entregueA = document.getElementById('massa-entrega-busca')?.value.trim();
-    const telefone = document.getElementById('massa-telefone-busca')?.value.trim();
+
+    const status =
+        document.getElementById('massa-status-busca')?.value;
+
+    const dataEntrega =
+        document.getElementById(
+            'massa-dataentrega-busca'
+        )?.value.trim();
+
+    const cpf =
+        document.getElementById(
+            'massa-cpf-busca'
+        )?.value.trim();
+
+    const entregueA =
+        document.getElementById(
+            'massa-entrega-busca'
+        )?.value.trim();
+
+    const telefone =
+        document.getElementById(
+            'massa-telefone-busca'
+        )?.value.trim();
+
     if (status) dados.status = status;
     if (dataEntrega) dados.dataEntrega = dataEntrega;
     if (cpf) dados.cpf = cpf;
     if (entregueA) dados.entregueA = entregueA;
     if (telefone) dados.telefone = telefone;
+
     try {
-        await postParaGoogleSheets('atualizarMultiplosCartoes', { linhas, dados });
-        alert('\u2705 Edi\u00E7\u00E3o massiva salva com sucesso!');
-        cancelarEdicaoBusca(linhas[0]);
+        await postParaGoogleSheets(
+            'atualizarMultiplosCartoes',
+            {
+                linhas,
+                dados,
+                linhaReferencia:
+                    Number(
+                        linhaReferencia ||
+                        linhas[0]
+                    )
+            }
+        );
+
+        alert(
+            '✅ Alterações aplicadas somente aos cartões da mesma pessoa!'
+        );
+
+        cancelarEdicaoBusca(
+            Number(
+                linhaReferencia ||
+                linhas[0]
+            )
+        );
+
         executarBusca();
+
     } catch (erro) {
-        alert('Erro: ' + erro.message);
+        alert(
+            'Erro: ' +
+            erro.message
+        );
     }
 }
 
