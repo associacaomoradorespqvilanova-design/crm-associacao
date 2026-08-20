@@ -1,8 +1,8 @@
 // ============================================================
 // CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzuev5CFLSoMEPBCrHVUfHY7hviYV40JCrC6s5jBr-oxJtZgn0vOuhGJsb1YcWP1-AMpA/exec";
-const CRM_BACKEND_VERSAO = '20260820-1';
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbz5Gh-_pkvuc4QfYnbP5hmnJnsZBCt9TM5TDcrZVksxZL2Ha__jsqR1GwUb_FUo_72K/exec";
+const CRM_BACKEND_VERSAO = '20260820-2';
 
 // ============================================================
 // GET VIA JSONP
@@ -3539,10 +3539,84 @@ function inicializarBotoesDocumentosAntigos(tentativa = 0) {
 // CARTEIRINHAS — PESQUISA E EDIÇÃO DE MORADORES
 // ============================================================
 
+
 const carteirinhasCRMState = {
     nomes: [],
-    linhaAtual: null
+    linhaAtual: null,
+    camposAtuais: [],
+    salvando: false,
+    timerAutoSave: null,
+    timerBusca: null,
+    ultimoSnapshot: '',
+    nomeAtual: ''
 };
+
+const CARTEIRINHAS_MESES = [
+    { nome: 'JAN', aliases: ['JAN', 'JANEIRO'] },
+    { nome: 'FEV', aliases: ['FEV', 'FEVEREIRO'] },
+    { nome: 'MARÇO', aliases: ['MARCO', 'MARÇO'] },
+    { nome: 'ABRIL', aliases: ['ABRIL'] },
+    { nome: 'MAIO', aliases: ['MAIO'] },
+    { nome: 'JUNHO', aliases: ['JUNHO'] },
+    { nome: 'JULHO', aliases: ['JULHO'] },
+    { nome: 'AGOSTO', aliases: ['AGOSTO'] },
+    { nome: 'SETEMBRO', aliases: ['SETEMBRO'] },
+    { nome: 'OUTUBRO', aliases: ['OUTUBRO'] },
+    { nome: 'NOVEMBRO', aliases: ['NOVEMBRO'] },
+    { nome: 'DEZEMBRO', aliases: ['DEZEMBRO'] }
+];
+
+function normalizarTextoCarteirinhasCRM(valor) {
+    return String(valor || '')
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function escapeAtributoCarteirinhasCRM(valor) {
+    return String(valor ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function obterMesCarteirinhasCRM(coluna) {
+    const chave = normalizarTextoCarteirinhasCRM(coluna);
+
+    return CARTEIRINHAS_MESES.find(mes =>
+        mes.aliases.some(alias =>
+            normalizarTextoCarteirinhasCRM(alias) === chave
+        )
+    ) || null;
+}
+
+function formatarCPFCarteirinhasCRM(valor) {
+    const digitos = String(valor || '').replace(/\D/g, '').slice(0, 11);
+
+    if (!digitos) return '';
+
+    return digitos
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+}
+
+function preencherDatalistCarteirinhasCRM() {
+    const lista = document.getElementById('carteirinhas-lista-nomes');
+    if (!lista) return;
+
+    lista.innerHTML = '';
+
+    carteirinhasCRMState.nomes.forEach(nome => {
+        const option = document.createElement('option');
+        option.value = nome;
+        lista.appendChild(option);
+    });
+}
 
 function garantirModalCarteirinhasCRM() {
     let modal = document.getElementById('modal-carteirinhas-crm');
@@ -3560,8 +3634,8 @@ function garantirModalCarteirinhasCRM() {
             align-items: center;
             justify-content: center;
             padding: 16px;
-            background: rgba(21, 31, 24, .50);
-            backdrop-filter: blur(4px);
+            background: rgba(21, 31, 24, .52);
+            backdrop-filter: blur(5px);
         }
 
         #modal-carteirinhas-crm.active {
@@ -3569,14 +3643,15 @@ function garantirModalCarteirinhasCRM() {
         }
 
         #modal-carteirinhas-crm .cart-box {
-            width: min(820px, 100%);
-            max-height: 92dvh;
-            background: #fff;
-            border-radius: 20px;
+            width: min(920px, 100%);
+            max-height: 94dvh;
+            background: #f8fbf8;
+            border-radius: 22px;
             overflow: hidden;
             box-shadow: 0 24px 70px rgba(0,0,0,.28);
             display: flex;
             flex-direction: column;
+            border: 1px solid rgba(68, 117, 76, .16);
         }
 
         #modal-carteirinhas-crm .cart-head {
@@ -3584,96 +3659,351 @@ function garantirModalCarteirinhasCRM() {
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            padding: 16px 18px;
-            border-bottom: 1px solid #e4ece6;
-            background: #f8fbf8;
+            padding: 15px 18px;
+            border-bottom: 1px solid #e0eae2;
+            background: rgba(255,255,255,.88);
+        }
+
+        #modal-carteirinhas-crm .cart-head-left {
+            min-width: 0;
         }
 
         #modal-carteirinhas-crm .cart-head h3 {
             margin: 0;
-            color: #204b2a;
+            color: #214d2b;
             font-size: 20px;
+            line-height: 1.2;
+        }
+
+        #modal-carteirinhas-crm .cart-head small {
+            display: block;
+            margin-top: 3px;
+            color: #77837b;
+            font-size: 11px;
         }
 
         #modal-carteirinhas-crm .cart-close {
-            width: 38px;
-            height: 38px;
+            flex: 0 0 auto;
+            width: 40px;
+            height: 40px;
             border: 0;
             border-radius: 50%;
-            background: #eef3ef;
+            background: #edf2ee;
             color: #40544a;
             font-size: 22px;
             cursor: pointer;
         }
 
         #modal-carteirinhas-crm .cart-body {
-            padding: 16px;
+            padding: 14px 16px 18px;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
         }
 
+        #modal-carteirinhas-crm .cart-search-box {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: end;
+            padding: 10px;
+            margin: -2px 0 12px;
+            background: rgba(248,251,248,.96);
+            backdrop-filter: blur(6px);
+            border: 1px solid #dbe8de;
+            border-radius: 14px;
+        }
+
         #modal-carteirinhas-crm label {
             display: block;
-            margin: 10px 0 5px;
+            margin: 0 0 5px;
             font-weight: 800;
-            color: #3b5042;
-            font-size: 13px;
+            color: #405448;
+            font-size: 12px;
         }
 
         #modal-carteirinhas-crm input {
             width: 100%;
             box-sizing: border-box;
-            border: 1px solid #ccd9cf;
-            border-radius: 9px;
+            border: 1px solid #c9d8cc;
+            border-radius: 10px;
             padding: 10px 11px;
             font-size: 14px;
             background: #fff;
+            color: #243229;
+            outline: none;
         }
 
-        #modal-carteirinhas-crm .cart-search-row {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 8px;
-            align-items: end;
+        #modal-carteirinhas-crm input:focus {
+            border-color: #5d9a64;
+            box-shadow: 0 0 0 3px rgba(74,124,46,.10);
+        }
+
+        #modal-carteirinhas-crm .cart-search-actions {
+            display: flex;
+            gap: 7px;
+        }
+
+        #modal-carteirinhas-crm .cart-primary,
+        #modal-carteirinhas-crm .cart-secondary,
+        #modal-carteirinhas-crm .cart-danger {
+            border-radius: 10px;
+            font-weight: 900;
+            cursor: pointer;
+            padding: 10px 14px;
+            min-height: 40px;
         }
 
         #modal-carteirinhas-crm .cart-primary {
             border: 0;
-            border-radius: 10px;
             background: #397c42;
             color: white;
-            font-weight: 900;
-            cursor: pointer;
-            padding: 11px 16px;
+        }
+
+        #modal-carteirinhas-crm .cart-secondary {
+            border: 1px solid #bdd1c1;
+            background: #fff;
+            color: #35633c;
+        }
+
+        #modal-carteirinhas-crm .cart-danger {
+            border: 1px solid #efc5c5;
+            background: #fff5f5;
+            color: #a53a3a;
+        }
+
+        #modal-carteirinhas-crm .cart-primary:disabled,
+        #modal-carteirinhas-crm .cart-secondary:disabled {
+            opacity: .55;
+            cursor: wait;
         }
 
         #modal-carteirinhas-crm .cart-form {
-            margin-top: 14px;
-            border-top: 1px solid #e2ebe4;
-            padding-top: 8px;
-        }
-
-        #modal-carteirinhas-crm .cart-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0 12px;
-        }
-
-        #modal-carteirinhas-crm .cart-status {
-            min-height: 22px;
-            margin-top: 10px;
-            text-align: center;
-            font-weight: 800;
-            color: #24713a;
+            min-height: 90px;
         }
 
         #modal-carteirinhas-crm .cart-vazio {
-            padding: 25px 10px;
+            padding: 32px 12px;
             text-align: center;
-            color: #77847b;
+            color: #78847c;
+            border: 1px dashed #d7e2d9;
+            border-radius: 14px;
+            background: rgba(255,255,255,.55);
         }
 
-        @media (max-width: 640px) {
+        #modal-carteirinhas-crm .cart-resumo {
+            display: grid;
+            grid-template-columns: minmax(0, 1.6fr) minmax(220px, .8fr);
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        #modal-carteirinhas-crm .cart-card {
+            background: #fff;
+            border: 1px solid #dfe9e1;
+            border-radius: 15px;
+            padding: 13px;
+            box-shadow: 0 5px 18px rgba(45,80,52,.05);
+        }
+
+        #modal-carteirinhas-crm .cart-card-title {
+            font-size: 11px;
+            font-weight: 900;
+            color: #718078;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            margin-bottom: 8px;
+        }
+
+        #modal-carteirinhas-crm .cart-dados-grid {
+            display: grid;
+            grid-template-columns: 1.4fr .8fr;
+            gap: 9px;
+        }
+
+        #modal-carteirinhas-crm .cart-dados-grid .full {
+            grid-column: 1 / -1;
+        }
+
+        #modal-carteirinhas-crm .cart-progresso-top {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        #modal-carteirinhas-crm .cart-progresso-numero {
+            font-size: 28px;
+            font-weight: 950;
+            color: #34733e;
+            line-height: 1;
+        }
+
+        #modal-carteirinhas-crm .cart-progresso-texto {
+            color: #758079;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        #modal-carteirinhas-crm .cart-progress {
+            height: 10px;
+            background: #e8efea;
+            border-radius: 999px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+
+        #modal-carteirinhas-crm .cart-progress > span {
+            display: block;
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #4a8a51, #77b148);
+            border-radius: inherit;
+            transition: width .25s ease;
+        }
+
+        #modal-carteirinhas-crm .cart-status-save {
+            margin-top: 9px;
+            min-height: 19px;
+            font-size: 11px;
+            font-weight: 800;
+            color: #647269;
+        }
+
+        #modal-carteirinhas-crm .cart-meses-area {
+            background: #fff;
+            border: 1px solid #dfe9e1;
+            border-radius: 15px;
+            padding: 13px;
+            margin-bottom: 12px;
+        }
+
+        #modal-carteirinhas-crm .cart-section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        #modal-carteirinhas-crm .cart-section-head h4 {
+            margin: 0;
+            color: #2e5937;
+            font-size: 15px;
+        }
+
+        #modal-carteirinhas-crm .cart-mini-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        #modal-carteirinhas-crm .cart-mini-actions button {
+            padding: 7px 10px;
+            min-height: 32px;
+            font-size: 10px;
+        }
+
+        #modal-carteirinhas-crm .cart-month-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        #modal-carteirinhas-crm .cart-month {
+            appearance: none;
+            border: 1px solid #e0e7e2;
+            background: #fafcfb;
+            min-height: 64px;
+            border-radius: 12px;
+            padding: 9px;
+            cursor: pointer;
+            text-align: left;
+            transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+        }
+
+        #modal-carteirinhas-crm .cart-month:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 13px rgba(38,76,45,.08);
+        }
+
+        #modal-carteirinhas-crm .cart-month .mes {
+            display: block;
+            font-size: 11px;
+            font-weight: 950;
+            color: #4f6155;
+            margin-bottom: 7px;
+        }
+
+        #modal-carteirinhas-crm .cart-month .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            border-radius: 999px;
+            padding: 4px 8px;
+            font-size: 10px;
+            font-weight: 950;
+        }
+
+        #modal-carteirinhas-crm .cart-month.pago {
+            border-color: #98c49e;
+            background: #f0f9f2;
+        }
+
+        #modal-carteirinhas-crm .cart-month.pago .status {
+            background: #d9f0dd;
+            color: #256a31;
+        }
+
+        #modal-carteirinhas-crm .cart-month.pendente {
+            border-color: #f0c6c6;
+            background: #fff8f8;
+        }
+
+        #modal-carteirinhas-crm .cart-month.pendente .status {
+            background: #fde3e3;
+            color: #9c3434;
+        }
+
+        #modal-carteirinhas-crm .cart-outros {
+            background: #fff;
+            border: 1px solid #dfe9e1;
+            border-radius: 15px;
+            padding: 12px 13px;
+            margin-bottom: 12px;
+        }
+
+        #modal-carteirinhas-crm details summary {
+            cursor: pointer;
+            font-weight: 900;
+            color: #45614c;
+        }
+
+        #modal-carteirinhas-crm .cart-outros-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 9px 12px;
+            padding-top: 12px;
+        }
+
+        #modal-carteirinhas-crm .cart-footer-actions {
+            position: sticky;
+            bottom: -18px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 10px 0 2px;
+            background: linear-gradient(
+                to top,
+                rgba(248,251,248,1) 70%,
+                rgba(248,251,248,0)
+            );
+        }
+
+        @media (max-width: 760px) {
             #modal-carteirinhas-crm {
                 padding: 0;
                 align-items: stretch;
@@ -3686,13 +4016,44 @@ function garantirModalCarteirinhasCRM() {
                 border-radius: 0;
             }
 
-            #modal-carteirinhas-crm .cart-search-row,
-            #modal-carteirinhas-crm .cart-grid {
+            #modal-carteirinhas-crm .cart-body {
+                padding: 10px;
+            }
+
+            #modal-carteirinhas-crm .cart-search-box {
                 grid-template-columns: 1fr;
             }
 
-            #modal-carteirinhas-crm .cart-primary {
-                width: 100%;
+            #modal-carteirinhas-crm .cart-search-actions {
+                display: grid;
+                grid-template-columns: 1fr auto;
+            }
+
+            #modal-carteirinhas-crm .cart-resumo {
+                grid-template-columns: 1fr;
+            }
+
+            #modal-carteirinhas-crm .cart-dados-grid,
+            #modal-carteirinhas-crm .cart-outros-grid {
+                grid-template-columns: 1fr;
+            }
+
+            #modal-carteirinhas-crm .cart-dados-grid .full {
+                grid-column: auto;
+            }
+
+            #modal-carteirinhas-crm .cart-month-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 460px) {
+            #modal-carteirinhas-crm .cart-month-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            #modal-carteirinhas-crm .cart-head h3 {
+                font-size: 17px;
             }
         }
     `;
@@ -3705,35 +4066,59 @@ function garantirModalCarteirinhasCRM() {
     modal.innerHTML = `
         <div class="cart-box">
             <div class="cart-head">
-                <h3>🪪 Carteirinhas — Pesquisa e Edição</h3>
-                <button type="button" class="cart-close" onclick="fecharModalCarteirinhasCRM()">×</button>
+                <div class="cart-head-left">
+                    <h3>▣ Carteirinhas</h3>
+                    <small>Pesquisa, mensalidades e edição do morador</small>
+                </div>
+
+                <button
+                    type="button"
+                    class="cart-close"
+                    onclick="fecharModalCarteirinhasCRM()"
+                    aria-label="Fechar"
+                >×</button>
             </div>
 
             <div class="cart-body">
-                <div class="cart-search-row">
+                <div class="cart-search-box">
                     <div>
-                        <label for="carteirinhas-buscar-nome">🔍 Buscar Nome</label>
+                        <label for="carteirinhas-buscar-nome">Buscar morador</label>
                         <input
                             type="text"
                             id="carteirinhas-buscar-nome"
                             list="carteirinhas-lista-nomes"
-                            placeholder="Digite o nome para buscar..."
+                            placeholder="Comece a digitar o nome..."
                             autocomplete="off"
                         >
                         <datalist id="carteirinhas-lista-nomes"></datalist>
                     </div>
 
-                    <button
-                        type="button"
-                        class="cart-primary"
-                        onclick="buscarMoradorCarteirinhasCRM()"
-                    >
-                        Buscar
-                    </button>
+                    <div class="cart-search-actions">
+                        <button
+                            type="button"
+                            class="cart-primary"
+                            onclick="buscarMoradorCarteirinhasCRM()"
+                        >
+                            🔍 Buscar
+                        </button>
+
+                        <button
+                            type="button"
+                            class="cart-secondary"
+                            onclick="limparBuscaCarteirinhasCRM()"
+                            title="Limpar"
+                        >
+                            ×
+                        </button>
+                    </div>
                 </div>
 
-                <div id="carteirinhas-formulario" class="cart-form"></div>
-                <div id="carteirinhas-mensagem" class="cart-status"></div>
+                <div id="carteirinhas-formulario" class="cart-form">
+                    <div class="cart-vazio">
+                        Digite o nome acima. A busca também abre automaticamente
+                        quando encontra uma correspondência exata.
+                    </div>
+                </div>
             </div>
         </div>
     `;
@@ -3753,6 +4138,51 @@ function garantirModalCarteirinhasCRM() {
                 buscarMoradorCarteirinhasCRM();
             }
         });
+
+        input.addEventListener('input', function () {
+            clearTimeout(carteirinhasCRMState.timerBusca);
+
+            const termo = normalizarTextoCarteirinhasCRM(input.value);
+
+            if (termo.length < 3) return;
+
+            carteirinhasCRMState.timerBusca = setTimeout(() => {
+                const correspondencias = carteirinhasCRMState.nomes.filter(nome => {
+                    const n = normalizarTextoCarteirinhasCRM(nome);
+                    return n === termo || n.startsWith(termo);
+                });
+
+                const exata = correspondencias.find(nome =>
+                    normalizarTextoCarteirinhasCRM(nome) === termo
+                );
+
+                if (exata) {
+                    input.value = exata;
+                    buscarMoradorCarteirinhasCRM(true);
+                    return;
+                }
+
+                // Automatiza apenas quando há UMA única opção e o usuário já digitou
+                // uma parte suficientemente específica do nome.
+                if (termo.length >= 5 && correspondencias.length === 1) {
+                    input.value = correspondencias[0];
+                    buscarMoradorCarteirinhasCRM(true);
+                }
+            }, 450);
+        });
+
+        input.addEventListener('change', function () {
+            const termo = normalizarTextoCarteirinhasCRM(input.value);
+
+            const exata = carteirinhasCRMState.nomes.find(nome =>
+                normalizarTextoCarteirinhasCRM(nome) === termo
+            );
+
+            if (exata) {
+                input.value = exata;
+                buscarMoradorCarteirinhasCRM(true);
+            }
+        });
     }
 
     return modal;
@@ -3764,12 +4194,19 @@ async function abrirModalCarteirinhasCRM() {
     modal.classList.add('active');
 
     carteirinhasCRMState.linhaAtual = null;
+    carteirinhasCRMState.camposAtuais = [];
+    carteirinhasCRMState.ultimoSnapshot = '';
+    carteirinhasCRMState.nomeAtual = '';
 
     const formulario = document.getElementById('carteirinhas-formulario');
-    const mensagem = document.getElementById('carteirinhas-mensagem');
 
-    if (formulario) formulario.innerHTML = '';
-    if (mensagem) mensagem.textContent = '';
+    if (formulario) {
+        formulario.innerHTML = `
+            <div class="cart-vazio">
+                ⏳ Carregando lista de moradores...
+            </div>
+        `;
+    }
 
     try {
         const resposta = await fetchFromGS(
@@ -3777,20 +4214,23 @@ async function abrirModalCarteirinhasCRM() {
             { _: String(Date.now()) }
         );
 
+        if (resposta?.success === false) {
+            throw new Error(resposta.error || 'Não foi possível carregar a lista.');
+        }
+
         carteirinhasCRMState.nomes = Array.isArray(resposta?.nomes)
             ? resposta.nomes
             : [];
 
-        const lista = document.getElementById('carteirinhas-lista-nomes');
+        preencherDatalistCarteirinhasCRM();
 
-        if (lista) {
-            lista.innerHTML = '';
-
-            carteirinhasCRMState.nomes.forEach(nome => {
-                const option = document.createElement('option');
-                option.value = nome;
-                lista.appendChild(option);
-            });
+        if (formulario) {
+            formulario.innerHTML = `
+                <div class="cart-vazio">
+                    Digite o nome acima. A busca também abre automaticamente
+                    quando encontra uma correspondência exata.
+                </div>
+            `;
         }
 
         setTimeout(() => {
@@ -3800,27 +4240,277 @@ async function abrirModalCarteirinhasCRM() {
     } catch (erro) {
         console.error('Erro ao carregar nomes de CARTEIRINHAS:', erro);
 
-        if (mensagem) {
-            mensagem.style.color = '#b42318';
-            mensagem.textContent = 'Erro ao carregar nomes: ' + (erro.message || erro);
+        if (formulario) {
+            formulario.innerHTML = `
+                <div class="cart-vazio" style="color:#b42318;">
+                    Erro ao carregar moradores:<br>
+                    ${escapeHtml(String(erro.message || erro))}
+                </div>
+            `;
         }
     }
 }
 
 function fecharModalCarteirinhasCRM() {
+    clearTimeout(carteirinhasCRMState.timerAutoSave);
+    clearTimeout(carteirinhasCRMState.timerBusca);
+
     const modal = document.getElementById('modal-carteirinhas-crm');
+
     if (modal) modal.classList.remove('active');
 }
 
-async function buscarMoradorCarteirinhasCRM() {
+function limparBuscaCarteirinhasCRM() {
     const input = document.getElementById('carteirinhas-buscar-nome');
     const formulario = document.getElementById('carteirinhas-formulario');
-    const mensagem = document.getElementById('carteirinhas-mensagem');
+
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+
+    carteirinhasCRMState.linhaAtual = null;
+    carteirinhasCRMState.camposAtuais = [];
+    carteirinhasCRMState.ultimoSnapshot = '';
+    carteirinhasCRMState.nomeAtual = '';
+
+    if (formulario) {
+        formulario.innerHTML = `
+            <div class="cart-vazio">
+                Digite o nome acima para abrir o cadastro.
+            </div>
+        `;
+    }
+}
+
+function separarCamposCarteirinhasCRM(campos) {
+    const base = {
+        nome: null,
+        cpf: null,
+        endereco: null
+    };
+
+    const meses = [];
+    const outros = [];
+
+    (campos || []).forEach(campo => {
+        const colunaNorm = normalizarTextoCarteirinhasCRM(campo.coluna);
+
+        if (colunaNorm === 'NOME') {
+            base.nome = campo;
+            return;
+        }
+
+        if (colunaNorm === 'CPF') {
+            base.cpf = campo;
+            return;
+        }
+
+        if (
+            colunaNorm === 'ENDERECO' ||
+            colunaNorm === 'ENDEREÇO'
+        ) {
+            base.endereco = campo;
+            return;
+        }
+
+        const mes = obterMesCarteirinhasCRM(campo.coluna);
+
+        if (mes) {
+            meses.push({
+                ...campo,
+                mesLabel: mes.nome
+            });
+            return;
+        }
+
+        outros.push(campo);
+    });
+
+    // Garante a ordem JAN -> DEZ, independentemente da ordem da planilha.
+    meses.sort((a, b) => {
+        const ia = CARTEIRINHAS_MESES.findIndex(m => m.nome === a.mesLabel);
+        const ib = CARTEIRINHAS_MESES.findIndex(m => m.nome === b.mesLabel);
+        return ia - ib;
+    });
+
+    return { base, meses, outros };
+}
+
+function renderizarMoradorCarteirinhasCRM(campos) {
+    const formulario = document.getElementById('carteirinhas-formulario');
+    if (!formulario) return;
+
+    const { base, meses, outros } = separarCamposCarteirinhasCRM(campos);
+
+    const campoInput = (campo, classeExtra = '') => {
+        if (!campo) return '';
+
+        const colunaNorm = normalizarTextoCarteirinhasCRM(campo.coluna);
+        let valor = String(campo.valor ?? '');
+
+        if (colunaNorm === 'CPF') {
+            valor = formatarCPFCarteirinhasCRM(valor);
+        }
+
+        return `
+            <div class="${classeExtra}">
+                <label>${escapeHtml(String(campo.coluna || ''))}</label>
+                <input
+                    type="text"
+                    class="carteirinhas-campo-edicao"
+                    data-coluna="${escapeAtributoCarteirinhasCRM(campo.coluna)}"
+                    data-tipo="${colunaNorm === 'CPF' ? 'cpf' : 'texto'}"
+                    value="${escapeAtributoCarteirinhasCRM(valor)}"
+                    autocomplete="off"
+                >
+            </div>
+        `;
+    };
+
+    const mesesHtml = meses.map(campo => {
+        const pago =
+            normalizarTextoCarteirinhasCRM(campo.valor) === 'PAGO';
+
+        return `
+            <button
+                type="button"
+                class="cart-month ${pago ? 'pago' : 'pendente'}"
+                data-coluna="${escapeAtributoCarteirinhasCRM(campo.coluna)}"
+                onclick="alternarMesCarteirinhasCRM(this)"
+                title="Clique para alternar entre PAGO e PENDENTE"
+            >
+                <span class="mes">${escapeHtml(campo.mesLabel)}</span>
+                <span class="status">
+                    ${pago ? '✓ PAGO' : '● PENDENTE'}
+                </span>
+
+                <input
+                    type="hidden"
+                    class="carteirinhas-campo-edicao carteirinhas-mes-hidden"
+                    data-coluna="${escapeAtributoCarteirinhasCRM(campo.coluna)}"
+                    value="${pago ? 'PAGO' : ''}"
+                >
+            </button>
+        `;
+    }).join('');
+
+    const outrosHtml = outros.length
+        ? `
+            <details class="cart-outros">
+                <summary>Outros dados da planilha (${outros.length})</summary>
+                <div class="cart-outros-grid">
+                    ${outros.map(campo => campoInput(campo)).join('')}
+                </div>
+            </details>
+        `
+        : '';
+
+    formulario.innerHTML = `
+        <div class="cart-resumo">
+            <div class="cart-card">
+                <div class="cart-card-title">Dados do morador</div>
+
+                <div class="cart-dados-grid">
+                    ${campoInput(base.nome, 'full')}
+                    ${campoInput(base.cpf)}
+                    ${campoInput(base.endereco)}
+                </div>
+            </div>
+
+            <div class="cart-card">
+                <div class="cart-card-title">Situação anual</div>
+
+                <div class="cart-progresso-top">
+                    <span id="carteirinhas-pagos-numero" class="cart-progresso-numero">0/12</span>
+                    <span id="carteirinhas-pagos-percentual" class="cart-progresso-texto">0%</span>
+                </div>
+
+                <div class="cart-progress">
+                    <span id="carteirinhas-progress-bar"></span>
+                </div>
+
+                <div id="carteirinhas-save-status" class="cart-status-save">
+                    Alterações são salvas automaticamente.
+                </div>
+            </div>
+        </div>
+
+        <div class="cart-meses-area">
+            <div class="cart-section-head">
+                <h4>Mensalidades</h4>
+
+                <div class="cart-mini-actions">
+                    <button
+                        type="button"
+                        class="cart-secondary"
+                        onclick="marcarTodosMesesCarteirinhasCRM()"
+                    >
+                        ✓ Marcar todos PAGO
+                    </button>
+
+                    <button
+                        type="button"
+                        class="cart-danger"
+                        onclick="limparMesesCarteirinhasCRM()"
+                    >
+                        Limpar meses
+                    </button>
+                </div>
+            </div>
+
+            <div class="cart-month-grid">
+                ${mesesHtml}
+            </div>
+        </div>
+
+        ${outrosHtml}
+
+        <div class="cart-footer-actions">
+            <button
+                type="button"
+                class="cart-secondary"
+                onclick="buscarProximoMoradorCarteirinhasCRM(-1)"
+            >
+                ← Anterior
+            </button>
+
+            <button
+                type="button"
+                class="cart-secondary"
+                onclick="buscarProximoMoradorCarteirinhasCRM(1)"
+            >
+                Próximo →
+            </button>
+
+            <button
+                type="button"
+                id="carteirinhas-btn-salvar"
+                class="cart-primary"
+                onclick="salvarMoradorCarteirinhasCRM({ forcar: true })"
+            >
+                💾 Salvar agora
+            </button>
+        </div>
+    `;
+
+    configurarAutomacaoCamposCarteirinhasCRM();
+
+    atualizarResumoMesesCarteirinhasCRM();
+
+    // Snapshot inicial para não fazer POST sem mudança.
+    carteirinhasCRMState.ultimoSnapshot =
+        JSON.stringify(coletarDadosCarteirinhasCRM());
+}
+
+async function buscarMoradorCarteirinhasCRM(silencioso = false) {
+    const input = document.getElementById('carteirinhas-buscar-nome');
+    const formulario = document.getElementById('carteirinhas-formulario');
 
     const nome = String(input?.value || '').trim();
 
     if (!nome) {
-        alert('Digite um nome para buscar.');
+        if (!silencioso) alert('Digite um nome para buscar.');
         return;
     }
 
@@ -3828,8 +4518,6 @@ async function buscarMoradorCarteirinhasCRM() {
         formulario.innerHTML =
             '<div class="cart-vazio">⏳ Buscando morador...</div>';
     }
-
-    if (mensagem) mensagem.textContent = '';
 
     try {
         const resposta = await fetchFromGS(
@@ -3840,8 +4528,13 @@ async function buscarMoradorCarteirinhasCRM() {
             }
         );
 
+        if (resposta?.success === false) {
+            throw new Error(resposta.error || 'Erro na busca.');
+        }
+
         if (!resposta || !resposta.encontrado) {
             carteirinhasCRMState.linhaAtual = null;
+            carteirinhasCRMState.camposAtuais = [];
 
             if (formulario) {
                 formulario.innerHTML =
@@ -3852,107 +4545,389 @@ async function buscarMoradorCarteirinhasCRM() {
         }
 
         carteirinhasCRMState.linhaAtual = Number(resposta.linha);
-
-        const campos = Array.isArray(resposta.dados)
+        carteirinhasCRMState.camposAtuais = Array.isArray(resposta.dados)
             ? resposta.dados
             : [];
 
-        if (!formulario) return;
+        const campoNome = carteirinhasCRMState.camposAtuais.find(campo =>
+            normalizarTextoCarteirinhasCRM(campo.coluna) === 'NOME'
+        );
 
-        formulario.innerHTML = `
-            <div class="cart-grid">
-                ${campos.map(campo => `
-                    <div>
-                        <label>${escapeHtml(String(campo.coluna || ''))}</label>
-                        <input
-                            type="text"
-                            class="carteirinhas-campo-edicao"
-                            data-coluna="${escapeHtml(String(campo.coluna || ''))}"
-                            value="${escapeHtml(String(campo.valor ?? ''))}"
-                        >
-                    </div>
-                `).join('')}
-            </div>
+        carteirinhasCRMState.nomeAtual =
+            String(campoNome?.valor || nome).trim();
 
-            <button
-                type="button"
-                class="cart-primary"
-                style="width:100%;margin-top:16px;"
-                onclick="salvarMoradorCarteirinhasCRM()"
-            >
-                💾 Salvar Alterações
-            </button>
-        `;
+        if (input && carteirinhasCRMState.nomeAtual) {
+            input.value = carteirinhasCRMState.nomeAtual;
+        }
+
+        renderizarMoradorCarteirinhasCRM(
+            carteirinhasCRMState.camposAtuais
+        );
 
     } catch (erro) {
         console.error('Erro ao buscar morador em CARTEIRINHAS:', erro);
 
         if (formulario) {
             formulario.innerHTML =
-                `<div class="cart-vazio" style="color:#b42318;">Erro: ${escapeHtml(String(erro.message || erro))}</div>`;
+                `<div class="cart-vazio" style="color:#b42318;">
+                    Erro: ${escapeHtml(String(erro.message || erro))}
+                </div>`;
         }
     }
 }
 
-async function salvarMoradorCarteirinhasCRM() {
-    const linha = Number(carteirinhasCRMState.linhaAtual);
+function configurarAutomacaoCamposCarteirinhasCRM() {
+    const inputs = document.querySelectorAll(
+        '#modal-carteirinhas-crm .carteirinhas-campo-edicao:not([type="hidden"])'
+    );
 
-    if (!linha) {
-        alert('Nenhum morador selecionado.');
-        return;
-    }
+    inputs.forEach(input => {
+        input.addEventListener('input', function () {
+            if (input.dataset.tipo === 'cpf') {
+                input.value = formatarCPFCarteirinhasCRM(input.value);
+            }
 
+            if (
+                normalizarTextoCarteirinhasCRM(input.dataset.coluna) === 'NOME' ||
+                normalizarTextoCarteirinhasCRM(input.dataset.coluna) === 'ENDERECO' ||
+                normalizarTextoCarteirinhasCRM(input.dataset.coluna) === 'ENDEREÇO'
+            ) {
+                const inicio = input.selectionStart;
+                input.value = input.value.toUpperCase();
+
+                try {
+                    input.setSelectionRange(inicio, inicio);
+                } catch (_) {}
+            }
+
+            atualizarIndicadorSalvamentoCarteirinhasCRM(
+                'pendente',
+                'Alteração detectada…'
+            );
+
+            agendarAutoSalvarCarteirinhasCRM();
+        });
+
+        input.addEventListener('change', function () {
+            agendarAutoSalvarCarteirinhasCRM(250);
+        });
+    });
+}
+
+function coletarDadosCarteirinhasCRM() {
     const dados = {};
 
     document
-        .querySelectorAll('#modal-carteirinhas-crm .carteirinhas-campo-edicao')
+        .querySelectorAll(
+            '#modal-carteirinhas-crm .carteirinhas-campo-edicao'
+        )
         .forEach(input => {
+            if (!input.dataset.coluna) return;
             dados[input.dataset.coluna] = input.value;
         });
 
-    const mensagem = document.getElementById('carteirinhas-mensagem');
+    return dados;
+}
+
+function atualizarIndicadorSalvamentoCarteirinhasCRM(tipo, texto) {
+    const el = document.getElementById('carteirinhas-save-status');
+    if (!el) return;
+
+    el.textContent = texto || '';
+
+    if (tipo === 'salvando') {
+        el.style.color = '#93651d';
+    } else if (tipo === 'erro') {
+        el.style.color = '#b42318';
+    } else if (tipo === 'salvo') {
+        el.style.color = '#24713a';
+    } else {
+        el.style.color = '#647269';
+    }
+}
+
+function agendarAutoSalvarCarteirinhasCRM(delay = 800) {
+    clearTimeout(carteirinhasCRMState.timerAutoSave);
+
+    carteirinhasCRMState.timerAutoSave = setTimeout(() => {
+        salvarMoradorCarteirinhasCRM({
+            silencioso: true
+        });
+    }, delay);
+}
+
+async function salvarMoradorCarteirinhasCRM(opcoes = {}) {
+    const linha = Number(carteirinhasCRMState.linhaAtual);
+
+    if (!linha) {
+        if (!opcoes.silencioso) {
+            alert('Nenhum morador selecionado.');
+        }
+        return false;
+    }
+
+    if (carteirinhasCRMState.salvando) {
+        // Se já está salvando, agenda uma nova tentativa para pegar a alteração mais recente.
+        agendarAutoSalvarCarteirinhasCRM(350);
+        return false;
+    }
+
+    const dados = coletarDadosCarteirinhasCRM();
+    const snapshot = JSON.stringify(dados);
+
+    if (
+        !opcoes.forcar &&
+        snapshot === carteirinhasCRMState.ultimoSnapshot
+    ) {
+        atualizarIndicadorSalvamentoCarteirinhasCRM(
+            'salvo',
+            '✓ Tudo salvo'
+        );
+        return true;
+    }
+
+    carteirinhasCRMState.salvando = true;
+
+    const btn = document.getElementById('carteirinhas-btn-salvar');
+    const textoBtn = btn?.innerHTML || '';
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Salvando...';
+    }
+
+    atualizarIndicadorSalvamentoCarteirinhasCRM(
+        'salvando',
+        '⏳ Salvando automaticamente...'
+    );
 
     try {
-        await postParaGoogleSheets(
+        const resposta = await postParaGoogleSheets(
             'salvarMoradorCarteirinhas',
             { linha, dados }
         );
 
-        if (mensagem) {
-            mensagem.style.color = '#24713a';
-            mensagem.textContent = '✅ Dados atualizados com sucesso!';
+        if (resposta?.success === false || resposta?.status === 'error') {
+            throw new Error(
+                resposta.message || 'Não foi possível salvar.'
+            );
         }
 
-        // Atualiza lista de nomes caso o nome tenha sido alterado.
-        const resposta = await fetchFromGS(
-            'buscarTodosNomesCarteirinhas',
-            { _: String(Date.now()) }
+        carteirinhasCRMState.ultimoSnapshot = snapshot;
+
+        atualizarIndicadorSalvamentoCarteirinhasCRM(
+            'salvo',
+            '✓ Salvo na planilha'
         );
 
-        carteirinhasCRMState.nomes = Array.isArray(resposta?.nomes)
-            ? resposta.nomes
-            : [];
+        // Se o nome foi alterado, atualiza o campo de pesquisa e a lista.
+        const campoNome = Object.keys(dados).find(chave =>
+            normalizarTextoCarteirinhasCRM(chave) === 'NOME'
+        );
 
-        const lista = document.getElementById('carteirinhas-lista-nomes');
+        if (campoNome && dados[campoNome]) {
+            const nomeNovo = String(dados[campoNome]).trim();
 
-        if (lista) {
-            lista.innerHTML = '';
+            if (nomeNovo && nomeNovo !== carteirinhasCRMState.nomeAtual) {
+                carteirinhasCRMState.nomeAtual = nomeNovo;
 
-            carteirinhasCRMState.nomes.forEach(nome => {
-                const option = document.createElement('option');
-                option.value = nome;
-                lista.appendChild(option);
-            });
+                const busca = document.getElementById(
+                    'carteirinhas-buscar-nome'
+                );
+
+                if (busca) busca.value = nomeNovo;
+
+                const listaResp = await fetchFromGS(
+                    'buscarTodosNomesCarteirinhas',
+                    { _: String(Date.now()) }
+                );
+
+                if (Array.isArray(listaResp?.nomes)) {
+                    carteirinhasCRMState.nomes = listaResp.nomes;
+                    preencherDatalistCarteirinhasCRM();
+                }
+            }
         }
+
+        return true;
 
     } catch (erro) {
         console.error('Erro ao salvar CARTEIRINHAS:', erro);
 
-        if (mensagem) {
-            mensagem.style.color = '#b42318';
-            mensagem.textContent = 'Erro ao salvar: ' + (erro.message || erro);
+        atualizarIndicadorSalvamentoCarteirinhasCRM(
+            'erro',
+            '❌ Erro ao salvar: ' + String(erro.message || erro)
+        );
+
+        if (!opcoes.silencioso) {
+            alert(
+                'Não foi possível salvar: ' +
+                (erro.message || erro)
+            );
+        }
+
+        return false;
+
+    } finally {
+        carteirinhasCRMState.salvando = false;
+
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = textoBtn || '💾 Salvar agora';
         }
     }
+}
+
+function alternarMesCarteirinhasCRM(botao) {
+    if (!botao) return;
+
+    const input = botao.querySelector(
+        '.carteirinhas-mes-hidden'
+    );
+
+    const status = botao.querySelector('.status');
+
+    if (!input || !status) return;
+
+    const pago =
+        normalizarTextoCarteirinhasCRM(input.value) === 'PAGO';
+
+    if (pago) {
+        input.value = '';
+        botao.classList.remove('pago');
+        botao.classList.add('pendente');
+        status.textContent = '● PENDENTE';
+    } else {
+        input.value = 'PAGO';
+        botao.classList.remove('pendente');
+        botao.classList.add('pago');
+        status.textContent = '✓ PAGO';
+    }
+
+    atualizarResumoMesesCarteirinhasCRM();
+
+    // Mês é uma ação objetiva: salva praticamente na hora.
+    agendarAutoSalvarCarteirinhasCRM(120);
+}
+
+function atualizarResumoMesesCarteirinhasCRM() {
+    const meses = [
+        ...document.querySelectorAll(
+            '#modal-carteirinhas-crm .carteirinhas-mes-hidden'
+        )
+    ];
+
+    const pagos = meses.filter(input =>
+        normalizarTextoCarteirinhasCRM(input.value) === 'PAGO'
+    ).length;
+
+    const total = meses.length || 12;
+    const percentual = total > 0
+        ? Math.round((pagos / total) * 100)
+        : 0;
+
+    const numero = document.getElementById(
+        'carteirinhas-pagos-numero'
+    );
+
+    const percentualEl = document.getElementById(
+        'carteirinhas-pagos-percentual'
+    );
+
+    const barra = document.getElementById(
+        'carteirinhas-progress-bar'
+    );
+
+    if (numero) numero.textContent = `${pagos}/${total}`;
+    if (percentualEl) percentualEl.textContent = `${percentual}%`;
+    if (barra) barra.style.width = `${percentual}%`;
+}
+
+function marcarTodosMesesCarteirinhasCRM() {
+    const botoes = document.querySelectorAll(
+        '#modal-carteirinhas-crm .cart-month'
+    );
+
+    botoes.forEach(botao => {
+        const input = botao.querySelector('.carteirinhas-mes-hidden');
+        const status = botao.querySelector('.status');
+
+        if (!input || !status) return;
+
+        input.value = 'PAGO';
+        botao.classList.remove('pendente');
+        botao.classList.add('pago');
+        status.textContent = '✓ PAGO';
+    });
+
+    atualizarResumoMesesCarteirinhasCRM();
+    agendarAutoSalvarCarteirinhasCRM(120);
+}
+
+function limparMesesCarteirinhasCRM() {
+    if (
+        !confirm(
+            'Limpar o status de TODOS os meses deste morador?\n\n' +
+            'Eles voltarão a aparecer como PENDENTE.'
+        )
+    ) {
+        return;
+    }
+
+    const botoes = document.querySelectorAll(
+        '#modal-carteirinhas-crm .cart-month'
+    );
+
+    botoes.forEach(botao => {
+        const input = botao.querySelector('.carteirinhas-mes-hidden');
+        const status = botao.querySelector('.status');
+
+        if (!input || !status) return;
+
+        input.value = '';
+        botao.classList.remove('pago');
+        botao.classList.add('pendente');
+        status.textContent = '● PENDENTE';
+    });
+
+    atualizarResumoMesesCarteirinhasCRM();
+    agendarAutoSalvarCarteirinhasCRM(120);
+}
+
+async function buscarProximoMoradorCarteirinhasCRM(direcao) {
+    if (!carteirinhasCRMState.nomes.length) return;
+
+    const atualNorm =
+        normalizarTextoCarteirinhasCRM(
+            carteirinhasCRMState.nomeAtual ||
+            document.getElementById('carteirinhas-buscar-nome')?.value
+        );
+
+    let indice = carteirinhasCRMState.nomes.findIndex(nome =>
+        normalizarTextoCarteirinhasCRM(nome) === atualNorm
+    );
+
+    if (indice < 0) indice = 0;
+
+    indice += Number(direcao) || 0;
+
+    if (indice < 0) {
+        indice = carteirinhasCRMState.nomes.length - 1;
+    }
+
+    if (indice >= carteirinhasCRMState.nomes.length) {
+        indice = 0;
+    }
+
+    const input = document.getElementById(
+        'carteirinhas-buscar-nome'
+    );
+
+    if (input) {
+        input.value = carteirinhasCRMState.nomes[indice];
+    }
+
+    await buscarMoradorCarteirinhasCRM(true);
 }
 
 
