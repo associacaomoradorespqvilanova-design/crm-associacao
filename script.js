@@ -1,8 +1,8 @@
 // ============================================================
 // CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbyQIV-jJJo4zMl1TJhdLWMBd3OJrGsNlNv8EH2w6A0OTnipMLYnZPdUSPagAawoYrlR2Q/exec";
-const CRM_BACKEND_VERSAO = '20260818-7';
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbzuev5CFLSoMEPBCrHVUfHY7hviYV40JCrC6s5jBr-oxJtZgn0vOuhGJsb1YcWP1-AMpA/exec";
+const CRM_BACKEND_VERSAO = '20260820-1';
 
 // ============================================================
 // GET VIA JSONP
@@ -125,6 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 45000);
     inicializarEventosBusca();
     inicializarBotaoWhatsapp();
+    inicializarBotoesDocumentosAntigos();
 });
 
 function login() {
@@ -3407,6 +3408,805 @@ async function salvarEdicaoMassivaBusca(linhas, linhaReferencia) {
         );
     }
 }
+
+
+// ============================================================
+// CARTEIRINHAS + COMPRA E VENDA
+// Migração dos antigos pop-ups do Google Sheets para o CRM.
+// ============================================================
+
+const COMPRA_VENDA_HTML_CRM = "<!DOCTYPE html>\n<html>\n\n<head>\n\n<!-- jQuery e Summernote (Editor de Texto Rico) -->\n<script src=\"https://code.jquery.com/jquery-3.6.0.min.js\"></script>\n<link href=\"https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote-lite.min.css\" rel=\"stylesheet\">\n<script src=\"https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote-lite.min.js\"></script>\n\n<style>\n\n@media print {\n\n  .no-print,\n  .no-print * {\n    display: none !important;\n    visibility: hidden !important;\n  }\n\n  body {\n    -webkit-print-color-adjust: exact !important;\n    print-color-adjust: exact !important;\n    margin: 0;\n    padding: 0;\n    background: white !important;\n  }\n\n  /* =========================\n     PADRÃO = IMPRIME SÓ CONTRATO\n  ========================= */\n\n  #notaFiscal {\n    display: none !important;\n  }\n\n  .container {\n    display: block !important;\n  }\n\n  /* =========================\n     QUANDO FOR IMPRIMIR NOTA\n  ========================= */\n\n  body.imprimindo-nota .container {\n    display: none !important;\n  }\n\n  body.imprimindo-nota #notaFiscal {\n    display: block !important;\n    zoom: 0.40 !important;\n    width: 1000px !important;\n    margin: 0 auto !important;\n    padding: 0 !important;\n  }\n\n  /* =========================\n     IMPRESSÃO: ESCONDE O EDITOR E MOSTRA A CAIXA RESERVA\n  ========================= */\n  #obs-container, #obs-container * {\n    background: transparent !important;\n    border: none !important;\n    outline: none !important;\n    box-shadow: none !important;\n  }\n\n  #wrapper-obs {\n    display: none !important;\n  }\n\n  #print-area-obs {\n    display: block !important;\n    height: 155px !important;\n    max-height: 155px !important;\n    min-height: 155px !important;\n    width: 100% !important;\n    padding: 0 !important;\n    margin: 0 !important;\n    overflow: hidden !important;\n    font-weight: bold !important;\n    font-size: 14px !important;\n    font-family: Arial, sans-serif !important;\n  }\n}\n\nbody {\n  margin: 0;\n  font-family: 'Segoe UI', Arial, sans-serif;\n  background: #f2f2f2;\n}\n\n/* =========================\n   MENU PRINCIPAL (3 Botões)\n========================= */\n#menu-principal {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 800px;\n  height: 1150px;\n  display: flex;\n  flex-direction: column;\n  justify-content: center;\n  align-items: center;\n  background: #eaf4f4;\n  z-index: 100;\n  border-radius: 8px;\n  box-shadow: inset 0 0 30px rgba(0,0,0,0.05);\n}\n\n#menu-principal h2 {\n  font-size: 28px;\n  color: #1a3b3b;\n  margin-bottom: 50px;\n  text-transform: uppercase;\n  letter-spacing: 2px;\n  border-bottom: 3px solid #1a3b3b;\n  padding-bottom: 15px;\n}\n\n.menu-botoes {\n  display: flex;\n  flex-direction: column;\n  gap: 20px;\n  align-items: center;\n}\n\n.btn-menu {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  gap: 15px;\n  width: 320px;\n  height: 70px;\n  border: none;\n  border-radius: 40px;\n  font-size: 22px;\n  font-weight: bold;\n  color: white;\n  cursor: pointer;\n  transition: all 0.3s ease;\n  box-shadow: 0 6px 15px rgba(0,0,0,0.15);\n  padding: 15px 25px;\n}\n\n.btn-menu span {\n  font-size: 30px;\n}\n\n.btn-menu:hover {\n  transform: translateY(-5px) scale(1.02);\n  box-shadow: 0 10px 25px rgba(0,0,0,0.25);\n}\n\n.btn-menu:active {\n  transform: scale(0.95);\n}\n\n.btn-compra {\n  background: linear-gradient(145deg, #004d99, #003366);\n}\n\n.btn-transferencia {\n  background: linear-gradient(145deg, #2e7d32, #1b5e20);\n}\n\n.btn-atualizacao {\n  background: linear-gradient(145deg, #b8860b, #8b6508);\n}\n\n/* =========================\n   CONTAINER DO CONTRATO\n========================= */\n.container {\n  position: relative;\n  width: 800px;\n  height: 1150px;\n  background-image: url(\"https://i.imgur.com/u0FKrsJ.png\");\n  background-size: cover;\n  display: none; /* Começa oculto */\n  border-radius: 8px;\n}\n\n.btn-voltar {\n  position: absolute;\n  top: 15px;\n  left: 15px;\n  z-index: 30;\n  background: rgba(255, 255, 255, 0.95);\n  color: #333;\n  border: 1px solid #ccc;\n  padding: 8px 16px;\n  border-radius: 20px;\n  font-weight: bold;\n  font-size: 14px;\n  cursor: pointer;\n  box-shadow: 0 2px 8px rgba(0,0,0,0.1);\n  transition: 0.2s;\n}\n.btn-voltar:hover {\n  background: #fff;\n  box-shadow: 0 4px 12px rgba(0,0,0,0.2);\n}\n\n.campo {\n  position: absolute;\n  background-color: transparent;\n  font-weight: bold;\n  font-size: 14px;\n  border: none;\n  text-transform: uppercase;\n}\n\ninput[type=\"text\"],\nselect {\n  background-color: rgba(255,255,255,0.75);\n  border: 1px solid #999;\n  padding: 2px 4px;\n  font-weight: bold;\n  font-size: 16px;\n  text-transform: uppercase;\n  z-index: 2;\n  box-sizing: border-box;\n}\n\n.btn {\n  position: absolute;\n  bottom: 20px;\n  left: 50%;\n  transform: translateX(-50%);\n  padding: 10px 20px;\n  background-color: green;\n  color: white;\n  border: none;\n  font-size: 18px;\n  border-radius: 5px;\n  cursor: pointer;\n  z-index: 10;\n}\n\n.btn-imprimir {\n  left: calc(50% + 130px);\n  background-color: #2196F3;\n}\n\n.btn-buscar-cpf {\n  position: absolute;\n  background-color: #ff9800;\n  color: white;\n  border: none;\n  border-radius: 4px;\n  padding: 2px 10px;\n  font-size: 12px;\n  cursor: pointer;\n  z-index: 5;\n}\n.btn-buscar-cpf:hover {\n  background-color: #e68900;\n}\n\n</style>\n\n\n<script>\n(function () {\n  function criarRunner(successHandler, failureHandler) {\n    return new Proxy({}, {\n      get: function (_, prop) {\n        if (prop === 'withSuccessHandler') {\n          return function (fn) {\n            return criarRunner(fn, failureHandler);\n          };\n        }\n\n        if (prop === 'withFailureHandler') {\n          return function (fn) {\n            return criarRunner(successHandler, fn);\n          };\n        }\n\n        return function () {\n          const args = Array.prototype.slice.call(arguments);\n\n          Promise.resolve(\n            window.parent.compraVendaBridgeCall(String(prop), args)\n          )\n          .then(function (res) {\n            if (typeof successHandler === 'function') {\n              successHandler(res);\n            }\n          })\n          .catch(function (err) {\n            const erro = {\n              message: err && err.message ? err.message : String(err)\n            };\n\n            if (typeof failureHandler === 'function') {\n              failureHandler(erro);\n            } else {\n              console.error('Erro no módulo Compra e Venda:', erro.message);\n              alert('Erro: ' + erro.message);\n            }\n          });\n        };\n      }\n    });\n  }\n\n  window.google = window.google || {};\n  window.google.script = window.google.script || {};\n\n  Object.defineProperty(window.google.script, 'run', {\n    configurable: true,\n    get: function () {\n      return criarRunner(null, null);\n    }\n  });\n})();\n</script>\n\n</head>\n\n<body>\n\n<!-- =========================\n   MENU PRINCIPAL (3 BOTÕES)\n========================= -->\n<div id=\"menu-principal\" class=\"no-print\">\n    <h2>Selecione o Tipo de Documento</h2>\n    <div class=\"menu-botoes\">\n        <button class=\"btn-menu btn-compra\" onclick=\"selecionarTipo('compra')\">\n            <span>📜</span> COMPRA E VENDA\n        </button>\n        <button class=\"btn-menu btn-transferencia\" onclick=\"selecionarTipo('transferencia')\">\n            <span>🔄</span> TRANSFERÊNCIA (Posse)\n        </button>\n        <button class=\"btn-menu btn-atualizacao\" onclick=\"selecionarTipo('atualizacao')\">\n            <span>📝</span> ATUALIZAÇÃO (Posse)\n        </button>\n    </div>\n</div>\n\n<!-- =========================\nCONTRATO (SEUS CAMPOS ORIGINAIS)\n========================= -->\n\n<div class=\"container\" id=\"container-formulario\">\n\n    <button class=\"btn-voltar no-print\" onclick=\"voltarMenu()\">↩ VOLTAR</button>\n\n    <!-- CABEÇALHO & CAMPOS FIXOS -->\n    <input class=\"campo\" id=\"contrato\" style=\"top: 267px; left: 160px; width: 70px;\">\n    <input class=\"campo\" id=\"data\" style=\"top: 269px; left: 315px; width: 150px;\">\n    <input class=\"campo\" id=\"ano\" style=\"top: 268px; left: 610px; width: 60px;\">\n\n    <input class=\"campo\" id=\"cep\" style=\"top: 336px; left: 610px; width: 100px;\" onblur=\"buscarCEP()\">\n    <button type=\"button\" id=\"btnBuscarCEP\" class=\"button no-print\" style=\"position:absolute; top:565px; left:690px; z-index:2; padding:4px 8px; font-size:12px; background:#ff9800; color:#fff; border:none; border-radius:4px; cursor:pointer;\" onclick=\"buscarCEP()\">Buscar CEP</button>\n\n    <input class=\"campo\" id=\"proprietario\" style=\"top:292px; left:185px; width:540px;\">\n    <input class=\"campo\" id=\"endereco\" style=\"top:336px; left:163px; width:390px;\">\n    \n    <input class=\"campo\" id=\"rg\" style=\"top:360px; left:110px; width:100px;\">\n    <input class=\"campo\" id=\"emissor\" style=\"top:360px; left:330px; width:90px;\">\n    <input class=\"campo\" id=\"cpf\" style=\"top:360px; left:590px; width:130px;\">\n    <button type=\"button\" id=\"btnBuscarCPF\" class=\"btn-buscar-cpf no-print\" style=\"top:358px; left:730px; z-index:5;\" onclick=\"buscarCPF()\">Buscar</button>\n\n    <input class=\"campo\" id=\"nacionalidade\" style=\"top:381px; left:219px; width:180px;\">\n    <input class=\"campo\" id=\"naturalidade\" style=\"top:381px; left:540px; width:180px;\">\n    <input class=\"campo\" id=\"estadocivil\" style=\"top:404px; left:195px; width:180px;\">\n    <input class=\"campo\" id=\"profissao\" style=\"top:404px; left:469px; width:200px;\">\n    \n    <input class=\"campo\" id=\"bairro\" style=\"top:428px; left:145px; width:180px;\">\n    <input class=\"campo\" id=\"municipio\" style=\"top:428px; left:470px; width:180px;\">\n    <input class=\"campo\" id=\"uf\" style=\"top:426px; left:660px; width:60px;\">\n\n    <input class=\"campo\" id=\"frente\" style=\"top:450px; left:250px; width:70px;\">\n    <input class=\"campo\" id=\"lateral\" style=\"top:450px; left:420px; width:70px;\">\n    <input class=\"campo\" id=\"total\" style=\"top:450px; left:650px; width:70px;\">\n\n    <input class=\"campo\" id=\"valor\" style=\"top:473px; left:230px; width:420px;\" onblur=\"formatarValor()\"/>\n\n    <!-- CAMPO FORMA DE PAGAMENTO -->\n    <select class=\"campo\" id=\"pagamento\" style=\"top:495px; left:280px; width:400px;\">\n        <option value=\"\">Selecione</option>\n        <option value=\"À VISTA\">À VISTA</option>\n        <option value=\"TRANSFERÊNCIA\">TRANSFERÊNCIA</option>\n        <option value=\"DOAÇÃO\">DOAÇÃO</option>\n        <option value=\"ATUALIZAÇÃO\">ATUALIZAÇÃO</option>\n        <option value=\"PARCELADO\">PARCELADO</option>\n        <option value=\"DESMEMBRAMENTO\">DESMEMBRAMENTO</option>\n    </select>\n\n    <!-- DROPDOWN DE SITUAÇÃO (SÓ VAI APARECER NA COMPRA E VENDA) -->\n    <select class=\"campo\" id=\"tipo_transferencia\" style=\"top: 522px; left: 80px; width: 100px; display: none;\" onchange=\"atualizarCampoTransferente()\">\n        <option value=\"ATUALIZAÇÃO\">ATUALIZAÇÃO</option>\n        <option value=\"TRANSFERÊNCIA\">TRANSFERÊNCIA</option>\n    </select>\n    \n    <!-- CAMPO VENDEDOR / TESTEMUNHA -->\n    <input class=\"campo\" id=\"vendedor\" style=\"top:522px; left:190px; width:530px;\" oninput=\"copiarVendedorParaDeclarante()\">\n    \n    <input class=\"campo\" id=\"rgvendedor\" style=\"top:575px; left:100px; width:130px;\">\n    <input class=\"campo\" id=\"emissorv\" style=\"top:575px; left:430px; width:90px;\">\n    <input class=\"campo\" id=\"cpfvendedor\" style=\"top:575px; left:590px; width:150px;\">\n\n    <input class=\"campo\" id=\"declarante\" style=\"top:600px; left:190px; width:520px;\">\n\n    <!-- =========================\n       CAIXA DE TEXTO COM EDITOR (TELA) E CAIXA RESERVA (IMPRESSÃO)\n    ========================= -->\n    <div id=\"obs-container\" style=\"position:absolute; top:730px; left:90px; width:650px; height:155px; z-index:2;\">\n        \n        <!-- Editor com botões na tela -->\n        <div id=\"wrapper-obs\" style=\"width:100%; height:100%; background:rgba(255,255,255,0.75); border:1px solid #999; overflow:hidden; border-radius:4px;\">\n            <textarea id=\"obs\" style=\"width:100%; height:100%; border:none; padding:8px; resize:none; background:transparent; font-weight:bold; font-size:14px; font-family:Arial; box-sizing:border-box;\"></textarea>\n        </div>\n        \n        <!-- Caixa de texto invisível para impressão -->\n        <div id=\"print-area-obs\" style=\"width:100%; height:100%; background:transparent; border:none; overflow:hidden; display:none; font-weight:bold; font-size:14px; font-family:Arial; padding:8px; box-sizing:border-box; white-space:pre-wrap;\"></div>\n    </div>\n\n    <button class=\"btn no-print\" type=\"button\" onclick=\"salvar()\">Salvar</button>\n    <button class=\"btn btn-imprimir no-print\" type=\"button\" onclick=\"imprimir()\">Imprimir</button>\n\n</div>\n\n<!-- =========================\nNOTA FISCAL NOVA\n========================= -->\n\n<div id=\"notaFiscal\" style=\"display:none; width:850px; margin:auto; padding:20px; font-family:Arial; background:white;\">\n<div style=\"border:5px solid #0f6b38; border-radius:35px; padding:35px; position:relative; overflow:hidden; background:white;\">\n<div style=\"display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:30px;\">\n<div style=\"display:flex; align-items:center; gap:20px;\">\n<img src='https://i.imgur.com/sX9Nm0k.png' style='width:160px; height:160px; object-fit:contain; border-radius:50%; border:4px solid #0f6b38; padding:10px;'>\n<div>\n<div style=\"font-size:34px; font-weight:bold; color:#0f6b38; line-height:1.1;\">ASSOCIAÇÃO<br>MORADORES<br><span style=\"color:#5ea532;\">PARQUE VILA NOVA</span></div>\n<div style=\"margin-top:10px; font-size:16px; color:#2b5c36;\">TRABALHANDO POR UMA<br>COMUNIDADE MELHOR</div>\n</div>\n</div>\n<div style=\"text-align:right;\">\n<div style=\"font-size:60px; font-weight:bold; color:#0f6b38; line-height:1;\">NOTA FISCAL</div>\n<div style=\"margin-top:20px; border:3px solid #5ea532; border-radius:15px; padding:15px 25px; font-size:40px; font-weight:bold; color:#5ea532;\">Nº <span id=\"numeroNota\"></span></div>\n</div>\n</div>\n\n<div style=\"border:3px solid #5ea532; border-radius:25px; padding:30px; margin-bottom:30px;\">\n<div style=\"font-size:18px; color:#2b5c36; margin-bottom:8px;\">NOME:</div>\n<div id=\"notaNome\" style=\"font-size:42px; font-weight:bold; margin-bottom:25px;\"></div>\n<div style=\"font-size:18px; color:#2b5c36; margin-bottom:8px;\">CPF:</div>\n<div id=\"notaCPF\" style=\"font-size:32px; font-weight:bold; margin-bottom:25px;\"></div>\n<div style=\"font-size:18px; color:#2b5c36; margin-bottom:8px;\">FORMA DE PAGAMENTO:</div>\n<div id=\"notaPagamento\" style=\"font-size:32px; font-weight:bold; margin-bottom:25px;\"></div>\n<div style=\"font-size:18px; color:#2b5c36; margin-bottom:8px;\">VALOR DO DOCUMENTO:</div>\n<div id=\"notaValor\" style=\"font-size:50px; font-weight:bold; color:#0f6b38;\"></div>\n</div>\n\n<table style=\"width:100%; border-collapse:collapse; border:3px solid #0f6b38; overflow:hidden; border-radius:20px;\">\n<tr style=\"background:linear-gradient(90deg,#006b3a,#6ab536); color:white;\">\n<th style=\"padding:20px; font-size:26px;\">DESCRIÇÃO</th>\n<th style=\"font-size:26px; width:250px;\">VALOR</th>\n</tr>\n<tr>\n<td style=\"padding:35px; font-size:30px; border-right:2px solid #0f6b38;\">PRESTAÇÃO DE SERVIÇOS / DOCUMENTAÇÃO</td>\n<td style=\"text-align:center; font-size:36px; font-weight:bold;\"><span id=\"notaValorTabela\"></span></td>\n</tr>\n<tr>\n<td style=\"text-align:right; padding:25px; font-size:34px; font-weight:bold; color:#0f6b38;\">TOTAL</td>\n<td style=\"text-align:center; font-size:45px; font-weight:bold; color:#0f6b38;\"><span id=\"notaTotal\"></span></td>\n</tr>\n</table>\n<div style=\"margin-top:70px; text-align:center;\"><div style=\"width:420px; margin:auto; border-top:3px solid #0f6b38; padding-top:12px; font-size:28px; color:#0f6b38;\">ASSINATURA</div></div>\n</div>\n</div>\n\n<script>\n\n    // ============================================================\n    // 🔴 LINKS DOS 3 BACKGROUNDS\n    // ============================================================\n    const url_fundo_compra = \"https://i.imgur.com/L1Qv1pI.png\";\n    const url_fundo_transferencia = \"https://i.imgur.com/Ea22z5w.png\";\n    const url_fundo_atualizacao = \"https://i.imgur.com/yFpEQSo.png\";\n    // ============================================================\n\n    // =========================\n    // LÓGICA DO MENU (3 Botões e Ajuste de Layout)\n    // =========================\n    function selecionarTipo(tipo) {\n        document.getElementById('menu-principal').style.display = 'none';\n        const container = document.getElementById('container-formulario');\n        \n        if (tipo === 'compra') {\n            container.style.backgroundImage = \"url('\" + url_fundo_compra + \"')\";\n        } else if (tipo === 'transferencia') {\n            container.style.backgroundImage = \"url('\" + url_fundo_transferencia + \"')\";\n        } else if (tipo === 'atualizacao') {\n            container.style.backgroundImage = \"url('\" + url_fundo_atualizacao + \"')\";\n        }\n        \n        ajustarLayout(tipo);\n        container.style.display = 'block';\n    }\n\n    function voltarMenu() {\n        document.getElementById('container-formulario').style.display = 'none';\n        document.getElementById('menu-principal').style.display = 'flex';\n    }\n\n    // =========================\n    // CONTROLE DO DROPDOWN E LAYOUT\n    // =========================\n    function atualizarCampoTransferente() {\n        const tipo = document.getElementById('tipo_transferencia').value;\n        const campo = document.getElementById('vendedor');\n        if (tipo === 'ATUALIZAÇÃO') {\n            campo.value = '';\n            campo.disabled = true;\n            campo.style.opacity = '0.6';\n            document.getElementById('declarante').value = ''; \n        } else {\n            campo.disabled = false;\n            campo.style.opacity = '1';\n        }\n    }\n\n    function ajustarLayout(tipo) {\n        const dropdownSituacao = document.getElementById('tipo_transferencia');\n        const campoPagamento = document.getElementById('pagamento');\n        const campoVendedor = document.getElementById('vendedor');\n        const campoDeclarante = document.getElementById('declarante');\n        const containerObs = document.getElementById('obs-container');\n        \n        const btnBuscarCEP = document.getElementById('btnBuscarCEP');\n        const btnBuscarCPF = document.getElementById('btnBuscarCPF');\n        \n        // Elementos RG, Emissor, CPF do Transferente\n        const rgVendedor = document.getElementById('rgvendedor');\n        const emissorV = document.getElementById('emissorv');\n        const cpfVendedor = document.getElementById('cpfvendedor');\n        \n        if (tipo === 'compra') {\n            // =========================\n            // COMPRA E VENDA\n            // =========================\n            dropdownSituacao.style.display = 'none'; \n            campoPagamento.style.display = 'block';\n            \n            btnBuscarCEP.style.display = 'block';\n            btnBuscarCPF.style.display = 'block';\n            \n            campoVendedor.style.top = '522px';\n            campoVendedor.style.left = '190px';\n            campoVendedor.style.width = '530px';\n            campoVendedor.disabled = false;\n            campoVendedor.style.opacity = '1';\n            \n            rgVendedor.style.display = 'block';\n            emissorV.style.display = 'block';\n            cpfVendedor.style.display = 'block';\n            \n            campoDeclarante.style.top = '600px';\n            campoDeclarante.style.left = '190px';\n            campoDeclarante.style.width = '520px';\n            \n            containerObs.style.top = '730px';\n            containerObs.style.height = '155px';\n            \n        } else if (tipo === 'transferencia') {\n            // =========================\n            // TRANSFERÊNCIA (POSSE)\n            // =========================\n            dropdownSituacao.style.display = 'none';\n            campoPagamento.style.display = 'none';\n            \n            btnBuscarCEP.style.display = 'none';\n            btnBuscarCPF.style.display = 'none';\n            \n            // Campo Transferente deslocado para a direita\n            campoVendedor.style.top = '522px';\n            campoVendedor.style.left = '205px';\n            campoVendedor.style.width = '585px';\n            campoVendedor.disabled = false;\n            campoVendedor.style.opacity = '1';\n            \n            // RG, Emissor e CPF do Transferente APARECEM\n            rgVendedor.style.display = 'block';\n            emissorV.style.display = 'block';\n            cpfVendedor.style.display = 'block';\n            \n            rgVendedor.style.top = '575px';\n            rgVendedor.style.left = '100px';\n            emissorV.style.top = '575px';\n            emissorV.style.left = '430px';\n            cpfVendedor.style.top = '575px';\n            cpfVendedor.style.left = '590px';\n            \n            campoDeclarante.style.top = '600px';\n            campoDeclarante.style.left = '190px';\n            campoDeclarante.style.width = '520px';\n            \n            containerObs.style.top = '730px';\n            containerObs.style.height = '155px';\n\n        } else if (tipo === 'atualizacao') {\n            // =========================\n            // ATUALIZAÇÃO (POSSE) - CORREÇÃO DO TESTEMUNHA\n            // =========================\n            dropdownSituacao.style.display = 'none';\n            campoPagamento.style.display = 'none';\n            \n            btnBuscarCEP.style.display = 'none';\n            btnBuscarCPF.style.display = 'none';\n            \n            // Testemunha alinhada (Aumentei o left levemente para 205px para dar um pequeno espaço)\n            campoVendedor.style.top = '602px';\n            campoVendedor.style.left = '185px';\n            campoVendedor.style.width = '585px';\n            campoVendedor.disabled = false;\n            campoVendedor.style.opacity = '1';\n            \n            // RG, Emissor e CPF do Transferente DESAPARECEM\n            rgVendedor.style.display = 'none';\n            emissorV.style.display = 'none';\n            cpfVendedor.style.display = 'none';\n            \n            campoDeclarante.style.top = '690px';\n            campoDeclarante.style.left = '190px';\n            campoDeclarante.style.width = '520px';\n            \n            containerObs.style.top = '675px';\n            containerObs.style.height = '155px';\n        }\n    }\n\n    /* =========================\n    JAVASCRIPT ORIGINAL\n    ========================= */\n\n    function calcularTotal() {\n      const frente = parseFloat(document.getElementById(\"frente\").value) || 0;\n      const lateral = parseFloat(document.getElementById(\"lateral\").value) || 0;\n      const total = (frente * lateral).toFixed(2);\n      document.getElementById(\"total\").value = total + \" m²\";\n    }\n\n    document.getElementById(\"frente\").addEventListener(\"input\", calcularTotal);\n    document.getElementById(\"lateral\").addEventListener(\"input\", calcularTotal);\n\n    let ultimoValorDigitado = \"\";\n\n    function formatarValor() {\n      const input = document.getElementById(\"valor\");\n      let valorBruto = input.value.replace(/\\D/g, '');\n      if (!valorBruto) {\n        ultimoValorDigitado = \"\";\n        return;\n      }\n      if (valorBruto === ultimoValorDigitado) return;\n      const valor = parseInt(valorBruto);\n      const valorMilhar = valor * 1000;\n      const valorFormatado = valorMilhar.toLocaleString('pt-BR') + \",00\";\n      const extenso = numeroPorExtenso(valor).trim() + \" MIL REAIS\";\n      input.value = `${valorFormatado} (${extenso})`;\n      ultimoValorDigitado = valorBruto;\n    }\n\n    function numeroPorExtenso(n) {\n      const unidades = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'];\n      const especiais = ['dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];\n      const dezenas = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];\n      const centenas = ['', 'cem', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];\n\n      if (n === 0) return 'zero';\n      if (n === 100) return 'cem';\n      let partes = [];\n      if (n >= 100) {\n        let c = Math.floor(n / 100);\n        partes.push(n % 100 === 0 ? centenas[c] : (c === 1 ? 'cento' : centenas[c]));\n        n %= 100;\n      }\n      if (n >= 20) {\n        let d = Math.floor(n / 10);\n        partes.push(dezenas[d]);\n        n %= 10;\n      } else if (n >= 10) {\n        partes.push(especiais[n - 10]);\n        n = 0;\n      }\n      if (n > 0) partes.push(unidades[n]);\n      return partes.join(' e ');\n    }\n\n    function copiarVendedorParaDeclarante() {\n      document.getElementById(\"declarante\").value = document.getElementById(\"vendedor\").value;\n    }\n\n    window.onload = () => {\n      const hoje = new Date();\n      const meses = [\"JANEIRO\", \"FEVEREIRO\", \"MARÇO\", \"ABRIL\", \"MAIO\", \"JUNHO\", \"JULHO\", \"AGOSTO\", \"SETEMBRO\", \"OUTUBRO\", \"NOVEMBRO\", \"DEZEMBRO\"];\n      document.getElementById(\"data\").value = `${hoje.getDate()} DE ${meses[hoje.getMonth()]}`;\n      document.getElementById(\"ano\").value = hoje.getFullYear();\n      google.script.run.withSuccessHandler(num => {\n        document.getElementById(\"contrato\").value = String(num).padStart(6, '0');\n      }).obterProximoNumeroContrato();\n\n      // =========================\n      // INICIALIZA O EDITOR DE TEXTO RICO\n      // =========================\n      $('#obs').summernote({\n          height: 155,\n          minHeight: 100,\n          maxHeight: 200,\n          toolbar: [\n              ['style', ['bold', 'italic', 'underline']],\n              ['fontsize', ['fontsize']],\n              ['para', ['ul', 'ol', 'paragraph']],\n              ['clear', ['clear']]\n          ],\n          placeholder: 'Digite aqui as cláusulas, observações e informações extras...'\n      });\n    };\n\n    function coletarDados() {\n      // NOTA: O array tem 21 itens (campoExtra1 e campoExtra2 foram removidos)\n      return [\n        document.getElementById(\"contrato\").value,\n        document.getElementById(\"data\").value,\n        document.getElementById(\"ano\").value,\n        document.getElementById(\"proprietario\").value,\n        document.getElementById(\"cpf\").value,\n        document.getElementById(\"rg\").value,\n        document.getElementById(\"cep\").value,\n        document.getElementById(\"endereco\").value,\n        document.getElementById(\"bairro\").value,\n        document.getElementById(\"municipio\").value,\n        document.getElementById(\"uf\").value,\n        document.getElementById(\"vendedor\").value,\n        document.getElementById(\"cpfvendedor\").value,\n        document.getElementById(\"rgvendedor\").value,\n        document.getElementById(\"frente\").value + \"m\",\n        document.getElementById(\"lateral\").value + \"m\",\n        document.getElementById(\"total\").value,\n        document.getElementById(\"pagamento\").value,\n        document.getElementById(\"valor\").value,\n        document.getElementById(\"declarante\").value,\n        $('#obs').summernote('code') // Salva o texto com toda a formatação HTML\n      ];\n    }\n\n    function salvar() {\n      const dados = coletarDados();\n      google.script.run.withSuccessHandler(() => {\n        alert(\"Dados salvos com sucesso!\");\n      }).salvarCompraVenda(dados);\n    }\n\n    function buscarCPF() {\n      const cpf = document.getElementById(\"cpf\").value.replace(/\\D/g, '');\n      if (cpf.length !== 11) {\n        alert(\"CPF inválido. Digite 11 números.\");\n        return;\n      }\n      google.script.run.withSuccessHandler(function(resultado) {\n        if (!resultado || !resultado.encontrado) {\n          alert(\"CPF não encontrado na base de dados.\");\n          return;\n        }\n        preencherDados(resultado.dados);\n      }).withFailureHandler(function(erro) {\n        alert(\"Erro ao buscar CPF: \" + erro.message);\n      }).buscarDadosPorCPFCompraVenda(cpf);\n    }\n\n    function preencherDados(dados) {\n      const mapa = {\n        'proprietario': dados.nome || '',\n        'rg': dados.rg || '',\n        'emissor': dados.emissor || '',\n        'nacionalidade': dados.nacionalidade || '',\n        'naturalidade': dados.naturalidade || '',\n        'estadocivil': dados.estadocivil || '',\n        'profissao': dados.profissao || '',\n        'endereco': dados.endereco || '',\n        'bairro': dados.bairro || '',\n        'municipio': dados.municipio || '',\n        'uf': dados.uf || '',\n        'cep': dados.cep || ''\n      };\n      Object.keys(mapa).forEach(id => {\n        const el = document.getElementById(id);\n        if (el) el.value = mapa[id];\n      });\n      if (dados.frente) document.getElementById('frente').value = dados.frente;\n      if (dados.lateral) document.getElementById('lateral').value = dados.lateral;\n      calcularTotal();\n    }\n\n    function imprimir() {\n      let valorDocumento = prompt(\"VALOR DO DOCUMENTO:\");\n      if (!valorDocumento) {\n        alert(\"Informe um valor.\");\n        return;\n      }\n      let formaPagamento = confirm(\"FORMA DE PAGAMENTO:\\n\\nOK = PIX\\nCANCELAR = DINHEIRO\");\n      let pagamentoSelecionado = formaPagamento ? \"PIX\" : \"DINHEIRO\";\n      valorDocumento = Number(valorDocumento.replace(\",\", \".\")).toLocaleString('pt-BR', {\n        style: 'currency',\n        currency: 'BRL'\n      });\n      const dados = coletarDados();\n\n      google.script.run.withSuccessHandler(() => {\n\n        // =========================\n        // PASSA O CONTEÚDO DO EDITOR PARA A CAIXA RESERVA\n        // =========================\n        const conteudo = $('#obs').summernote('code');\n        const textoLimpo = $('<div>').html(conteudo).text().trim();\n        const printArea = document.getElementById('print-area-obs');\n\n        if (textoLimpo.length > 0) {\n            printArea.innerHTML = conteudo;\n        } else {\n            printArea.innerHTML = '';\n        }\n\n        // =========================\n        // PRIMEIRA IMPRESSÃO: CONTRATO\n        // =========================\n        document.body.classList.remove(\"imprimindo-nota\");\n\n        setTimeout(() => {\n          try { window.print(); } catch (e) { console.log(\"Erro na impressão do contrato (ignorado):\", e); }\n        }, 500);\n\n        gerarNotaFiscal(valorDocumento, pagamentoSelecionado);\n\n        setTimeout(() => {\n          document.body.classList.add(\"imprimindo-nota\");\n          try { window.print(); } catch (e) { console.log(\"Erro na impressão da nota fiscal (ignorado):\", e); }\n          document.body.classList.remove(\"imprimindo-nota\");\n        }, 1000);\n\n        google.script.run.withSuccessHandler(novoNumero => {\n          document.getElementById(\"contrato\").value = String(novoNumero).padStart(6, '0');\n        }).incrementarNumeroContrato();\n        google.script.run.incrementarNumeroNota();\n\n      }).salvarCompraVenda(dados);\n    }\n\n    function gerarNotaFiscal(valorDocumento, pagamentoSelecionado) {\n      google.script.run.withSuccessHandler(numero => {\n        document.getElementById(\"numeroNota\").innerText = String(numero).padStart(6, '0');\n      }).obterProximoNumeroNota();\n      document.getElementById(\"notaNome\").innerText = document.getElementById(\"proprietario\").value.toUpperCase();\n      document.getElementById(\"notaCPF\").innerText = document.getElementById(\"cpf\").value;\n      document.getElementById(\"notaPagamento\").innerText = pagamentoSelecionado;\n      document.getElementById(\"notaValor\").innerText = valorDocumento;\n      document.getElementById(\"notaValorTabela\").innerText = valorDocumento;\n      document.getElementById(\"notaTotal\").innerText = valorDocumento;\n    }\n\n    function buscarCEP() {\n      const cep = document.getElementById(\"cep\").value.replace(/\\D/g,'');\n      if(cep.length !== 8){\n        alert(\"CEP inválido\");\n        return;\n      }\n      fetch(\"https://viacep.com.br/ws/\" + cep + \"/json/\")\n      .then(response => response.json())\n      .then(d => {\n        if(d.erro){\n          alert(\"CEP não encontrado\");\n          return;\n        }\n        document.getElementById(\"endereco\").value = (d.logradouro || \"\").toUpperCase();\n        document.getElementById(\"bairro\").value = (d.bairro || \"\").toUpperCase();\n        document.getElementById(\"municipio\").value = (d.localidade || \"\").toUpperCase();\n        document.getElementById(\"uf\").value = (d.uf || \"\").toUpperCase();\n      });\n    }\n\n</script>\n\n</body>\n</html>";
+
+function localizarBotaoPorTextoCRM(texto) {
+    const alvo = String(texto || '').trim().toUpperCase();
+
+    return [...document.querySelectorAll('button, a, [role="button"]')]
+        .find(el => String(el.textContent || '').trim().toUpperCase() === alvo) || null;
+}
+
+function localizarContainerBotoesCentraisCRM() {
+    const textos = [
+        'CURRICULO',
+        'CURRÍCULO',
+        'WHATSAPP',
+        'ADC CARTÕES',
+        'ADC CARTOES',
+        'CESTAS',
+        'BUSCAR'
+    ];
+
+    const encontrados = textos
+        .map(localizarBotaoPorTextoCRM)
+        .filter(Boolean);
+
+    if (!encontrados.length) return null;
+
+    const contagem = new Map();
+
+    encontrados.forEach(el => {
+        let pai = el.parentElement;
+        let niveis = 0;
+
+        while (pai && niveis < 4) {
+            contagem.set(pai, (contagem.get(pai) || 0) + 1);
+            pai = pai.parentElement;
+            niveis++;
+        }
+    });
+
+    return [...contagem.entries()]
+        .sort((a, b) => b[1] - a[1])[0]?.[0] || encontrados[0].parentElement;
+}
+
+function criarBotaoModuloAntigoCRM(id, texto, referencia) {
+    let btn = document.getElementById(id);
+    if (btn) return btn;
+
+    btn = document.createElement('button');
+    btn.id = id;
+    btn.type = 'button';
+    btn.textContent = texto;
+
+    if (referencia) {
+        btn.className = referencia.className || '';
+        btn.style.cssText = referencia.style.cssText || '';
+    }
+
+    // Garante aparência coerente mesmo se o botão de referência não tiver style inline.
+    btn.style.cursor = 'pointer';
+    btn.style.minWidth = btn.style.minWidth || '130px';
+
+    return btn;
+}
+
+function inicializarBotoesDocumentosAntigos(tentativa = 0) {
+    const container = localizarContainerBotoesCentraisCRM();
+
+    if (!container) {
+        if (tentativa < 20) {
+            setTimeout(() => inicializarBotoesDocumentosAntigos(tentativa + 1), 300);
+        }
+        return;
+    }
+
+    const referencia =
+        localizarBotaoPorTextoCRM('CESTAS') ||
+        localizarBotaoPorTextoCRM('CURRICULO') ||
+        localizarBotaoPorTextoCRM('CURRÍCULO') ||
+        localizarBotaoPorTextoCRM('WHATSAPP');
+
+    const btnCarteirinhas = criarBotaoModuloAntigoCRM(
+        'btn-carteirinhas',
+        'CARTEIRINHAS',
+        referencia
+    );
+
+    const btnCompraVenda = criarBotaoModuloAntigoCRM(
+        'btn-compra-venda',
+        'COMPRA E VENDA',
+        referencia
+    );
+
+    btnCarteirinhas.onclick = function (e) {
+        e.preventDefault();
+        abrirModalCarteirinhasCRM();
+    };
+
+    btnCompraVenda.onclick = function (e) {
+        e.preventDefault();
+        abrirModalCompraVendaCRM();
+    };
+
+    // Tenta manter a ordem visual próxima do sistema antigo.
+    const btnCestas = localizarBotaoPorTextoCRM('CESTAS');
+
+    if (btnCestas && btnCestas.parentElement === container) {
+        if (!btnCarteirinhas.isConnected) {
+            container.insertBefore(btnCarteirinhas, btnCestas);
+        }
+
+        if (!btnCompraVenda.isConnected) {
+            container.insertBefore(btnCompraVenda, btnCestas);
+        }
+    } else {
+        if (!btnCarteirinhas.isConnected) container.appendChild(btnCarteirinhas);
+        if (!btnCompraVenda.isConnected) container.appendChild(btnCompraVenda);
+    }
+}
+
+
+// ============================================================
+// CARTEIRINHAS — PESQUISA E EDIÇÃO DE MORADORES
+// ============================================================
+
+const carteirinhasCRMState = {
+    nomes: [],
+    linhaAtual: null
+};
+
+function garantirModalCarteirinhasCRM() {
+    let modal = document.getElementById('modal-carteirinhas-crm');
+
+    if (modal) return modal;
+
+    const style = document.createElement('style');
+    style.id = 'carteirinhas-crm-styles';
+    style.textContent = `
+        #modal-carteirinhas-crm {
+            position: fixed;
+            inset: 0;
+            z-index: 1000000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(21, 31, 24, .50);
+            backdrop-filter: blur(4px);
+        }
+
+        #modal-carteirinhas-crm.active {
+            display: flex;
+        }
+
+        #modal-carteirinhas-crm .cart-box {
+            width: min(820px, 100%);
+            max-height: 92dvh;
+            background: #fff;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 24px 70px rgba(0,0,0,.28);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #modal-carteirinhas-crm .cart-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 16px 18px;
+            border-bottom: 1px solid #e4ece6;
+            background: #f8fbf8;
+        }
+
+        #modal-carteirinhas-crm .cart-head h3 {
+            margin: 0;
+            color: #204b2a;
+            font-size: 20px;
+        }
+
+        #modal-carteirinhas-crm .cart-close {
+            width: 38px;
+            height: 38px;
+            border: 0;
+            border-radius: 50%;
+            background: #eef3ef;
+            color: #40544a;
+            font-size: 22px;
+            cursor: pointer;
+        }
+
+        #modal-carteirinhas-crm .cart-body {
+            padding: 16px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #modal-carteirinhas-crm label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: 800;
+            color: #3b5042;
+            font-size: 13px;
+        }
+
+        #modal-carteirinhas-crm input {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ccd9cf;
+            border-radius: 9px;
+            padding: 10px 11px;
+            font-size: 14px;
+            background: #fff;
+        }
+
+        #modal-carteirinhas-crm .cart-search-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            align-items: end;
+        }
+
+        #modal-carteirinhas-crm .cart-primary {
+            border: 0;
+            border-radius: 10px;
+            background: #397c42;
+            color: white;
+            font-weight: 900;
+            cursor: pointer;
+            padding: 11px 16px;
+        }
+
+        #modal-carteirinhas-crm .cart-form {
+            margin-top: 14px;
+            border-top: 1px solid #e2ebe4;
+            padding-top: 8px;
+        }
+
+        #modal-carteirinhas-crm .cart-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0 12px;
+        }
+
+        #modal-carteirinhas-crm .cart-status {
+            min-height: 22px;
+            margin-top: 10px;
+            text-align: center;
+            font-weight: 800;
+            color: #24713a;
+        }
+
+        #modal-carteirinhas-crm .cart-vazio {
+            padding: 25px 10px;
+            text-align: center;
+            color: #77847b;
+        }
+
+        @media (max-width: 640px) {
+            #modal-carteirinhas-crm {
+                padding: 0;
+                align-items: stretch;
+            }
+
+            #modal-carteirinhas-crm .cart-box {
+                width: 100%;
+                height: 100dvh;
+                max-height: 100dvh;
+                border-radius: 0;
+            }
+
+            #modal-carteirinhas-crm .cart-search-row,
+            #modal-carteirinhas-crm .cart-grid {
+                grid-template-columns: 1fr;
+            }
+
+            #modal-carteirinhas-crm .cart-primary {
+                width: 100%;
+            }
+        }
+    `;
+
+    document.head.appendChild(style);
+
+    modal = document.createElement('div');
+    modal.id = 'modal-carteirinhas-crm';
+
+    modal.innerHTML = `
+        <div class="cart-box">
+            <div class="cart-head">
+                <h3>🪪 Carteirinhas — Pesquisa e Edição</h3>
+                <button type="button" class="cart-close" onclick="fecharModalCarteirinhasCRM()">×</button>
+            </div>
+
+            <div class="cart-body">
+                <div class="cart-search-row">
+                    <div>
+                        <label for="carteirinhas-buscar-nome">🔍 Buscar Nome</label>
+                        <input
+                            type="text"
+                            id="carteirinhas-buscar-nome"
+                            list="carteirinhas-lista-nomes"
+                            placeholder="Digite o nome para buscar..."
+                            autocomplete="off"
+                        >
+                        <datalist id="carteirinhas-lista-nomes"></datalist>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="cart-primary"
+                        onclick="buscarMoradorCarteirinhasCRM()"
+                    >
+                        Buscar
+                    </button>
+                </div>
+
+                <div id="carteirinhas-formulario" class="cart-form"></div>
+                <div id="carteirinhas-mensagem" class="cart-status"></div>
+            </div>
+        </div>
+    `;
+
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) fecharModalCarteirinhasCRM();
+    });
+
+    document.body.appendChild(modal);
+
+    const input = modal.querySelector('#carteirinhas-buscar-nome');
+
+    if (input) {
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                buscarMoradorCarteirinhasCRM();
+            }
+        });
+    }
+
+    return modal;
+}
+
+async function abrirModalCarteirinhasCRM() {
+    const modal = garantirModalCarteirinhasCRM();
+
+    modal.classList.add('active');
+
+    carteirinhasCRMState.linhaAtual = null;
+
+    const formulario = document.getElementById('carteirinhas-formulario');
+    const mensagem = document.getElementById('carteirinhas-mensagem');
+
+    if (formulario) formulario.innerHTML = '';
+    if (mensagem) mensagem.textContent = '';
+
+    try {
+        const resposta = await fetchFromGS(
+            'buscarTodosNomesCarteirinhas',
+            { _: String(Date.now()) }
+        );
+
+        carteirinhasCRMState.nomes = Array.isArray(resposta?.nomes)
+            ? resposta.nomes
+            : [];
+
+        const lista = document.getElementById('carteirinhas-lista-nomes');
+
+        if (lista) {
+            lista.innerHTML = '';
+
+            carteirinhasCRMState.nomes.forEach(nome => {
+                const option = document.createElement('option');
+                option.value = nome;
+                lista.appendChild(option);
+            });
+        }
+
+        setTimeout(() => {
+            document.getElementById('carteirinhas-buscar-nome')?.focus();
+        }, 100);
+
+    } catch (erro) {
+        console.error('Erro ao carregar nomes de CARTEIRINHAS:', erro);
+
+        if (mensagem) {
+            mensagem.style.color = '#b42318';
+            mensagem.textContent = 'Erro ao carregar nomes: ' + (erro.message || erro);
+        }
+    }
+}
+
+function fecharModalCarteirinhasCRM() {
+    const modal = document.getElementById('modal-carteirinhas-crm');
+    if (modal) modal.classList.remove('active');
+}
+
+async function buscarMoradorCarteirinhasCRM() {
+    const input = document.getElementById('carteirinhas-buscar-nome');
+    const formulario = document.getElementById('carteirinhas-formulario');
+    const mensagem = document.getElementById('carteirinhas-mensagem');
+
+    const nome = String(input?.value || '').trim();
+
+    if (!nome) {
+        alert('Digite um nome para buscar.');
+        return;
+    }
+
+    if (formulario) {
+        formulario.innerHTML =
+            '<div class="cart-vazio">⏳ Buscando morador...</div>';
+    }
+
+    if (mensagem) mensagem.textContent = '';
+
+    try {
+        const resposta = await fetchFromGS(
+            'buscarMoradorCarteirinhas',
+            {
+                nome,
+                _: String(Date.now())
+            }
+        );
+
+        if (!resposta || !resposta.encontrado) {
+            carteirinhasCRMState.linhaAtual = null;
+
+            if (formulario) {
+                formulario.innerHTML =
+                    '<div class="cart-vazio" style="color:#b42318;">Morador não encontrado.</div>';
+            }
+
+            return;
+        }
+
+        carteirinhasCRMState.linhaAtual = Number(resposta.linha);
+
+        const campos = Array.isArray(resposta.dados)
+            ? resposta.dados
+            : [];
+
+        if (!formulario) return;
+
+        formulario.innerHTML = `
+            <div class="cart-grid">
+                ${campos.map(campo => `
+                    <div>
+                        <label>${escapeHtml(String(campo.coluna || ''))}</label>
+                        <input
+                            type="text"
+                            class="carteirinhas-campo-edicao"
+                            data-coluna="${escapeHtml(String(campo.coluna || ''))}"
+                            value="${escapeHtml(String(campo.valor ?? ''))}"
+                        >
+                    </div>
+                `).join('')}
+            </div>
+
+            <button
+                type="button"
+                class="cart-primary"
+                style="width:100%;margin-top:16px;"
+                onclick="salvarMoradorCarteirinhasCRM()"
+            >
+                💾 Salvar Alterações
+            </button>
+        `;
+
+    } catch (erro) {
+        console.error('Erro ao buscar morador em CARTEIRINHAS:', erro);
+
+        if (formulario) {
+            formulario.innerHTML =
+                `<div class="cart-vazio" style="color:#b42318;">Erro: ${escapeHtml(String(erro.message || erro))}</div>`;
+        }
+    }
+}
+
+async function salvarMoradorCarteirinhasCRM() {
+    const linha = Number(carteirinhasCRMState.linhaAtual);
+
+    if (!linha) {
+        alert('Nenhum morador selecionado.');
+        return;
+    }
+
+    const dados = {};
+
+    document
+        .querySelectorAll('#modal-carteirinhas-crm .carteirinhas-campo-edicao')
+        .forEach(input => {
+            dados[input.dataset.coluna] = input.value;
+        });
+
+    const mensagem = document.getElementById('carteirinhas-mensagem');
+
+    try {
+        await postParaGoogleSheets(
+            'salvarMoradorCarteirinhas',
+            { linha, dados }
+        );
+
+        if (mensagem) {
+            mensagem.style.color = '#24713a';
+            mensagem.textContent = '✅ Dados atualizados com sucesso!';
+        }
+
+        // Atualiza lista de nomes caso o nome tenha sido alterado.
+        const resposta = await fetchFromGS(
+            'buscarTodosNomesCarteirinhas',
+            { _: String(Date.now()) }
+        );
+
+        carteirinhasCRMState.nomes = Array.isArray(resposta?.nomes)
+            ? resposta.nomes
+            : [];
+
+        const lista = document.getElementById('carteirinhas-lista-nomes');
+
+        if (lista) {
+            lista.innerHTML = '';
+
+            carteirinhasCRMState.nomes.forEach(nome => {
+                const option = document.createElement('option');
+                option.value = nome;
+                lista.appendChild(option);
+            });
+        }
+
+    } catch (erro) {
+        console.error('Erro ao salvar CARTEIRINHAS:', erro);
+
+        if (mensagem) {
+            mensagem.style.color = '#b42318';
+            mensagem.textContent = 'Erro ao salvar: ' + (erro.message || erro);
+        }
+    }
+}
+
+
+// ============================================================
+// COMPRA E VENDA — HTML ANTIGO RODANDO DENTRO DO CRM
+// ============================================================
+
+function garantirModalCompraVendaCRM() {
+    let modal = document.getElementById('modal-compra-venda-crm');
+
+    if (modal) return modal;
+
+    const style = document.createElement('style');
+    style.id = 'compra-venda-crm-styles';
+    style.textContent = `
+        #modal-compra-venda-crm {
+            position: fixed;
+            inset: 0;
+            z-index: 1000000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(20, 29, 23, .58);
+            backdrop-filter: blur(4px);
+            padding: 12px;
+        }
+
+        #modal-compra-venda-crm.active {
+            display: flex;
+        }
+
+        #modal-compra-venda-crm .cvenda-box {
+            width: min(1060px, 100%);
+            height: min(900px, 96dvh);
+            background: #fff;
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 24px 70px rgba(0,0,0,.32);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #modal-compra-venda-crm .cvenda-head {
+            min-height: 54px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 8px 14px;
+            background: #f4f8f4;
+            border-bottom: 1px solid #dce7de;
+        }
+
+        #modal-compra-venda-crm .cvenda-title {
+            color: #255a31;
+            font-weight: 900;
+            font-size: 17px;
+        }
+
+        #modal-compra-venda-crm .cvenda-close {
+            width: 38px;
+            height: 38px;
+            border: 0;
+            border-radius: 50%;
+            background: #e8eee9;
+            color: #405048;
+            font-size: 22px;
+            cursor: pointer;
+        }
+
+        #modal-compra-venda-crm iframe {
+            width: 100%;
+            flex: 1;
+            border: 0;
+            background: #f2f2f2;
+        }
+
+        @media (max-width: 700px) {
+            #modal-compra-venda-crm {
+                padding: 0;
+            }
+
+            #modal-compra-venda-crm .cvenda-box {
+                width: 100%;
+                height: 100dvh;
+                max-height: 100dvh;
+                border-radius: 0;
+            }
+        }
+    `;
+
+    document.head.appendChild(style);
+
+    modal = document.createElement('div');
+    modal.id = 'modal-compra-venda-crm';
+
+    modal.innerHTML = `
+        <div class="cvenda-box">
+            <div class="cvenda-head">
+                <div class="cvenda-title">📜 Compra e Venda / Transferência / Atualização</div>
+                <button
+                    type="button"
+                    class="cvenda-close"
+                    onclick="fecharModalCompraVendaCRM()"
+                    aria-label="Fechar"
+                >×</button>
+            </div>
+
+            <iframe
+                id="compra-venda-iframe-crm"
+                title="Compra e Venda"
+            ></iframe>
+        </div>
+    `;
+
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) fecharModalCompraVendaCRM();
+    });
+
+    document.body.appendChild(modal);
+
+    return modal;
+}
+
+function abrirModalCompraVendaCRM() {
+    const modal = garantirModalCompraVendaCRM();
+    const iframe = document.getElementById('compra-venda-iframe-crm');
+
+    if (!iframe) return;
+
+    // Recarrega o documento a cada abertura para:
+    // - puxar número atual do contrato;
+    // - limpar formulário antigo;
+    // - reiniciar Summernote.
+    iframe.srcdoc = COMPRA_VENDA_HTML_CRM;
+
+    modal.classList.add('active');
+}
+
+function fecharModalCompraVendaCRM() {
+    const modal = document.getElementById('modal-compra-venda-crm');
+
+    if (modal) modal.classList.remove('active');
+}
+
+// Chamado pelo shim google.script.run que foi injetado no HTML antigo.
+async function compraVendaBridgeCall(metodo, args = []) {
+    switch (metodo) {
+        case 'obterProximoNumeroContrato': {
+            const res = await fetchFromGS(
+                'obterProximoNumeroContratoCompraVenda',
+                { _: String(Date.now()) }
+            );
+
+            if (res?.error) throw new Error(res.error);
+
+            return Number(res?.numero || 10);
+        }
+
+        case 'incrementarNumeroContrato': {
+            await postParaGoogleSheets(
+                'incrementarNumeroContratoCompraVenda',
+                {}
+            );
+
+            const res = await fetchFromGS(
+                'obterProximoNumeroContratoCompraVenda',
+                { _: String(Date.now()) }
+            );
+
+            if (res?.error) throw new Error(res.error);
+
+            return Number(res?.numero || 10);
+        }
+
+        case 'obterProximoNumeroNota': {
+            const res = await fetchFromGS(
+                'obterProximoNumeroNotaCompraVenda',
+                { _: String(Date.now()) }
+            );
+
+            if (res?.error) throw new Error(res.error);
+
+            return Number(res?.numero || 1);
+        }
+
+        case 'incrementarNumeroNota': {
+            await postParaGoogleSheets(
+                'incrementarNumeroNotaCompraVenda',
+                {}
+            );
+
+            const res = await fetchFromGS(
+                'obterProximoNumeroNotaCompraVenda',
+                { _: String(Date.now()) }
+            );
+
+            if (res?.error) throw new Error(res.error);
+
+            return Number(res?.numero || 1);
+        }
+
+        case 'buscarDadosPorCPFCompraVenda': {
+            const cpf = String(args?.[0] || '');
+
+            const res = await fetchFromGS(
+                'buscarDadosPorCPFCompraVenda',
+                {
+                    cpf,
+                    _: String(Date.now())
+                }
+            );
+
+            if (res?.error) throw new Error(res.error);
+
+            return res;
+        }
+
+        case 'buscarEnderecoPorCEP': {
+            const cep = String(args?.[0] || '');
+
+            const res = await fetchFromGS(
+                'buscarEnderecoPorCEPCompraVenda',
+                {
+                    cep,
+                    _: String(Date.now())
+                }
+            );
+
+            if (res?.error) throw new Error(res.error);
+
+            return res;
+        }
+
+        case 'salvarCompraVenda': {
+            const dados = Array.isArray(args?.[0])
+                ? args[0]
+                : [];
+
+            await postParaGoogleSheets(
+                'salvarCompraVenda',
+                { dados }
+            );
+
+            return true;
+        }
+
+        default:
+            throw new Error(
+                'Função antiga não mapeada no CRM: ' + metodo
+            );
+    }
+}
+
 
 // ============================================================
 // WHATSAPP - CARTÕES PENDENTES
