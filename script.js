@@ -1,8 +1,8 @@
 // ============================================================
 // CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbz5Gh-_pkvuc4QfYnbP5hmnJnsZBCt9TM5TDcrZVksxZL2Ha__jsqR1GwUb_FUo_72K/exec";
-const CRM_BACKEND_VERSAO = '20260820-2';
+const URL_API_GS = "https://script.google.com/macros/s/AKfycby70uOlpOwkZNHN1YtvFcJSs3vfT9l65RiangZ-SaB603FpzUuvxGcyzvwirI_uIGWfkQ/exec";
+const CRM_BACKEND_VERSAO = '20260827-2';
 
 // ============================================================
 // GET VIA JSONP
@@ -32,7 +32,7 @@ function fetchFromGS(acao, params = {}, signal, timeoutMs = 45000) {
         window[callbackName] = res => encerrar(null, res);
         script.onerror = () => encerrar(new Error('Erro de rede'));
         document.body.appendChild(script);
-        if(signal) signal.addEventListener('abort', () => encerrar(new DOMException('Abortado')), { once: true });
+        if(signal) signal.addEventListener('abort', () => encerrar(new DOMException('Abortado', 'AbortError')), { once: true });
     });
 }
 
@@ -2047,7 +2047,628 @@ function prepararModalCurriculoResponsivo() {
             window.visualViewport.addEventListener('resize', ajustarAltura);
         }
     }
+
+    // Carrega a lista de currículos já salvos e ativa o autopreenchimento
+    // sempre que o modal for aberto.
+    setTimeout(() => {
+        inicializarAutocompleteCurriculoCRM();
+    }, 0);
 }
+
+
+// ============================================================
+// CURRÍCULO — SALVAR NA PLANILHA + AUTOPREENCHER PELO NOME
+// ============================================================
+
+const curriculoCRMState = {
+    nomesSalvos: [],
+    carregandoNomes: false,
+    preenchendo: false,
+    timerNome: null,
+    ultimoNomeCarregado: ''
+};
+
+function normalizarNomeCurriculoCRM(valor) {
+    return String(valor || '')
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function garantirUIAutocompleteCurriculoCRM() {
+    const nomeInput = document.getElementById('cv-nome');
+    if (!nomeInput) return null;
+
+    let datalist = document.getElementById('cv-nomes-salvos-lista');
+
+    if (!datalist) {
+        datalist = document.createElement('datalist');
+        datalist.id = 'cv-nomes-salvos-lista';
+        document.body.appendChild(datalist);
+    }
+
+    nomeInput.setAttribute('list', 'cv-nomes-salvos-lista');
+    nomeInput.setAttribute('autocomplete', 'off');
+
+    let barra = document.getElementById('cv-salvos-barra');
+
+    if (!barra) {
+        barra = document.createElement('div');
+        barra.id = 'cv-salvos-barra';
+        barra.style.cssText = `
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:8px;
+            flex-wrap:wrap;
+            margin-top:6px;
+            padding:7px 9px;
+            border:1px solid #dce7de;
+            background:#f8fbf8;
+            border-radius:9px;
+            font-size:11px;
+        `;
+
+        const status = document.createElement('span');
+        status.id = 'cv-salvos-status';
+        status.textContent = 'Digite um nome. Currículos salvos aparecem automaticamente.';
+        status.style.cssText = 'color:#65736a;font-weight:700;';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = 'cv-btn-salvar-cadastro';
+        btn.textContent = '💾 Salvar cadastro';
+        btn.style.cssText = `
+            border:1px solid #9fc0a5;
+            background:#fff;
+            color:#2f6f38;
+            border-radius:999px;
+            padding:6px 10px;
+            cursor:pointer;
+            font-size:10px;
+            font-weight:900;
+        `;
+        btn.onclick = () => salvarCadastroCurriculoCRM(true);
+
+        barra.appendChild(status);
+        barra.appendChild(btn);
+
+        nomeInput.insertAdjacentElement('afterend', barra);
+    }
+
+    return { nomeInput, datalist };
+}
+
+function atualizarStatusCurriculoSalvoCRM(texto, tipo = 'normal') {
+    const el = document.getElementById('cv-salvos-status');
+    if (!el) return;
+
+    el.textContent = texto;
+
+    if (tipo === 'ok') {
+        el.style.color = '#28733a';
+    } else if (tipo === 'erro') {
+        el.style.color = '#b42318';
+    } else if (tipo === 'buscando') {
+        el.style.color = '#8a6420';
+    } else {
+        el.style.color = '#65736a';
+    }
+}
+
+function renderizarNomesSalvosCurriculoCRM() {
+    const lista = document.getElementById('cv-nomes-salvos-lista');
+    if (!lista) return;
+
+    lista.innerHTML = '';
+
+    curriculoCRMState.nomesSalvos.forEach(nome => {
+        const option = document.createElement('option');
+        option.value = nome;
+        lista.appendChild(option);
+    });
+}
+
+async function carregarNomesSalvosCurriculoCRM() {
+    if (curriculoCRMState.carregandoNomes) return;
+
+    curriculoCRMState.carregandoNomes = true;
+
+    try {
+        const resposta = await fetchFromGS(
+            'listarNomesCurriculosCRM',
+            { _: String(Date.now()) }
+        );
+
+        if (resposta?.success === false || resposta?.error) {
+            throw new Error(
+                resposta.message ||
+                resposta.error ||
+                'Não foi possível carregar os currículos salvos.'
+            );
+        }
+
+        curriculoCRMState.nomesSalvos =
+            Array.isArray(resposta?.nomes)
+                ? resposta.nomes
+                : [];
+
+        renderizarNomesSalvosCurriculoCRM();
+
+        atualizarStatusCurriculoSalvoCRM(
+            curriculoCRMState.nomesSalvos.length
+                ? `${curriculoCRMState.nomesSalvos.length} currículo(s) salvo(s). Digite o nome para preencher.`
+                : 'Nenhum currículo salvo ainda. Ao gerar ou salvar, ele ficará disponível aqui.'
+        );
+
+    } catch (erro) {
+        console.error('Erro ao carregar currículos salvos:', erro);
+
+        atualizarStatusCurriculoSalvoCRM(
+            'Não foi possível carregar os currículos salvos.',
+            'erro'
+        );
+    } finally {
+        curriculoCRMState.carregandoNomes = false;
+    }
+}
+
+function inicializarAutocompleteCurriculoCRM() {
+    const ui = garantirUIAutocompleteCurriculoCRM();
+    if (!ui) return;
+
+    const { nomeInput } = ui;
+
+    // Sempre atualiza a lista ao abrir para refletir o que está na planilha.
+    carregarNomesSalvosCurriculoCRM();
+
+    if (nomeInput.dataset.curriculoAutoPreenchimento === '1') {
+        return;
+    }
+
+    nomeInput.dataset.curriculoAutoPreenchimento = '1';
+
+    const tentarAutoPreencher = () => {
+        clearTimeout(curriculoCRMState.timerNome);
+
+        curriculoCRMState.timerNome = setTimeout(() => {
+            const digitado = normalizarNomeCurriculoCRM(nomeInput.value);
+
+            if (!digitado) {
+                curriculoCRMState.ultimoNomeCarregado = '';
+                atualizarStatusCurriculoSalvoCRM(
+                    'Digite um nome. Currículos salvos aparecem automaticamente.'
+                );
+                return;
+            }
+
+            const exato = curriculoCRMState.nomesSalvos.find(nome =>
+                normalizarNomeCurriculoCRM(nome) === digitado
+            );
+
+            if (exato) {
+                if (
+                    curriculoCRMState.ultimoNomeCarregado !==
+                    normalizarNomeCurriculoCRM(exato)
+                ) {
+                    buscarEPreencherCurriculoSalvoCRM(exato);
+                }
+            } else {
+                curriculoCRMState.ultimoNomeCarregado = '';
+                atualizarStatusCurriculoSalvoCRM(
+                    'Novo currículo — preencha normalmente. Ele será salvo ao gerar o PDF.'
+                );
+            }
+        }, 350);
+    };
+
+    nomeInput.addEventListener('input', tentarAutoPreencher);
+
+    nomeInput.addEventListener('change', () => {
+        clearTimeout(curriculoCRMState.timerNome);
+
+        const digitado = normalizarNomeCurriculoCRM(nomeInput.value);
+
+        const exato = curriculoCRMState.nomesSalvos.find(nome =>
+            normalizarNomeCurriculoCRM(nome) === digitado
+        );
+
+        if (exato) {
+            buscarEPreencherCurriculoSalvoCRM(exato);
+        }
+    });
+}
+
+function coletarDadosCurriculoCRM() {
+    const modal = document.getElementById('modal-curriculo');
+
+    if (!modal) {
+        throw new Error('Modal de currículo não encontrado.');
+    }
+
+    const nome = String(
+        document.getElementById('cv-nome')?.value || ''
+    ).trim();
+
+    const campos = {};
+
+    modal
+        .querySelectorAll(
+            'input[id^="cv-"], select[id^="cv-"], textarea[id^="cv-"]'
+        )
+        .forEach(el => {
+            if (!el.id) return;
+
+            // Foto é tratada separadamente e não é colocada na planilha
+            // para não ultrapassar o limite de tamanho de uma célula.
+            if (el.type === 'file') return;
+
+            if (
+                el.type === 'checkbox' ||
+                el.type === 'radio'
+            ) {
+                campos[el.id] = {
+                    tipo: el.type,
+                    checked: !!el.checked,
+                    value: el.value
+                };
+            } else {
+                campos[el.id] = {
+                    tipo: el.type || el.tagName.toLowerCase(),
+                    value: el.value
+                };
+            }
+        });
+
+    const cursos = [
+        ...document.querySelectorAll(
+            '#cursos-container .dynamic-item'
+        )
+    ].map(node => ({
+        curso:
+            node.querySelector('.input-curso')?.value || '',
+        inst:
+            node.querySelector('.input-inst')?.value || '',
+        periodo:
+            node.querySelector('.input-periodo')?.value || ''
+    }));
+
+    const experiencias = [
+        ...document.querySelectorAll(
+            '#exp-container .dynamic-item'
+        )
+    ].map(node => ({
+        empresa:
+            node.querySelector('.input-empresa')?.value || '',
+        funcao:
+            node.querySelector('.input-funcao')?.value || '',
+        periodo:
+            node.querySelector('.input-periodo-exp')?.value || ''
+    }));
+
+    return {
+        nome,
+        dados: {
+            campos,
+            cursos,
+            experiencias
+        }
+    };
+}
+
+function limparFotoCurriculoAoCarregarCRM() {
+    state.fotoBase64 = null;
+
+    const preview = document.getElementById('cv-photo-preview');
+
+    if (preview) {
+        preview.src = '';
+        preview.style.display = 'none';
+    }
+
+    const modal = document.getElementById('modal-curriculo');
+
+    const file = modal?.querySelector('input[type="file"]');
+
+    if (file) {
+        try {
+            file.value = '';
+        } catch (_) {}
+    }
+}
+
+function preencherTelefonesVisiveisCurriculoCRM() {
+    const tel2 = document.getElementById('cv-tel-2');
+    const tel3 = document.getElementById('cv-tel-3');
+
+    const container2 = document.getElementById('cv-tel-container-2');
+    const container3 = document.getElementById('cv-tel-container-3');
+    const btnAdd = document.getElementById('btn-add-tel');
+
+    state.telefoneCount = 1;
+
+    if (tel2?.value) {
+        if (container2) container2.style.display = 'block';
+        state.telefoneCount = 2;
+    } else if (container2) {
+        container2.style.display = 'none';
+    }
+
+    if (tel3?.value) {
+        if (container3) container3.style.display = 'block';
+        state.telefoneCount = 3;
+    } else if (container3) {
+        container3.style.display = 'none';
+    }
+
+    if (btnAdd) {
+        btnAdd.style.display =
+            state.telefoneCount >= 3
+                ? 'none'
+                : '';
+    }
+}
+
+function preencherCurriculoComDadosCRM(registro) {
+    if (!registro?.dados) return;
+
+    curriculoCRMState.preenchendo = true;
+
+    try {
+        limparFotoCurriculoAoCarregarCRM();
+
+        const campos = registro.dados.campos || {};
+
+        Object.entries(campos).forEach(([id, info]) => {
+            const el = document.getElementById(id);
+            if (!el || !info) return;
+
+            if (
+                el.type === 'checkbox' ||
+                el.type === 'radio'
+            ) {
+                el.checked = !!info.checked;
+            } else if (info.value !== undefined) {
+                el.value = info.value;
+            }
+        });
+
+        const cursosContainer =
+            document.getElementById('cursos-container');
+
+        const expContainer =
+            document.getElementById('exp-container');
+
+        if (cursosContainer) cursosContainer.innerHTML = '';
+        if (expContainer) expContainer.innerHTML = '';
+
+        state.cursoCount = 0;
+        state.expCount = 0;
+
+        const cursos =
+            Array.isArray(registro.dados.cursos)
+                ? registro.dados.cursos
+                : [];
+
+        cursos.slice(0, 3).forEach(curso => {
+            adicionarCurso();
+
+            const node =
+                document.querySelector(
+                    '#cursos-container .dynamic-item:last-child'
+                );
+
+            if (!node) return;
+
+            const cursoEl =
+                node.querySelector('.input-curso');
+
+            const instEl =
+                node.querySelector('.input-inst');
+
+            const periodoEl =
+                node.querySelector('.input-periodo');
+
+            if (cursoEl) cursoEl.value = curso.curso || '';
+            if (instEl) instEl.value = curso.inst || '';
+            if (periodoEl) periodoEl.value = curso.periodo || '';
+        });
+
+        const experiencias =
+            Array.isArray(registro.dados.experiencias)
+                ? registro.dados.experiencias
+                : [];
+
+        experiencias.slice(0, 6).forEach(exp => {
+            adicionarExperiencia();
+
+            const node =
+                document.querySelector(
+                    '#exp-container .dynamic-item:last-child'
+                );
+
+            if (!node) return;
+
+            const empresaEl =
+                node.querySelector('.input-empresa');
+
+            const funcaoEl =
+                node.querySelector('.input-funcao');
+
+            const periodoEl =
+                node.querySelector('.input-periodo-exp');
+
+            if (empresaEl) empresaEl.value = exp.empresa || '';
+            if (funcaoEl) funcaoEl.value = exp.funcao || '';
+            if (periodoEl) periodoEl.value = exp.periodo || '';
+        });
+
+        preencherTelefonesVisiveisCurriculoCRM();
+
+        curriculoCRMState.ultimoNomeCarregado =
+            normalizarNomeCurriculoCRM(
+                registro.nome ||
+                document.getElementById('cv-nome')?.value
+            );
+
+        atualizarStatusCurriculoSalvoCRM(
+            '✓ Currículo encontrado e preenchido automaticamente.',
+            'ok'
+        );
+
+    } finally {
+        curriculoCRMState.preenchendo = false;
+    }
+}
+
+async function buscarEPreencherCurriculoSalvoCRM(nome) {
+    if (!nome) return;
+
+    atualizarStatusCurriculoSalvoCRM(
+        '⏳ Buscando currículo salvo...',
+        'buscando'
+    );
+
+    try {
+        const resposta = await fetchFromGS(
+            'buscarCurriculoCRM',
+            {
+                nome,
+                _: String(Date.now())
+            }
+        );
+
+        if (resposta?.success === false || resposta?.error) {
+            throw new Error(
+                resposta.message ||
+                resposta.error ||
+                'Erro ao buscar currículo.'
+            );
+        }
+
+        if (!resposta?.encontrado || !resposta?.registro) {
+            atualizarStatusCurriculoSalvoCRM(
+                'Currículo não encontrado na planilha.'
+            );
+            return;
+        }
+
+        preencherCurriculoComDadosCRM(
+            resposta.registro
+        );
+
+    } catch (erro) {
+        console.error(
+            'Erro ao autopreencher currículo:',
+            erro
+        );
+
+        atualizarStatusCurriculoSalvoCRM(
+            'Erro ao buscar currículo salvo.',
+            'erro'
+        );
+    }
+}
+
+async function salvarCadastroCurriculoCRM(mostrarMensagem = true) {
+    const payload = coletarDadosCurriculoCRM();
+
+    if (!payload.nome) {
+        if (mostrarMensagem) {
+            alert('Digite o nome antes de salvar.');
+        }
+        return false;
+    }
+
+    const btn =
+        document.getElementById('cv-btn-salvar-cadastro');
+
+    const textoOriginal =
+        btn?.textContent || '💾 Salvar cadastro';
+
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Salvando...';
+    }
+
+    atualizarStatusCurriculoSalvoCRM(
+        '⏳ Salvando currículo na planilha...',
+        'buscando'
+    );
+
+    try {
+        await postParaGoogleSheets(
+            'salvarCurriculoCRM',
+            payload
+        );
+
+        const nomeNormalizado =
+            normalizarNomeCurriculoCRM(payload.nome);
+
+        const jaExiste =
+            curriculoCRMState.nomesSalvos.some(nome =>
+                normalizarNomeCurriculoCRM(nome) ===
+                nomeNormalizado
+            );
+
+        if (!jaExiste) {
+            curriculoCRMState.nomesSalvos.push(
+                payload.nome
+            );
+
+            curriculoCRMState.nomesSalvos.sort(
+                (a, b) =>
+                    a.localeCompare(
+                        b,
+                        'pt-BR',
+                        { sensitivity: 'base' }
+                    )
+            );
+
+            renderizarNomesSalvosCurriculoCRM();
+        }
+
+        curriculoCRMState.ultimoNomeCarregado =
+            nomeNormalizado;
+
+        atualizarStatusCurriculoSalvoCRM(
+            '✓ Currículo salvo na planilha.',
+            'ok'
+        );
+
+        return true;
+
+    } catch (erro) {
+        console.error(
+            'Erro ao salvar currículo:',
+            erro
+        );
+
+        atualizarStatusCurriculoSalvoCRM(
+            '❌ Não foi possível salvar o currículo.',
+            'erro'
+        );
+
+        if (mostrarMensagem) {
+            alert(
+                'Não foi possível salvar o currículo: ' +
+                (erro.message || erro)
+            );
+        }
+
+        return false;
+
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = textoOriginal;
+        }
+    }
+}
+
 
 // ============================================================
 // CURR\u00CDCULO (CORRIGIDO E COMPLETO)
@@ -2163,12 +2784,226 @@ function removerItem(id) {
     el.remove();
 }
 
+
+function garantirLayoutPDFCurriculo() {
+    const idsObrigatorios = [
+        'pdf-nome',
+        'pdf-tel',
+        'pdf-email',
+        'pdf-endereco',
+        'pdf-objetivo',
+        'pdf-photo',
+        'pdf-habilidades',
+        'pdf-cursos',
+        'pdf-experiencias'
+    ];
+
+    let layout = document.getElementById('cv-pdf-layout');
+
+    const estruturaCompleta =
+        layout &&
+        idsObrigatorios.every(id => document.getElementById(id));
+
+    if (estruturaCompleta) {
+        return layout;
+    }
+
+    // Se existe um layout antigo/incompleto, reaproveita o mesmo container,
+    // mas reconstrói somente a área interna necessária para gerar o PDF.
+    if (!layout) {
+        layout = document.createElement('div');
+        layout.id = 'cv-pdf-layout';
+        document.body.appendChild(layout);
+    }
+
+    if (!document.getElementById('curriculo-pdf-fallback-style')) {
+        const style = document.createElement('style');
+        style.id = 'curriculo-pdf-fallback-style';
+        style.textContent = `
+            #cv-pdf-layout {
+                position: fixed;
+                left: -10000px;
+                top: 0;
+                width: 794px;
+                min-height: 1123px;
+                box-sizing: border-box;
+                background: #ffffff;
+                color: #1f2937;
+                font-family: Arial, Helvetica, sans-serif;
+                padding: 44px 48px;
+                z-index: -1;
+            }
+
+            #cv-pdf-layout .cvpdf-header {
+                display: grid;
+                grid-template-columns: 110px 1fr;
+                gap: 22px;
+                align-items: center;
+                padding-bottom: 20px;
+                border-bottom: 3px solid #4a7c2e;
+                margin-bottom: 24px;
+            }
+
+            #cv-pdf-layout .cvpdf-photo-wrap {
+                width: 100px;
+                height: 130px;
+                border-radius: 10px;
+                overflow: hidden;
+                border: 1px solid #d1d5db;
+                background: #f3f4f6;
+            }
+
+            #cv-pdf-layout #pdf-photo {
+                display: none;
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+
+            #cv-pdf-layout #pdf-nome {
+                margin: 0 0 10px;
+                font-size: 30px;
+                line-height: 1.08;
+                color: #234d2a;
+                text-transform: uppercase;
+            }
+
+            #cv-pdf-layout .cvpdf-contact {
+                display: grid;
+                gap: 5px;
+                color: #4b5563;
+                font-size: 13px;
+                line-height: 1.35;
+            }
+
+            #cv-pdf-layout .cvpdf-section {
+                margin-top: 22px;
+            }
+
+            #cv-pdf-layout .cvpdf-section-title {
+                margin: 0 0 10px;
+                padding-bottom: 5px;
+                border-bottom: 1px solid #cdd8cf;
+                color: #315d38;
+                font-size: 16px;
+                font-weight: 800;
+                text-transform: uppercase;
+            }
+
+            #cv-pdf-layout #pdf-objetivo {
+                margin: 0;
+                font-size: 13px;
+                line-height: 1.5;
+                white-space: pre-wrap;
+            }
+
+            #cv-pdf-layout #pdf-habilidades {
+                margin: 0;
+                padding-left: 18px;
+                columns: 2;
+                column-gap: 28px;
+                font-size: 13px;
+                line-height: 1.45;
+            }
+
+            #cv-pdf-layout .pdf-entry {
+                margin-bottom: 11px;
+                page-break-inside: avoid;
+            }
+
+            #cv-pdf-layout .pdf-entry-title {
+                font-size: 14px;
+                font-weight: 800;
+                color: #263b2a;
+            }
+
+            #cv-pdf-layout .pdf-entry-sub {
+                margin-top: 2px;
+                font-size: 12.5px;
+                color: #4b5563;
+            }
+
+            #cv-pdf-layout .pdf-entry-period {
+                margin-top: 2px;
+                font-size: 11.5px;
+                color: #6b7280;
+            }
+
+            #cv-pdf-layout.template-moderno .cvpdf-header {
+                border-bottom-width: 5px;
+            }
+
+            #cv-pdf-layout.template-simples .cvpdf-header {
+                border-bottom: 1px solid #9ca3af;
+            }
+
+            #cv-pdf-layout.template-simples #pdf-nome {
+                color: #111827;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    layout.innerHTML = `
+        <div class="cvpdf-header">
+            <div class="cvpdf-photo-wrap">
+                <img id="pdf-photo" alt="">
+            </div>
+
+            <div>
+                <h1 id="pdf-nome"></h1>
+
+                <div class="cvpdf-contact">
+                    <div><strong>Telefone:</strong> <span id="pdf-tel"></span></div>
+                    <div><strong>E-mail:</strong> <span id="pdf-email"></span></div>
+                    <div><strong>Endereço:</strong> <span id="pdf-endereco"></span></div>
+                </div>
+            </div>
+        </div>
+
+        <section class="cvpdf-section">
+            <h2 class="cvpdf-section-title">Objetivo</h2>
+            <p id="pdf-objetivo"></p>
+        </section>
+
+        <section class="cvpdf-section">
+            <h2 class="cvpdf-section-title">Habilidades</h2>
+            <ul id="pdf-habilidades"></ul>
+        </section>
+
+        <section class="cvpdf-section">
+            <h2 class="cvpdf-section-title">Cursos e Formação Complementar</h2>
+            <div id="pdf-cursos"></div>
+        </section>
+
+        <section class="cvpdf-section">
+            <h2 class="cvpdf-section-title">Experiência Profissional</h2>
+            <div id="pdf-experiencias"></div>
+        </section>
+    `;
+
+    layout.style.display = 'none';
+
+    return layout;
+}
+
 async function gerarCurriculo() {
     const nome = document.getElementById('cv-nome').value;
     if (!nome) {
         alert("Por favor, preencha pelo menos o Nome Completo.");
         return;
     }
+    // Sempre que o PDF for gerado, o cadastro também é salvo/atualizado
+    // na planilha CURRICULOS para ficar disponível no autopreenchimento.
+    try {
+        await salvarCadastroCurriculoCRM(false);
+    } catch (erroSalvar) {
+        console.warn(
+            'O PDF será gerado, mas o cadastro não pôde ser salvo:',
+            erroSalvar
+        );
+    }
+
     const templateSelecionado = document.getElementById('cv-template').value;
     const tel1 = document.getElementById('cv-tel-1').value;
     const tel2 = document.getElementById('cv-tel-2').value;
@@ -2202,6 +3037,10 @@ async function gerarCurriculo() {
         const periodo = node.querySelector('.input-periodo-exp').value || 'Per\u00EDodo n\u00E3o informado';
         experiencias.push({ empresa, funcao, periodo });
     });
+
+    // O HTML atual não possui todos os elementos usados pela geração do PDF.
+    // Recria a área de impressão automaticamente quando necessário.
+    garantirLayoutPDFCurriculo();
 
     document.getElementById('pdf-nome').innerText = nome;
     document.getElementById('pdf-tel').innerText = tels.length > 0 ? tels.join(' / ') : '(N\u00E3o informado)';
@@ -5979,4 +6818,3 @@ document.addEventListener('keydown', function(e) {
     const modal = document.getElementById('modal-whatsapp-crm');
     if (modal && modal.style.display === 'flex') fecharModalWhatsapp();
 });
-
