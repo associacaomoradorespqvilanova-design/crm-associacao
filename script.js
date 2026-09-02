@@ -1,8 +1,8 @@
 // ============================================================
 // CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycby70uOlpOwkZNHN1YtvFcJSs3vfT9l65RiangZ-SaB603FpzUuvxGcyzvwirI_uIGWfkQ/exec";
-const CRM_BACKEND_VERSAO = '20260827-2';
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbxUDLitWt06Ss9wROIZ8FNc5TQrH1VIX8vRMQkRAfPXZfMC-jL82qcQmhwrQz3NJhC4/exec";
+const CRM_BACKEND_VERSAO = '20260902-1';
 
 // ============================================================
 // GET VIA JSONP
@@ -114,18 +114,91 @@ const state = {
 };
 
 // ============================================================
-// INICIALIZA\u00C7\u00C3O
+// INICIALIZAÇÃO + SESSÃO COM EXPIRAÇÃO POR INATIVIDADE
 // ============================================================
+const CRM_INATIVIDADE_MAX_MS = 5 * 60 * 60 * 1000;
+const CRM_CHAVE_USUARIO = 'crm_user';
+const CRM_CHAVE_ULTIMA_ATIVIDADE = 'crm_last_activity';
+let crmUltimoRegistroAtividade = 0;
+let crmControleInatividadeLigado = false;
+
+function obterUltimaAtividadeCRM_() {
+    return Number(localStorage.getItem(CRM_CHAVE_ULTIMA_ATIVIDADE) || 0);
+}
+
+function sessaoCRMValida_() {
+    const usuario = localStorage.getItem(CRM_CHAVE_USUARIO);
+    const ultima = obterUltimaAtividadeCRM_();
+
+    if (usuario !== 'admin' || !ultima) return false;
+    return (Date.now() - ultima) < CRM_INATIVIDADE_MAX_MS;
+}
+
+function limparSessaoCRM_() {
+    localStorage.removeItem(CRM_CHAVE_USUARIO);
+    localStorage.removeItem(CRM_CHAVE_ULTIMA_ATIVIDADE);
+}
+
+function registrarAtividadeCRM_(forcar = false) {
+    if (localStorage.getItem(CRM_CHAVE_USUARIO) !== 'admin') return;
+
+    const agora = Date.now();
+    if (!forcar && agora - crmUltimoRegistroAtividade < 30000) return;
+
+    crmUltimoRegistroAtividade = agora;
+    localStorage.setItem(CRM_CHAVE_ULTIMA_ATIVIDADE, String(agora));
+}
+
+function verificarInatividadeCRM_() {
+    if (localStorage.getItem(CRM_CHAVE_USUARIO) !== 'admin') return false;
+
+    const ultima = obterUltimaAtividadeCRM_();
+    if (!ultima || Date.now() - ultima >= CRM_INATIVIDADE_MAX_MS) {
+        logout('Sessão encerrada após 5 horas sem atividade.');
+        return true;
+    }
+
+    return false;
+}
+
+function tratarAtividadeCRM_() {
+    if (verificarInatividadeCRM_()) return;
+    registrarAtividadeCRM_();
+}
+
+function inicializarControleInatividadeCRM() {
+    if (crmControleInatividadeLigado) return;
+    crmControleInatividadeLigado = true;
+
+    ['pointerdown', 'keydown', 'touchstart', 'scroll', 'mousemove'].forEach(evento => {
+        window.addEventListener(evento, tratarAtividadeCRM_, { passive: true });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) tratarAtividadeCRM_();
+    });
+
+    setInterval(verificarInatividadeCRM_, 60000);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    const savedUser = localStorage.getItem('crm_user');
-    if (savedUser === 'admin') loginSuccess();
+    inicializarControleInatividadeCRM();
+
+    const savedUser = localStorage.getItem(CRM_CHAVE_USUARIO);
+    if (savedUser === 'admin') {
+        if (sessaoCRMValida_()) loginSuccess();
+        else limparSessaoCRM_();
+    }
+
     setInterval(() => {
         const dashboard = document.getElementById('dashboard-screen');
         if (dashboard && dashboard.style.display !== 'none') renderizarPendentesCestaHome();
     }, 45000);
+
     inicializarEventosBusca();
     inicializarBotaoWhatsapp();
     inicializarBotoesDocumentosAntigos();
+    setTimeout(() => inicializarBotaoLembretesCRM(), 350);
 });
 
 function login() {
@@ -133,40 +206,70 @@ function login() {
     const pass = document.getElementById('password').value;
     const errorBox = document.getElementById('login-error');
     errorBox.style.display = 'none';
+
     if (user === 'admin' && pass === '123') {
-        localStorage.setItem('crm_user', 'admin');
+        localStorage.setItem(CRM_CHAVE_USUARIO, 'admin');
+        registrarAtividadeCRM_(true);
         loginSuccess();
-    } else errorBox.style.display = 'block';
+    } else {
+        errorBox.textContent = 'Usuário ou senha incorretos';
+        errorBox.style.display = 'block';
+    }
 }
 
 function loginSuccess() {
     try {
+        registrarAtividadeCRM_(true);
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('dashboard-screen').style.display = 'block';
-        updateClock(); 
+        updateClock();
         carregarDashboard();
-        
-        // Atrasa o popup
-        setTimeout(() => {
+
+        // Lembretes têm prioridade no início do CRM. Se não houver nenhum,
+        // mantém o popup antigo da agenda.
+        setTimeout(async () => {
             try {
-                verificarProximaAgendaPopup();
-                setTimeout(() => {
-                    try { fecharModal('modal-popup-login'); } catch(e) {}
-                }, 8000);
+                const abriuLembretes = await carregarLembretesCRM(true);
+                if (!abriuLembretes) {
+                    verificarProximaAgendaPopup();
+                    setTimeout(() => {
+                        try { fecharModal('modal-popup-login'); } catch(e) {}
+                    }, 8000);
+                }
             } catch (e) {
-                console.error("Erro ao abrir o popup de agenda:", e);
+                console.error('Erro ao abrir lembretes:', e);
+                try { verificarProximaAgendaPopup(); } catch (_) {}
             }
-        }, 600);
+        }, 650);
     } catch (e) {
-        console.error("Erro cr\u00EDtico no login:", e);
+        console.error('Erro crítico no login:', e);
     }
 }
 
-function logout() {
-    localStorage.removeItem('crm_user');
-    document.getElementById('dashboard-screen').style.display = 'none';
-    document.getElementById('login-screen').style.display = 'block';
-    document.getElementById('username').value = ''; document.getElementById('password').value = '';
+function logout(motivo = '') {
+    limparSessaoCRM_();
+
+    const dashboard = document.getElementById('dashboard-screen');
+    const loginScreen = document.getElementById('login-screen');
+    if (dashboard) dashboard.style.display = 'none';
+    if (loginScreen) loginScreen.style.display = 'block';
+
+    const user = document.getElementById('username');
+    const pass = document.getElementById('password');
+    if (user) user.value = '';
+    if (pass) pass.value = '';
+
+    document.querySelectorAll('.modal-overlay.active').forEach(modal => modal.classList.remove('active'));
+    const cvModal = document.getElementById('modal-compra-venda-crm');
+    if (cvModal) cvModal.classList.remove('active');
+
+    if (motivo) {
+        const errorBox = document.getElementById('login-error');
+        if (errorBox) {
+            errorBox.textContent = motivo;
+            errorBox.style.display = 'block';
+        }
+    }
 }
 
 function updateClock() {
@@ -5894,16 +5997,24 @@ function garantirModalCompraVendaCRM() {
 function abrirModalCompraVendaCRM() {
     const modal = garantirModalCompraVendaCRM();
     const iframe = document.getElementById('compra-venda-iframe-crm');
-
     if (!iframe) return;
 
-    // Recarrega o documento a cada abertura para:
-    // - puxar número atual do contrato;
-    // - limpar formulário antigo;
-    // - reiniciar Summernote.
-    iframe.srcdoc = COMPRA_VENDA_HTML_CRM;
+    const etapa = garantirEtapaVerificacaoCompraVendaCRM_(modal, iframe);
+    compraVendaVerificacaoState = { cpf: '', resposta: null, verificado: false };
+
+    iframe.style.display = 'none';
+    iframe.srcdoc = '';
+    etapa.style.display = 'flex';
+
+    const input = etapa.querySelector('#cv-cpf-consulta');
+    const resultado = etapa.querySelector('#cv-historico-resultado');
+    const continuar = etapa.querySelector('#cv-continuar-modelos');
+    if (input) input.value = '';
+    if (resultado) resultado.innerHTML = '<div class="cv-empty">Digite o CPF para verificar se já existem contratos salvos.</div>';
+    if (continuar) continuar.disabled = true;
 
     modal.classList.add('active');
+    setTimeout(() => input && input.focus(), 80);
 }
 
 function fecharModalCompraVendaCRM() {
@@ -6818,3 +6929,367 @@ document.addEventListener('keydown', function(e) {
     const modal = document.getElementById('modal-whatsapp-crm');
     if (modal && modal.style.display === 'flex') fecharModalWhatsapp();
 });
+
+// ============================================================
+// 🔔 LEMBRETES CRM - SALVOS NO GOOGLE SHEETS
+// ============================================================
+let crmLembretesCache = [];
+
+function inicializarBotaoLembretesCRM(tentativa = 0) {
+    if (document.getElementById('btn-lembretes-crm')) return;
+
+    const container = typeof localizarContainerBotoesCentraisCRM === 'function'
+        ? localizarContainerBotoesCentraisCRM()
+        : document.querySelector('.menu-buttons');
+
+    if (!container) {
+        if (tentativa < 25) setTimeout(() => inicializarBotaoLembretesCRM(tentativa + 1), 300);
+        return;
+    }
+
+    const referencia = container.querySelector('.btn-action');
+    const btn = document.createElement('button');
+    btn.id = 'btn-lembretes-crm';
+    btn.type = 'button';
+    btn.className = referencia?.className || 'btn-action';
+    btn.innerHTML = '<span class="crm-reminder-icon">🔔</span> LEMBRETES <span id="crm-lembretes-badge" class="crm-reminder-badge" style="display:none">0</span>';
+    btn.onclick = () => abrirModalLembretesCRM();
+
+    const btnCestas = Array.from(container.querySelectorAll('button')).find(b =>
+        String(b.textContent || '').trim().toUpperCase().includes('CESTAS')
+    );
+
+    if (btnCestas) container.insertBefore(btn, btnCestas);
+    else container.appendChild(btn);
+}
+
+function garantirModalLembretesCRM_() {
+    let modal = document.getElementById('modal-lembretes-crm');
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = 'modal-lembretes-crm';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-box crm-reminder-modal">
+            <button class="crm-modal-x" type="button" onclick="fecharModalLembretesCRM()" aria-label="Fechar">×</button>
+            <div class="crm-reminder-heading">
+                <div class="crm-reminder-heading-icon">🔔</div>
+                <div>
+                    <h3>Lembretes</h3>
+                    <p>Salvos automaticamente na planilha <strong>LEMBRETES_CRM</strong>.</p>
+                </div>
+            </div>
+
+            <div class="crm-reminder-form">
+                <label for="crm-lembrete-assunto">Assunto</label>
+                <input id="crm-lembrete-assunto" type="text" maxlength="180" placeholder="Ex.: Retornar ligação do morador">
+                <label for="crm-lembrete-data">Data</label>
+                <input id="crm-lembrete-data" type="date">
+                <button type="button" class="btn-primary" onclick="salvarLembreteCRMFrontend()">+ Adicionar lembrete</button>
+            </div>
+
+            <div class="crm-reminder-divider"></div>
+            <div id="crm-lembretes-resumo" class="crm-reminder-summary"></div>
+            <div id="crm-lembretes-lista" class="crm-reminder-list">
+                <div class="crm-empty-state">Carregando lembretes...</div>
+            </div>
+        </div>`;
+
+    modal.addEventListener('click', e => {
+        if (e.target === modal) fecharModalLembretesCRM();
+    });
+
+    document.body.appendChild(modal);
+    return modal;
+}
+
+function dataLocalISOCRM_() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dia = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${dia}`;
+}
+
+async function abrirModalLembretesCRM() {
+    const modal = garantirModalLembretesCRM_();
+    const inputData = modal.querySelector('#crm-lembrete-data');
+    if (inputData && !inputData.value) inputData.value = dataLocalISOCRM_();
+    modal.classList.add('active');
+    await carregarLembretesCRM(false);
+}
+
+function fecharModalLembretesCRM() {
+    document.getElementById('modal-lembretes-crm')?.classList.remove('active');
+}
+
+function atualizarBadgeLembretesCRM_(total) {
+    const badge = document.getElementById('crm-lembretes-badge');
+    const btn = document.getElementById('btn-lembretes-crm');
+    if (!badge || !btn) return;
+
+    badge.textContent = String(total || 0);
+    badge.style.display = total > 0 ? 'inline-flex' : 'none';
+    btn.classList.toggle('crm-has-reminders', total > 0);
+}
+
+function escaparHtmlCRM_(valor) {
+    return String(valor ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function renderizarLembretesCRM_(resposta) {
+    const lista = document.getElementById('crm-lembretes-lista');
+    const resumo = document.getElementById('crm-lembretes-resumo');
+    if (!lista) return;
+
+    const itens = Array.isArray(resposta?.itens) ? resposta.itens : [];
+    crmLembretesCache = itens;
+    atualizarBadgeLembretesCRM_(itens.length);
+
+    if (resumo) {
+        const hoje = Number(resposta?.totalHoje || 0);
+        const vencidos = Number(resposta?.totalVencidos || 0);
+        resumo.innerHTML = itens.length
+            ? `<span><strong>${itens.length}</strong> ativo(s)</span>${hoje ? `<span class="is-today"><strong>${hoje}</strong> para hoje</span>` : ''}${vencidos ? `<span class="is-overdue"><strong>${vencidos}</strong> vencido(s)</span>` : ''}`
+            : '';
+    }
+
+    if (!itens.length) {
+        lista.innerHTML = '<div class="crm-empty-state">Nenhum lembrete ativo. Você pode adicionar um acima.</div>';
+        return;
+    }
+
+    lista.innerHTML = itens.map(item => {
+        const classe = item.vencido ? 'is-overdue' : (item.hoje ? 'is-today' : '');
+        const status = item.vencido ? 'VENCIDO' : (item.hoje ? 'HOJE' : 'AGENDADO');
+        return `
+            <article class="crm-reminder-card ${classe}">
+                <div class="crm-reminder-date">
+                    <span>${escaparHtmlCRM_(item.dataBR)}</span>
+                    <small>${status}</small>
+                </div>
+                <div class="crm-reminder-text">${escaparHtmlCRM_(item.assunto)}</div>
+                <button type="button" class="crm-reminder-done" onclick="concluirLembreteCRMFrontend('${escaparHtmlCRM_(item.id)}')">✓ Concluir</button>
+            </article>`;
+    }).join('');
+}
+
+async function carregarLembretesCRM(mostrarAoEntrar = false) {
+    try {
+        const resposta = await fetchFromGS('listarLembretes', { _: String(Date.now()) });
+        if (resposta?.error || resposta?.success === false) {
+            throw new Error(resposta?.error || resposta?.message || 'Falha ao carregar lembretes.');
+        }
+
+        if (!document.getElementById('btn-lembretes-crm')) inicializarBotaoLembretesCRM();
+        garantirModalLembretesCRM_();
+        renderizarLembretesCRM_(resposta);
+
+        if (mostrarAoEntrar && Array.isArray(resposta?.itens) && resposta.itens.length) {
+            const modal = document.getElementById('modal-lembretes-crm');
+            const inputData = document.getElementById('crm-lembrete-data');
+            if (inputData && !inputData.value) inputData.value = dataLocalISOCRM_();
+            modal?.classList.add('active');
+            return true;
+        }
+        return false;
+    } catch (erro) {
+        console.error('Erro ao carregar lembretes:', erro);
+        atualizarBadgeLembretesCRM_(0);
+        return false;
+    }
+}
+
+async function salvarLembreteCRMFrontend() {
+    const assuntoEl = document.getElementById('crm-lembrete-assunto');
+    const dataEl = document.getElementById('crm-lembrete-data');
+    const assunto = String(assuntoEl?.value || '').trim();
+    const data = String(dataEl?.value || '').trim();
+
+    if (!assunto || !data) {
+        alert('Preencha o assunto e a data do lembrete.');
+        return;
+    }
+
+    try {
+        await postParaGoogleSheets('salvarLembrete', { assunto, data });
+        if (assuntoEl) assuntoEl.value = '';
+        await carregarLembretesCRM(false);
+    } catch (erro) {
+        alert('Erro ao salvar lembrete: ' + (erro.message || erro));
+    }
+}
+
+async function concluirLembreteCRMFrontend(id) {
+    if (!id) return;
+    try {
+        await postParaGoogleSheets('concluirLembrete', { id });
+        await carregarLembretesCRM(false);
+    } catch (erro) {
+        alert('Erro ao concluir lembrete: ' + (erro.message || erro));
+    }
+}
+
+
+// ============================================================
+// 📜 COMPRA E VENDA - VERIFICAÇÃO DE CPF ANTES DOS MODELOS
+// ============================================================
+let compraVendaVerificacaoState = { cpf: '', resposta: null, verificado: false };
+
+function garantirEtapaVerificacaoCompraVendaCRM_(modal, iframe) {
+    let etapa = document.getElementById('compra-venda-verificacao-crm');
+    if (etapa) return etapa;
+
+    etapa = document.createElement('section');
+    etapa.id = 'compra-venda-verificacao-crm';
+    etapa.className = 'cv-check-stage';
+    etapa.innerHTML = `
+        <div class="cv-check-card">
+            <div class="cv-check-eyebrow">ETAPA 1 DE 2</div>
+            <h2>Verificar contratos por CPF</h2>
+            <p class="cv-check-help">Antes de escolher Compra e Venda, Transferência ou Atualização, consulte o CPF para ver todo o histórico já salvo.</p>
+
+            <div class="cv-check-search">
+                <input id="cv-cpf-consulta" type="text" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" aria-label="CPF">
+                <button type="button" onclick="pesquisarHistoricoCompraVendaCRM()">🔎 Buscar CPF</button>
+            </div>
+
+            <div id="cv-historico-status" class="cv-check-status"></div>
+            <div id="cv-historico-resultado" class="cv-history-results">
+                <div class="cv-empty">Digite o CPF para verificar se já existem contratos salvos.</div>
+            </div>
+
+            <div class="cv-check-actions">
+                <button type="button" class="cv-secondary" onclick="fecharModalCompraVendaCRM()">Cancelar</button>
+                <button id="cv-continuar-modelos" type="button" class="cv-primary" onclick="continuarCompraVendaAposConsultaCRM()" disabled>Continuar para escolher o modelo →</button>
+            </div>
+        </div>`;
+
+    iframe.parentNode.insertBefore(etapa, iframe);
+
+    const input = etapa.querySelector('#cv-cpf-consulta');
+    input?.addEventListener('input', e => {
+        let v = String(e.target.value || '').replace(/\D/g, '').slice(0, 11);
+        v = v.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+        e.target.value = v;
+        compraVendaVerificacaoState.verificado = false;
+        const btn = document.getElementById('cv-continuar-modelos');
+        if (btn) btn.disabled = true;
+    });
+    input?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') pesquisarHistoricoCompraVendaCRM();
+    });
+
+    return etapa;
+}
+
+function renderizarHistoricoCompraVendaCRM_(resposta) {
+    const area = document.getElementById('cv-historico-resultado');
+    const status = document.getElementById('cv-historico-status');
+    if (!area) return;
+
+    const itens = Array.isArray(resposta?.itens) ? resposta.itens : [];
+
+    if (!itens.length) {
+        if (status) status.innerHTML = '<span class="cv-ok-dot"></span> CPF consultado: nenhum contrato anterior encontrado.';
+        area.innerHTML = '<div class="cv-empty cv-empty-success">Pessoa sem contrato anterior nesta planilha. Você já pode continuar para criar um documento.</div>';
+        return;
+    }
+
+    if (status) status.innerHTML = `<span class="cv-found-dot"></span> Encontrado(s) <strong>${itens.length}</strong> contrato(s). O mais recente aparece primeiro.`;
+
+    area.innerHTML = itens.map((item, indice) => {
+        const campos = Array.isArray(item.campos) ? item.campos.filter(c => String(c.valor || '').trim() !== '') : [];
+        return `
+            <details class="cv-history-card" ${indice === 0 ? 'open' : ''}>
+                <summary>
+                    <div>
+                        <span class="cv-history-number">Contrato ${escaparHtmlCRM_(item.contrato || 'sem número')}</span>
+                        <strong>${escaparHtmlCRM_(item.proprietario || 'Nome não informado')}</strong>
+                    </div>
+                    <span class="cv-history-date">${escaparHtmlCRM_(item.data || '')} ${escaparHtmlCRM_(item.ano || '')}</span>
+                </summary>
+                <div class="cv-history-grid">
+                    ${campos.map(c => `<div class="cv-history-field"><small>${escaparHtmlCRM_(c.campo)}</small><span>${escaparHtmlCRM_(c.valor)}</span></div>`).join('')}
+                </div>
+            </details>`;
+    }).join('');
+}
+
+async function pesquisarHistoricoCompraVendaCRM() {
+    const input = document.getElementById('cv-cpf-consulta');
+    const status = document.getElementById('cv-historico-status');
+    const area = document.getElementById('cv-historico-resultado');
+    const continuar = document.getElementById('cv-continuar-modelos');
+    const cpf = String(input?.value || '').replace(/\D/g, '');
+
+    if (cpf.length !== 11) {
+        if (status) status.textContent = 'Digite um CPF com 11 números.';
+        if (continuar) continuar.disabled = true;
+        return;
+    }
+
+    if (status) status.innerHTML = '<span class="cv-loading-dot"></span> Consultando a planilha...';
+    if (area) area.innerHTML = '<div class="cv-empty">Buscando histórico...</div>';
+    if (continuar) continuar.disabled = true;
+
+    try {
+        const resposta = await fetchFromGS('listarContratosCompraVendaPorCPF', { cpf, _: String(Date.now()) });
+        if (resposta?.success === false || resposta?.error) {
+            throw new Error(resposta?.error || resposta?.message || 'Falha ao consultar contratos.');
+        }
+
+        compraVendaVerificacaoState = { cpf, resposta, verificado: true };
+        renderizarHistoricoCompraVendaCRM_(resposta);
+        if (continuar) continuar.disabled = false;
+    } catch (erro) {
+        compraVendaVerificacaoState = { cpf: '', resposta: null, verificado: false };
+        if (status) status.textContent = 'Não foi possível consultar o CPF.';
+        if (area) area.innerHTML = `<div class="cv-empty cv-error">${escaparHtmlCRM_(erro.message || erro)}</div>`;
+    }
+}
+
+function continuarCompraVendaAposConsultaCRM() {
+    if (!compraVendaVerificacaoState.verificado) return;
+
+    const etapa = document.getElementById('compra-venda-verificacao-crm');
+    const iframe = document.getElementById('compra-venda-iframe-crm');
+    if (!iframe) return;
+
+    if (etapa) etapa.style.display = 'none';
+    iframe.style.display = 'block';
+
+    const cpf = compraVendaVerificacaoState.cpf;
+    const primeiro = compraVendaVerificacaoState.resposta?.itens?.[0];
+
+    iframe.addEventListener('load', function preencherAposAbrir() {
+        try {
+            const win = iframe.contentWindow;
+            const doc = iframe.contentDocument;
+            const cpfEl = doc?.getElementById('cpf');
+            if (cpfEl) {
+                cpfEl.value = cpf.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            }
+
+            if (primeiro && Array.isArray(primeiro.valores) && typeof win?.preencherDados === 'function') {
+                const v = primeiro.valores;
+                win.preencherDados({
+                    nome: v[3] || '', cpf: v[4] || '', rg: v[5] || '', cep: v[6] || '',
+                    endereco: v[7] || '', bairro: v[8] || '', municipio: v[9] || '', uf: v[10] || '',
+                    frente: String(v[14] || '').replace(/m$/i, ''),
+                    lateral: String(v[15] || '').replace(/m$/i, '')
+                });
+            }
+        } catch (erro) {
+            console.warn('Não foi possível pré-preencher Compra e Venda:', erro);
+        }
+    }, { once: true });
+
+    iframe.srcdoc = COMPRA_VENDA_HTML_CRM;
+}
