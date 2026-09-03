@@ -7294,127 +7294,206 @@ function continuarCompraVendaAposConsultaCRM() {
     iframe.srcdoc = COMPRA_VENDA_HTML_CRM;
 }
 
-// ============================================================
-// FIX REAL V2 — ROLAGEM DO MODAL ADC CARTÕES (03/09/2026)
-// Força UMA única área de scroll, mesmo se algum CSS antigo ficar em cache.
-// ============================================================
-(function instalarFixRealModalAdicionarCartoes() {
-    const ID_STYLE = 'crm-fix-real-modal-cartoes-v2';
 
-    function injetarEstiloCritico() {
-        if (document.getElementById(ID_STYLE)) return;
-        const style = document.createElement('style');
-        style.id = ID_STYLE;
-        style.textContent = `
-            #modal-multiplas-entregas.modal-overlay,
-            #modal-multiplas-entregas.modal-overlay.active {
-                position: fixed !important;
-                inset: 0 !important;
-                width: 100vw !important;
-                height: 100dvh !important;
-                max-height: 100dvh !important;
-                box-sizing: border-box !important;
-                align-items: flex-start !important;
-                justify-content: center !important;
-                overflow-y: auto !important;
-                overflow-x: hidden !important;
-                -webkit-overflow-scrolling: touch !important;
-                touch-action: pan-y !important;
-            }
-            #modal-multiplas-entregas > .modal-box,
-            #modal-multiplas-entregas .modal-box-large {
-                height: auto !important;
-                min-height: 0 !important;
-                max-height: none !important;
-                overflow: visible !important;
-                flex: 0 0 auto !important;
-            }
-            #modal-multiplas-entregas #cartoes-modal-scroll,
-            #modal-multiplas-entregas #mult-lista-entregas {
-                height: auto !important;
-                min-height: 0 !important;
-                max-height: none !important;
-                overflow: visible !important;
-                flex: none !important;
-            }
-            @media (max-width: 700px) {
-                #modal-multiplas-entregas.modal-overlay,
-                #modal-multiplas-entregas.modal-overlay.active { padding: 0 !important; }
-                #modal-multiplas-entregas > .modal-box,
-                #modal-multiplas-entregas .modal-box-large {
-                    width: 100% !important;
-                    max-width: none !important;
-                    min-height: 100dvh !important;
-                    margin: 0 !important;
-                    border-radius: 0 !important;
-                }
-            }
-        `;
-        document.head.appendChild(style);
+// ============================================================
+// ADC CARTÕES V3 — MODAL RECONSTRUÍDO / SCROLL ESTÁVEL
+// ============================================================
+(function instalarModalCartoesV3() {
+    const VERSAO = '3';
+
+    function htmlModalCartoesV3() {
+        return `
+            <div class="cartoes-v3-shell" role="dialog" aria-modal="true" aria-labelledby="cartoes-v3-titulo">
+                <div class="cartoes-v3-top">
+                    <div class="cartoes-v3-title-row">
+                        <button type="button" class="cartoes-v3-close" onclick="fecharModal('modal-multiplas-entregas')" aria-label="Fechar">×</button>
+                        <h3 class="cartoes-v3-title" id="cartoes-v3-titulo"><i class="fas fa-id-card"></i> Adicionar Cartões</h3>
+                    </div>
+                    <div class="cartoes-v3-tabs" role="tablist" aria-label="Modo de cadastro">
+                        <button type="button" id="cartoes-tab-manual" class="cartoes-v3-tab active" role="tab" aria-selected="true" onclick="selecionarModoCadastroCartoes('manual')">✍ Manual</button>
+                        <button type="button" id="cartoes-tab-digitalizado" class="cartoes-v3-tab" role="tab" aria-selected="false" onclick="selecionarModoCadastroCartoes('digitalizado')">📷 Digitalizado</button>
+                    </div>
+                </div>
+
+                <div id="cartoes-modal-scroll" class="cartoes-v3-body">
+                    <p id="cartoes-manual-ajuda" class="cartoes-v3-help">Digite normalmente. No campo <strong>Endereço</strong>, pressione <strong>ENTER</strong> ou <strong>TAB</strong> para criar o próximo cartão. A tela desce automaticamente para a nova linha.</p>
+
+                    <details id="cartoes-dados-gerais" class="cartoes-v3-details" open>
+                        <summary>Dados gerais <span class="cartoes-v3-details-copy">Quantidade, tipo e número</span></summary>
+                        <div class="cartoes-v3-general">
+                            <div class="cartoes-v3-grid">
+                                <div class="cartoes-v3-field"><label for="mult-qtd">Quantidade</label><input type="number" id="mult-qtd" min="1" value="1"></div>
+                                <div class="cartoes-v3-field"><label for="mult-data">Data</label><input type="text" id="mult-data" readonly></div>
+                                <div class="cartoes-v3-field"><label for="mult-tipo">Tipo</label><select id="mult-tipo"><option value="">Selecione...</option><option value="SHOPEE">SHOPEE</option><option value="CARTÃO">CARTÃO</option><option value="CARTA">CARTA</option></select></div>
+                                <div class="cartoes-v3-field"><label for="mult-numero">Nº</label><input type="text" id="mult-numero"></div>
+                                <div class="cartoes-v3-field full"><label for="mult-obs">Observação</label><input type="text" id="mult-obs" placeholder="Opcional"></div>
+                            </div>
+                        </div>
+                    </details>
+
+                    <section id="cartoes-digitalizado-area" class="cartoes-v3-scanner" style="display:none;">
+                        <div class="cartoes-v3-scanner-head"><strong>📷 Digitalizar destinatário</strong><span id="cartoes-scanner-alvo">Cartão 1</span></div>
+                        <div class="cartoes-v3-video-wrap">
+                            <video id="cartoes-scanner-video" playsinline muted></video>
+                            <div id="cartoes-scanner-sem-camera">Inicie a câmera ou escolha uma foto do cartão.</div>
+                            <div class="cartoes-v3-guide"></div>
+                        </div>
+                        <div class="cartoes-v3-scanner-actions">
+                            <button type="button" class="cartoes-v3-btn" onclick="iniciarCameraCartoes()">🎥 Iniciar câmera</button>
+                            <button type="button" id="cartoes-btn-capturar" class="cartoes-v3-btn primary" onclick="capturarCartaoParaOCR()" disabled>📸 Capturar</button>
+                            <label class="cartoes-v3-file-label">🖼️ Escolher foto<input type="file" accept="image/*" capture="environment" onchange="processarArquivoCartaoOCR(event)"></label>
+                        </div>
+                        <div id="cartoes-scanner-status">Clique em “Iniciar câmera”.</div>
+                        <div class="cartoes-v3-progress"><div id="cartoes-scanner-progress-bar"></div></div>
+                        <canvas id="cartoes-scanner-canvas"></canvas>
+                        <div id="cartoes-ocr-review">
+                            <div class="cartoes-v3-ocr-grid">
+                                <div class="cartoes-ocr-field"><label for="cartoes-ocr-nome">Nome reconhecido</label><input id="cartoes-ocr-nome" type="text"></div>
+                                <div class="cartoes-ocr-field"><label for="cartoes-ocr-endereco">Endereço reconhecido</label><input id="cartoes-ocr-endereco" type="text"></div>
+                            </div>
+                            <div class="cartoes-v3-ocr-actions">
+                                <button type="button" class="cartoes-v3-btn primary" onclick="usarDadosCartaoOCR(true)">✓ Usar e próximo</button>
+                                <button type="button" class="cartoes-v3-btn" onclick="usarDadosCartaoOCR(false)">✓ Usar dados</button>
+                                <button type="button" class="cartoes-v3-btn" onclick="limparResultadoCartaoOCR()">↺ Limpar</button>
+                            </div>
+                            <details class="cartoes-v3-raw"><summary>Ver texto reconhecido</summary><pre id="cartoes-ocr-texto-bruto"></pre></details>
+                        </div>
+                    </section>
+
+                    <section class="cartoes-v3-list-section">
+                        <div class="cartoes-v3-list-head">
+                            <div class="cartoes-v3-list-title"><i class="fas fa-list"></i> Lista de entregas</div>
+                            <span id="mult-contador">1 entrega</span>
+                        </div>
+                        <div id="mult-lista-entregas"></div>
+                    </section>
+                </div>
+
+                <div class="cartoes-v3-footer">
+                    <div id="mult-status-message" style="display:none;"></div>
+                    <div class="cartoes-v3-footer-actions">
+                        <button type="button" id="btnAdicionarMulti" class="cartoes-v3-action add" onclick="adicionarEntrega(null, true)"><i class="fas fa-plus"></i> Adicionar outro</button>
+                        <button type="button" id="btnEnviarMulti" class="cartoes-v3-action send" onclick="enviarTodasEntregas()"><i class="fas fa-paper-plane"></i> Enviar tudo</button>
+                        <button type="button" class="cartoes-v3-action cancel" onclick="fecharModal('modal-multiplas-entregas')">Cancelar</button>
+                    </div>
+                </div>
+            </div>`;
     }
 
-    function setImp(el, prop, value) {
-        if (el) el.style.setProperty(prop, value, 'important');
-    }
-
-    function aplicarFix() {
+    window.garantirEstruturaModalCartoesV3 = function garantirEstruturaModalCartoesV3() {
         const modal = document.getElementById('modal-multiplas-entregas');
-        if (!modal) return;
+        if (!modal) return null;
+        if (modal.dataset.cartoesV3 === VERSAO && modal.querySelector('.cartoes-v3-shell')) return modal;
+        pararCameraCartoes?.();
+        modal.innerHTML = htmlModalCartoesV3();
+        modal.dataset.cartoesV3 = VERSAO;
+        return modal;
+    };
 
-        const box = modal.querySelector(':scope > .modal-box') || modal.querySelector('.modal-box');
-        const scroll = document.getElementById('cartoes-modal-scroll');
+    function rolarParaEntregaV3(item, focar = true) {
+        const area = document.getElementById('cartoes-modal-scroll');
+        if (!area || !item) return;
+        requestAnimationFrame(() => {
+            const destino = Math.max(0, item.offsetTop - area.clientHeight + item.offsetHeight + 22);
+            area.scrollTo({ top: destino, behavior: 'smooth' });
+            if (focar) setTimeout(() => item.querySelector('.nome-input')?.focus({ preventScroll: true }), 180);
+        });
+    }
+    window.rolarParaEntregaCartoesV3 = rolarParaEntregaV3;
+
+    // Substitui somente a criação das linhas do ADC CARTÕES.
+    window.adicionarEntrega = function adicionarEntregaV3(dadosIniciais = {}, rolar = false) {
         const lista = document.getElementById('mult-lista-entregas');
+        if (!lista) return null;
+        contadorEntregas++;
+        const novaEntrega = document.createElement('div');
+        novaEntrega.className = 'entrega-item';
+        novaEntrega.dataset.index = String(contadorEntregas - 1);
+        novaEntrega.innerHTML = `
+            <div class="entrega-header">
+                <div class="entrega-numero">${contadorEntregas}</div>
+                <div class="entrega-header-actions">
+                    <button type="button" class="entrega-icon-btn btn-scan-entrega" onclick="abrirScannerCartoesParaLinha(this.closest('.entrega-item'))" title="Digitalizar neste cartão" aria-label="Digitalizar este cartão">📷</button>
+                    <button type="button" class="entrega-icon-btn entrega-delete-btn" onclick="removerEntrega(this)" title="Remover esta linha" aria-label="Remover este cartão"><i class="fas fa-trash-alt"></i></button>
+                </div>
+            </div>
+            <div class="entrega-fields">
+                <div class="entrega-field"><label>Nome</label><input type="text" class="nome-input" placeholder="Nome completo" autocomplete="name"></div>
+                <div class="entrega-field"><label>Endereço</label><input type="text" class="endereco-input" placeholder="Rua e número" autocomplete="street-address"></div>
+            </div>`;
+        lista.appendChild(novaEntrega);
 
-        setImp(modal, 'height', '100dvh');
-        setImp(modal, 'max-height', '100dvh');
-        setImp(modal, 'overflow-y', 'auto');
-        setImp(modal, 'overflow-x', 'hidden');
-        setImp(modal, 'align-items', 'flex-start');
-        setImp(modal, 'touch-action', 'pan-y');
+        const nomeInp = novaEntrega.querySelector('.nome-input');
+        const endInp = novaEntrega.querySelector('.endereco-input');
+        if (nomeInp) nomeInp.value = String(dadosIniciais?.nome || '').toUpperCase();
+        if (endInp) endInp.value = String(dadosIniciais?.endereco || '').toUpperCase();
 
-        setImp(box, 'height', 'auto');
-        setImp(box, 'min-height', '0');
-        setImp(box, 'max-height', 'none');
-        setImp(box, 'overflow', 'visible');
-        setImp(box, 'flex', '0 0 auto');
-
-        [scroll, lista].forEach(el => {
-            setImp(el, 'height', 'auto');
-            setImp(el, 'min-height', '0');
-            setImp(el, 'max-height', 'none');
-            setImp(el, 'overflow', 'visible');
-            setImp(el, 'flex', 'none');
+        nomeInp?.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault();
+                endInp?.focus();
+            }
         });
 
-        // Ao abrir, começa sempre no topo. Depois o usuário rola o overlay normalmente.
-        if (modal.classList.contains('active')) {
-            requestAnimationFrame(() => {
-                modal.scrollTop = 0;
-            });
-        }
+        endInp?.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter' && e.key !== 'Tab') return;
+            e.preventDefault();
+            const itens = [...document.querySelectorAll('#mult-lista-entregas .entrega-item')];
+            const atual = itens.indexOf(novaEntrega);
+            if (atual === itens.length - 1) {
+                const proxima = window.adicionarEntrega({}, true);
+                if (proxima) rolarParaEntregaV3(proxima, true);
+            } else {
+                const proxima = itens[atual + 1];
+                rolarParaEntregaV3(proxima, true);
+            }
+        });
+
+        atualizarContador();
+        if (contadorEntregas === 1 && nomeInp) nomeInp.focus();
+        if (rolar || contadorEntregas > 1) rolarParaEntregaV3(novaEntrega, false);
+        return novaEntrega;
+    };
+
+    // Garante que o HTML V3 exista ANTES de a função antiga inicializar os campos.
+    if (typeof window.abrirModal === 'function') {
+        const abrirOriginal = window.abrirModal;
+        window.abrirModal = function abrirModalComCartoesV3(id) {
+            if (id === 'modal-multiplas-entregas') garantirEstruturaModalCartoesV3();
+            return abrirOriginal(id);
+        };
     }
 
-    function iniciarObservador() {
+    function iniciar() {
+        garantirEstruturaModalCartoesV3();
         const modal = document.getElementById('modal-multiplas-entregas');
         if (!modal) return;
 
-        aplicarFix();
+        // Evita que wheel/touch acabem rolando o dashboard por trás.
+        modal.addEventListener('wheel', function(e) {
+            const area = document.getElementById('cartoes-modal-scroll');
+            if (!area || !modal.classList.contains('active')) return;
+            if (e.target.closest('.cartoes-v3-body')) return; // a área interna trata normalmente
+            area.scrollTop += e.deltaY;
+            e.preventDefault();
+        }, { passive: false });
 
-        const observer = new MutationObserver(() => {
-            if (modal.classList.contains('active')) aplicarFix();
-        });
-        observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
-
-        window.addEventListener('resize', aplicarFix, { passive: true });
-        window.addEventListener('orientationchange', () => setTimeout(aplicarFix, 120), { passive: true });
+        // Ao redimensionar/abrir teclado, mantém shell preso à viewport real.
+        const ajustarViewport = () => {
+            const shell = modal.querySelector('.cartoes-v3-shell');
+            if (!shell || !window.visualViewport) return;
+            if (window.matchMedia('(max-width:700px)').matches) {
+                shell.style.height = `${Math.round(window.visualViewport.height)}px`;
+                shell.style.maxHeight = `${Math.round(window.visualViewport.height)}px`;
+            } else {
+                shell.style.removeProperty('height');
+                shell.style.removeProperty('max-height');
+            }
+        };
+        ajustarViewport();
+        window.visualViewport?.addEventListener('resize', ajustarViewport);
     }
 
-    injetarEstiloCritico();
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', iniciarObservador, { once: true });
-    } else {
-        iniciarObservador();
-    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar, { once:true });
+    else iniciar();
 })();
-
