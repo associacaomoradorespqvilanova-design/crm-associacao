@@ -378,21 +378,12 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
 }
 
+
 /* ============================================================
-   FIX REAL V2 — ADC CARTÕES
-   03/09/2026
-
-   Estratégia:
-   - UMA única rolagem: o próprio overlay do modal.
-   - Remove limites/overflow do .modal-box e #cartoes-modal-scroll.
-   - Evita o conflito de scroll aninhado que prendia o conteúdo.
+   ADC CARTÕES V3 — estrutura estável, responsiva e com scroll
+   Uma única área rolável: .cartoes-v3-body
+   Cabeçalho/abas e rodapé permanecem sempre acessíveis.
    ============================================================ */
-
-html:has(#modal-multiplas-entregas.active),
-body:has(#modal-multiplas-entregas.active) {
-  overflow: hidden !important;
-}
-
 body.cartoes-modal-open {
   overflow: hidden !important;
 }
@@ -403,157 +394,408 @@ body.cartoes-modal-open {
   inset: 0 !important;
   width: 100vw !important;
   height: 100dvh !important;
-  max-height: 100dvh !important;
-  box-sizing: border-box !important;
-
-  display: none;
-  align-items: flex-start !important;
-  justify-content: center !important;
-
   padding: 14px !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  overscroll-behavior-y: contain;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
+  display: none;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  background: rgba(22, 32, 25, .42) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  z-index: 1000000 !important;
 }
 
 #modal-multiplas-entregas.modal-overlay.active {
   display: flex !important;
 }
 
-/* A caixa NÃO controla mais a rolagem. */
-#modal-multiplas-entregas > .modal-box,
-#modal-multiplas-entregas > .modal-box.modal-box-large,
-#modal-multiplas-entregas .modal-box,
-#modal-multiplas-entregas .modal-box-large {
-  box-sizing: border-box !important;
+#modal-multiplas-entregas .cartoes-v3-shell {
+  width: min(860px, calc(100vw - 28px)) !important;
+  height: min(900px, calc(100dvh - 28px)) !important;
+  max-height: calc(100dvh - 28px) !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  border-radius: 22px !important;
+  border: 1px solid rgba(255,255,255,.9) !important;
+  background: rgba(250, 252, 250, .94) !important;
+  box-shadow: 0 28px 80px rgba(18, 35, 22, .28) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
   position: relative !important;
-
-  width: min(800px, calc(100vw - 28px)) !important;
-  max-width: 800px !important;
-
-  height: auto !important;
-  min-height: 0 !important;
-  max-height: none !important;
-
-  flex: 0 0 auto !important;
-  overflow: visible !important;
-
-  margin: 0 auto 18px !important;
 }
 
-/* O wrapper antigo também deixa de ser uma segunda barra de rolagem. */
+.cartoes-v3-top {
+  flex: 0 0 auto;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid #dfe9e1;
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,250,246,.94));
+  position: relative;
+  z-index: 5;
+}
+
+.cartoes-v3-title-row {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.cartoes-v3-title {
+  margin: 0 !important;
+  color: #3f7d2c !important;
+  font-size: 21px !important;
+  line-height: 1.2 !important;
+  font-weight: 800 !important;
+  letter-spacing: -.2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.cartoes-v3-close {
+  position: absolute !important;
+  left: 0 !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 1px solid #d7e0d9 !important;
+  border-radius: 10px !important;
+  background: #fff !important;
+  color: #4c5c51 !important;
+  font-size: 20px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  box-shadow: 0 3px 10px rgba(0,0,0,.06) !important;
+}
+.cartoes-v3-close:hover { background:#f1f6f1 !important; color:#2f6d2c !important; }
+
+.cartoes-v3-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  max-width: 390px;
+  margin: 0 auto;
+  padding: 4px;
+  border: 1px solid #dce7de;
+  border-radius: 13px;
+  background: #eef4ef;
+}
+
+#modal-multiplas-entregas .cartoes-v3-tab {
+  appearance: none !important;
+  min-height: 39px !important;
+  padding: 8px 14px !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  background: transparent !important;
+  color: #53615a !important;
+  font: inherit !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  transition: .2s ease !important;
+  box-shadow: none !important;
+}
+#modal-multiplas-entregas .cartoes-v3-tab:hover { background:rgba(255,255,255,.7) !important; }
+#modal-multiplas-entregas .cartoes-v3-tab.active {
+  color: #fff !important;
+  background: linear-gradient(135deg,#6fa642,#477c2e) !important;
+  box-shadow: 0 4px 12px rgba(73,124,46,.24) !important;
+}
+
+#modal-multiplas-entregas .cartoes-v3-body,
 #modal-multiplas-entregas #cartoes-modal-scroll {
-  box-sizing: border-box !important;
-  display: block !important;
-  width: 100% !important;
-
-  height: auto !important;
+  flex: 1 1 auto !important;
   min-height: 0 !important;
+  height: auto !important;
   max-height: none !important;
-
-  flex: none !important;
-  overflow: visible !important;
-  overscroll-behavior: auto !important;
-  touch-action: auto !important;
+  width: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior-y: contain !important;
+  scrollbar-gutter: stable;
+  padding: 18px 22px 22px !important;
+  scroll-behavior: smooth;
+  touch-action: pan-y !important;
 }
 
-/* A lista cresce normalmente; quem rola é o modal inteiro. */
-#modal-multiplas-entregas #mult-lista-entregas {
-  height: auto !important;
-  min-height: 0 !important;
-  max-height: none !important;
-  overflow: visible !important;
-  padding-right: 0 !important;
+.cartoes-v3-help {
+  margin: 0 0 14px !important;
+  padding: 11px 13px;
+  border-radius: 11px;
+  background: #f3f7f3;
+  color: #58655c !important;
+  font-size: 13px !important;
+  line-height: 1.45;
+  border: 1px solid #e3ebe4;
 }
 
-#modal-multiplas-entregas .entrega-item,
-#modal-multiplas-entregas .entrega-fields {
-  box-sizing: border-box !important;
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
+#modal-multiplas-entregas .cartoes-v3-details {
+  margin: 0 0 16px;
+  border: 1px solid #dce8de;
+  border-radius: 14px;
+  background: #f9fcf9;
+  overflow: hidden;
+}
+#modal-multiplas-entregas .cartoes-v3-details summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 14px;
+  color: #396c31;
+  font-size: 14px;
+  font-weight: 800;
+  user-select: none;
+}
+#modal-multiplas-entregas .cartoes-v3-details summary::-webkit-details-marker { display:none; }
+#modal-multiplas-entregas .cartoes-v3-details summary::before { content:'▾'; margin-right:7px; }
+#modal-multiplas-entregas .cartoes-v3-details:not([open]) summary::before { content:'▸'; }
+.cartoes-v3-details-copy { color:#6a756e; font-size:11px; font-weight:500; margin-left:5px; }
+.cartoes-v3-general { padding: 0 14px 14px; }
+.cartoes-v3-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.cartoes-v3-grid .full { grid-column:1 / -1; }
+
+#modal-multiplas-entregas .cartoes-v3-field label,
+#modal-multiplas-entregas .entrega-field label,
+#modal-multiplas-entregas .cartoes-ocr-field label {
+  display:block !important;
+  margin:0 0 6px !important;
+  color:#4f5b53 !important;
+  font-size:12px !important;
+  font-weight:700 !important;
 }
 
 #modal-multiplas-entregas input,
 #modal-multiplas-entregas select,
-#modal-multiplas-entregas textarea,
-#modal-multiplas-entregas button {
-  box-sizing: border-box !important;
-  max-width: 100% !important;
+#modal-multiplas-entregas textarea {
+  width:100% !important;
+  min-width:0 !important;
+  min-height:42px !important;
+  padding:10px 12px !important;
+  margin:0 !important;
+  border:1px solid #d5ded7 !important;
+  border-radius:10px !important;
+  background:#fff !important;
+  color:#28332b !important;
+  font-size:14px !important;
+  font-weight:500 !important;
+  outline:none !important;
+  box-shadow:none !important;
+  transition:border-color .18s, box-shadow .18s !important;
+}
+#modal-multiplas-entregas input:focus,
+#modal-multiplas-entregas select:focus,
+#modal-multiplas-entregas textarea:focus {
+  border-color:#72a94c !important;
+  box-shadow:0 0 0 3px rgba(114,169,76,.13) !important;
 }
 
-/* Deixa o X sempre alcançável no topo visual da caixa. */
-#modal-multiplas-entregas .close-btn,
-#modal-multiplas-entregas .crm-modal-x {
-  z-index: 50 !important;
+.cartoes-v3-list-head {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin: 0 0 10px;
+}
+.cartoes-v3-list-title { color:#315f2c; font-size:14px; font-weight:800; }
+#mult-contador { color:#68736c !important; font-size:12px !important; }
+
+#modal-multiplas-entregas #mult-lista-entregas {
+  display:flex !important;
+  flex-direction:column !important;
+  gap:10px !important;
+  height:auto !important;
+  max-height:none !important;
+  overflow:visible !important;
+  padding:0 0 4px !important;
+  margin:0 !important;
 }
 
-/* Tablets e celulares */
-@media (max-width: 700px) {
+#modal-multiplas-entregas .entrega-item {
+  width:100% !important;
+  min-width:0 !important;
+  padding:12px !important;
+  margin:0 !important;
+  border:1px solid #dce5de !important;
+  border-radius:13px !important;
+  background:#fff !important;
+  box-shadow:0 3px 12px rgba(31,57,37,.045) !important;
+}
+#modal-multiplas-entregas .entrega-item.scanner-target {
+  border-color:#4f8c35 !important;
+  box-shadow:0 0 0 3px rgba(79,140,53,.12) !important;
+}
+#modal-multiplas-entregas .entrega-item.scanner-filled { animation:cartaoPreenchido .8s ease; }
+@keyframes cartaoPreenchido { 50% { background:#eaf8e7; transform:scale(1.008); } }
+
+.entrega-header {
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:8px !important;
+  margin:0 0 10px !important;
+}
+.entrega-numero {
+  width:28px;
+  height:28px;
+  border-radius:50%;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:#edf5e9;
+  color:#3f772f;
+  font-size:12px;
+  font-weight:800;
+}
+.entrega-header-actions { display:flex; gap:7px; align-items:center; }
+#modal-multiplas-entregas .entrega-icon-btn {
+  appearance:none !important;
+  width:34px !important;
+  height:34px !important;
+  min-width:34px !important;
+  min-height:34px !important;
+  padding:0 !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  border:1px solid #d9e2da !important;
+  border-radius:9px !important;
+  background:#f7faf7 !important;
+  color:#4f5d52 !important;
+  cursor:pointer !important;
+  font-size:14px !important;
+  box-shadow:none !important;
+}
+#modal-multiplas-entregas .entrega-icon-btn:hover { background:#edf5ea !important; color:#2f6d2c !important; }
+#modal-multiplas-entregas .entrega-delete-btn:hover { background:#fff0f0 !important; color:#b42318 !important; border-color:#f1cccc !important; }
+
+.entrega-fields { display:grid !important; grid-template-columns:1fr 1fr !important; gap:10px !important; min-width:0 !important; }
+.entrega-field { min-width:0 !important; }
+
+.cartoes-v3-scanner {
+  margin-bottom:16px;
+  padding:14px;
+  border:1px solid #dce8de;
+  border-radius:14px;
+  background:#f8fbf8;
+}
+.cartoes-v3-scanner-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
+.cartoes-v3-scanner-head strong { color:#356c2e; font-size:14px; }
+#cartoes-scanner-alvo { background:#e4f2df; color:#3c732e; font-size:11px; font-weight:800; padding:5px 9px; border-radius:20px; }
+.cartoes-v3-video-wrap { position:relative; aspect-ratio:16/9; background:#19221b; border-radius:12px; overflow:hidden; }
+#cartoes-scanner-video { width:100%; height:100%; object-fit:cover; display:block; }
+#cartoes-scanner-sem-camera { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:20px; color:#dce7de; font-size:13px; background:#202a22; }
+.cartoes-v3-guide { position:absolute; left:8%; right:8%; top:18%; bottom:18%; border:2px dashed rgba(255,255,255,.9); border-radius:10px; pointer-events:none; }
+.cartoes-v3-scanner-actions { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:10px; }
+#modal-multiplas-entregas .cartoes-v3-btn,
+#modal-multiplas-entregas .cartoes-v3-file-label {
+  appearance:none !important;
+  min-height:40px !important;
+  padding:9px 12px !important;
+  border-radius:10px !important;
+  border:1px solid #cfd9d1 !important;
+  background:#fff !important;
+  color:#405047 !important;
+  font-size:12px !important;
+  font-weight:800 !important;
+  cursor:pointer !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:6px !important;
+  text-align:center !important;
+}
+#modal-multiplas-entregas .cartoes-v3-btn.primary { background:#4f8734 !important; color:#fff !important; border-color:#4f8734 !important; }
+#modal-multiplas-entregas .cartoes-v3-btn:disabled { opacity:.45 !important; cursor:not-allowed !important; }
+.cartoes-v3-file-label input { display:none !important; }
+#cartoes-scanner-status { margin-top:9px; color:#5e6a62; font-size:12px; line-height:1.4; }
+.cartoes-v3-progress { height:5px; margin-top:7px; background:#e3eae4; border-radius:10px; overflow:hidden; }
+#cartoes-scanner-progress-bar { width:0; height:100%; background:#6fa642; transition:width .25s ease; }
+#cartoes-scanner-canvas { display:none; }
+#cartoes-ocr-review { display:none; margin-top:12px; padding:12px; border-radius:12px; background:#fff; border:1px solid #dce5de; }
+.cartoes-v3-ocr-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.cartoes-v3-ocr-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.cartoes-v3-raw { margin-top:10px; }
+.cartoes-v3-raw summary { cursor:pointer; font-size:11px; color:#67726b; font-weight:700; }
+#cartoes-ocr-texto-bruto { white-space:pre-wrap; max-height:130px; overflow:auto; background:#f5f7f5; padding:9px; border-radius:8px; font-size:10px; color:#5e6861; }
+
+.cartoes-v3-footer {
+  flex:0 0 auto !important;
+  padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+  border-top:1px solid #dce6de;
+  background:rgba(255,255,255,.98);
+  box-shadow:0 -8px 24px rgba(34,56,39,.06);
+  position:relative;
+  z-index:6;
+}
+#mult-status-message { margin:0 0 9px !important; padding:9px 11px !important; border-radius:9px !important; font-size:12px !important; }
+.cartoes-v3-footer-actions { display:grid; grid-template-columns:1fr 1fr auto; gap:9px; }
+#modal-multiplas-entregas .cartoes-v3-action {
+  appearance:none !important;
+  min-height:44px !important;
+  padding:10px 14px !important;
+  border-radius:11px !important;
+  border:0 !important;
+  font:inherit !important;
+  font-size:13px !important;
+  font-weight:800 !important;
+  cursor:pointer !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:7px !important;
+  transition:.18s ease !important;
+  box-shadow:0 4px 12px rgba(0,0,0,.08) !important;
+}
+#modal-multiplas-entregas .cartoes-v3-action.add { background:#2d73cc !important; color:#fff !important; }
+#modal-multiplas-entregas .cartoes-v3-action.send { background:#4f8734 !important; color:#fff !important; }
+#modal-multiplas-entregas .cartoes-v3-action.cancel { background:#eef2ef !important; color:#59645c !important; box-shadow:none !important; border:1px solid #d8e0d9 !important; }
+#modal-multiplas-entregas .cartoes-v3-action:hover { transform:translateY(-1px) !important; filter:brightness(.98); }
+#modal-multiplas-entregas .cartoes-v3-action:disabled { opacity:.55 !important; transform:none !important; cursor:not-allowed !important; }
+
+@media (max-width:700px) {
   #modal-multiplas-entregas.modal-overlay,
-  #modal-multiplas-entregas.modal-overlay.active {
-    padding: 0 !important;
-    align-items: flex-start !important;
+  #modal-multiplas-entregas.modal-overlay.active { padding:0 !important; align-items:stretch !important; }
+  #modal-multiplas-entregas .cartoes-v3-shell {
+    width:100vw !important;
+    height:100dvh !important;
+    max-height:100dvh !important;
+    border-radius:0 !important;
+    border:0 !important;
   }
-
-  #modal-multiplas-entregas > .modal-box,
-  #modal-multiplas-entregas > .modal-box.modal-box-large,
-  #modal-multiplas-entregas .modal-box,
-  #modal-multiplas-entregas .modal-box-large {
-    width: 100% !important;
-    max-width: none !important;
-    min-height: 100dvh !important;
-    margin: 0 !important;
-    border-radius: 0 !important;
-    border-left: 0 !important;
-    border-right: 0 !important;
-  }
-
-  #modal-multiplas-entregas #cartoes-modal-scroll {
-    padding-bottom: calc(28px + env(safe-area-inset-bottom)) !important;
-  }
-
-  #modal-multiplas-entregas .entrega-fields {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
-
+  .cartoes-v3-top { padding:12px 14px 10px; }
+  .cartoes-v3-title { font-size:18px !important; }
+  .cartoes-v3-title-row { margin-bottom:9px; }
+  .cartoes-v3-tabs { max-width:none; }
+  #modal-multiplas-entregas .cartoes-v3-body,
+  #modal-multiplas-entregas #cartoes-modal-scroll { padding:13px 14px 18px !important; }
+  .cartoes-v3-grid,
+  .entrega-fields,
+  .cartoes-v3-ocr-grid { grid-template-columns:1fr !important; }
+  .cartoes-v3-scanner-actions { grid-template-columns:1fr !important; }
+  .cartoes-v3-footer { padding:9px 10px calc(9px + env(safe-area-inset-bottom)); }
+  .cartoes-v3-footer-actions { grid-template-columns:1fr 1fr; }
+  #modal-multiplas-entregas .cartoes-v3-action.cancel { grid-column:1 / -1; }
   #modal-multiplas-entregas input,
   #modal-multiplas-entregas select,
-  #modal-multiplas-entregas textarea {
-    width: 100% !important;
-    min-height: 44px !important;
-    font-size: 16px !important;
-  }
-
-  #modal-multiplas-entregas .modal-actions,
-  #modal-multiplas-entregas .cartoes-actions,
-  #modal-multiplas-entregas .cartoes-footer-actions {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 10px !important;
-  }
-
-  #modal-multiplas-entregas .modal-actions > button,
-  #modal-multiplas-entregas .cartoes-actions > button,
-  #modal-multiplas-entregas .cartoes-footer-actions > button {
-    width: 100% !important;
-    min-height: 46px !important;
-  }
+  #modal-multiplas-entregas textarea { font-size:16px !important; }
 }
 
-/* Notebook com pouca altura: continua rolando pelo overlay. */
-@media (max-height: 760px) and (min-width: 701px) {
-  #modal-multiplas-entregas.modal-overlay,
-  #modal-multiplas-entregas.modal-overlay.active {
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
-  }
-
-  #modal-multiplas-entregas > .modal-box,
-  #modal-multiplas-entregas .modal-box-large {
-    margin-bottom: 8px !important;
-  }
+@media (max-width:420px) {
+  .cartoes-v3-footer-actions { grid-template-columns:1fr; }
+  #modal-multiplas-entregas .cartoes-v3-action.cancel { grid-column:auto; }
+  .cartoes-v3-tabs { gap:4px; }
+  #modal-multiplas-entregas .cartoes-v3-tab { padding:7px 8px !important; }
 }
