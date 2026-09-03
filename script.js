@@ -7293,3 +7293,128 @@ function continuarCompraVendaAposConsultaCRM() {
 
     iframe.srcdoc = COMPRA_VENDA_HTML_CRM;
 }
+
+// ============================================================
+// FIX REAL V2 — ROLAGEM DO MODAL ADC CARTÕES (03/09/2026)
+// Força UMA única área de scroll, mesmo se algum CSS antigo ficar em cache.
+// ============================================================
+(function instalarFixRealModalAdicionarCartoes() {
+    const ID_STYLE = 'crm-fix-real-modal-cartoes-v2';
+
+    function injetarEstiloCritico() {
+        if (document.getElementById(ID_STYLE)) return;
+        const style = document.createElement('style');
+        style.id = ID_STYLE;
+        style.textContent = `
+            #modal-multiplas-entregas.modal-overlay,
+            #modal-multiplas-entregas.modal-overlay.active {
+                position: fixed !important;
+                inset: 0 !important;
+                width: 100vw !important;
+                height: 100dvh !important;
+                max-height: 100dvh !important;
+                box-sizing: border-box !important;
+                align-items: flex-start !important;
+                justify-content: center !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch !important;
+                touch-action: pan-y !important;
+            }
+            #modal-multiplas-entregas > .modal-box,
+            #modal-multiplas-entregas .modal-box-large {
+                height: auto !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                overflow: visible !important;
+                flex: 0 0 auto !important;
+            }
+            #modal-multiplas-entregas #cartoes-modal-scroll,
+            #modal-multiplas-entregas #mult-lista-entregas {
+                height: auto !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                overflow: visible !important;
+                flex: none !important;
+            }
+            @media (max-width: 700px) {
+                #modal-multiplas-entregas.modal-overlay,
+                #modal-multiplas-entregas.modal-overlay.active { padding: 0 !important; }
+                #modal-multiplas-entregas > .modal-box,
+                #modal-multiplas-entregas .modal-box-large {
+                    width: 100% !important;
+                    max-width: none !important;
+                    min-height: 100dvh !important;
+                    margin: 0 !important;
+                    border-radius: 0 !important;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function setImp(el, prop, value) {
+        if (el) el.style.setProperty(prop, value, 'important');
+    }
+
+    function aplicarFix() {
+        const modal = document.getElementById('modal-multiplas-entregas');
+        if (!modal) return;
+
+        const box = modal.querySelector(':scope > .modal-box') || modal.querySelector('.modal-box');
+        const scroll = document.getElementById('cartoes-modal-scroll');
+        const lista = document.getElementById('mult-lista-entregas');
+
+        setImp(modal, 'height', '100dvh');
+        setImp(modal, 'max-height', '100dvh');
+        setImp(modal, 'overflow-y', 'auto');
+        setImp(modal, 'overflow-x', 'hidden');
+        setImp(modal, 'align-items', 'flex-start');
+        setImp(modal, 'touch-action', 'pan-y');
+
+        setImp(box, 'height', 'auto');
+        setImp(box, 'min-height', '0');
+        setImp(box, 'max-height', 'none');
+        setImp(box, 'overflow', 'visible');
+        setImp(box, 'flex', '0 0 auto');
+
+        [scroll, lista].forEach(el => {
+            setImp(el, 'height', 'auto');
+            setImp(el, 'min-height', '0');
+            setImp(el, 'max-height', 'none');
+            setImp(el, 'overflow', 'visible');
+            setImp(el, 'flex', 'none');
+        });
+
+        // Ao abrir, começa sempre no topo. Depois o usuário rola o overlay normalmente.
+        if (modal.classList.contains('active')) {
+            requestAnimationFrame(() => {
+                modal.scrollTop = 0;
+            });
+        }
+    }
+
+    function iniciarObservador() {
+        const modal = document.getElementById('modal-multiplas-entregas');
+        if (!modal) return;
+
+        aplicarFix();
+
+        const observer = new MutationObserver(() => {
+            if (modal.classList.contains('active')) aplicarFix();
+        });
+        observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
+
+        window.addEventListener('resize', aplicarFix, { passive: true });
+        window.addEventListener('orientationchange', () => setTimeout(aplicarFix, 120), { passive: true });
+    }
+
+    injetarEstiloCritico();
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', iniciarObservador, { once: true });
+    } else {
+        iniciarObservador();
+    }
+})();
+
