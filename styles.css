@@ -377,3 +377,183 @@ table tbody tr:hover { background: rgba(123, 170, 72, 0.08); cursor: default; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
 }
+
+/* ============================================================
+   FIX REAL V2 — ADC CARTÕES
+   03/09/2026
+
+   Estratégia:
+   - UMA única rolagem: o próprio overlay do modal.
+   - Remove limites/overflow do .modal-box e #cartoes-modal-scroll.
+   - Evita o conflito de scroll aninhado que prendia o conteúdo.
+   ============================================================ */
+
+html:has(#modal-multiplas-entregas.active),
+body:has(#modal-multiplas-entregas.active) {
+  overflow: hidden !important;
+}
+
+body.cartoes-modal-open {
+  overflow: hidden !important;
+}
+
+#modal-multiplas-entregas.modal-overlay,
+#modal-multiplas-entregas.modal-overlay.active {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  box-sizing: border-box !important;
+
+  display: none;
+  align-items: flex-start !important;
+  justify-content: center !important;
+
+  padding: 14px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+#modal-multiplas-entregas.modal-overlay.active {
+  display: flex !important;
+}
+
+/* A caixa NÃO controla mais a rolagem. */
+#modal-multiplas-entregas > .modal-box,
+#modal-multiplas-entregas > .modal-box.modal-box-large,
+#modal-multiplas-entregas .modal-box,
+#modal-multiplas-entregas .modal-box-large {
+  box-sizing: border-box !important;
+  position: relative !important;
+
+  width: min(800px, calc(100vw - 28px)) !important;
+  max-width: 800px !important;
+
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+
+  flex: 0 0 auto !important;
+  overflow: visible !important;
+
+  margin: 0 auto 18px !important;
+}
+
+/* O wrapper antigo também deixa de ser uma segunda barra de rolagem. */
+#modal-multiplas-entregas #cartoes-modal-scroll {
+  box-sizing: border-box !important;
+  display: block !important;
+  width: 100% !important;
+
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+
+  flex: none !important;
+  overflow: visible !important;
+  overscroll-behavior: auto !important;
+  touch-action: auto !important;
+}
+
+/* A lista cresce normalmente; quem rola é o modal inteiro. */
+#modal-multiplas-entregas #mult-lista-entregas {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding-right: 0 !important;
+}
+
+#modal-multiplas-entregas .entrega-item,
+#modal-multiplas-entregas .entrega-fields {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+#modal-multiplas-entregas input,
+#modal-multiplas-entregas select,
+#modal-multiplas-entregas textarea,
+#modal-multiplas-entregas button {
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+}
+
+/* Deixa o X sempre alcançável no topo visual da caixa. */
+#modal-multiplas-entregas .close-btn,
+#modal-multiplas-entregas .crm-modal-x {
+  z-index: 50 !important;
+}
+
+/* Tablets e celulares */
+@media (max-width: 700px) {
+  #modal-multiplas-entregas.modal-overlay,
+  #modal-multiplas-entregas.modal-overlay.active {
+    padding: 0 !important;
+    align-items: flex-start !important;
+  }
+
+  #modal-multiplas-entregas > .modal-box,
+  #modal-multiplas-entregas > .modal-box.modal-box-large,
+  #modal-multiplas-entregas .modal-box,
+  #modal-multiplas-entregas .modal-box-large {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 100dvh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+  }
+
+  #modal-multiplas-entregas #cartoes-modal-scroll {
+    padding-bottom: calc(28px + env(safe-area-inset-bottom)) !important;
+  }
+
+  #modal-multiplas-entregas .entrega-fields {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  #modal-multiplas-entregas input,
+  #modal-multiplas-entregas select,
+  #modal-multiplas-entregas textarea {
+    width: 100% !important;
+    min-height: 44px !important;
+    font-size: 16px !important;
+  }
+
+  #modal-multiplas-entregas .modal-actions,
+  #modal-multiplas-entregas .cartoes-actions,
+  #modal-multiplas-entregas .cartoes-footer-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  #modal-multiplas-entregas .modal-actions > button,
+  #modal-multiplas-entregas .cartoes-actions > button,
+  #modal-multiplas-entregas .cartoes-footer-actions > button {
+    width: 100% !important;
+    min-height: 46px !important;
+  }
+}
+
+/* Notebook com pouca altura: continua rolando pelo overlay. */
+@media (max-height: 760px) and (min-width: 701px) {
+  #modal-multiplas-entregas.modal-overlay,
+  #modal-multiplas-entregas.modal-overlay.active {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
+  #modal-multiplas-entregas > .modal-box,
+  #modal-multiplas-entregas .modal-box-large {
+    margin-bottom: 8px !important;
+  }
+}
