@@ -1987,12 +1987,86 @@ if(btnSaveCesta){
 async function gerarCarteirinha(){const nome=document.getElementById('cesta-search').value.trim();if(!nome){alert("Busque um morador antes de gerar a carteirinha.");return;}const qrContainer=document.getElementById('card-qrcode');if(!qrContainer)return;qrContainer.innerHTML='';document.getElementById('card-nome').innerText=nome;try{cestaState.qrCodeInstance=new QRCode(qrContainer,{text:nome,width:75,height:75,colorDark:"#4a7c2e",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.H});}catch(e){alert("Erro ao gerar QR Code");return;}setTimeout(async()=>{try{const cardDiv=document.getElementById('carteirinha-print-area');const canvas=await html2canvas(cardDiv,{scale:2});const{jsPDF}=window.jspdf;const pdf=new jsPDF('l','mm','a6');const imgData=canvas.toDataURL('image/jpeg',0.95);pdf.addImage(imgData,'JPEG',0,0,148,105);const pdfBlob=pdf.output('blob');window.open(URL.createObjectURL(pdfBlob),'_blank');}catch(error){console.error(error);alert("Erro ao gerar a imagem da carteirinha.");}},300);}
 
 
+
+// ============================================================
+// CURRÍCULO — DADOS PESSOAIS EXTRAS
+// ============================================================
+function garantirCamposPessoaisCurriculoCRM() {
+    const modal = document.getElementById('modal-curriculo');
+    if (!modal) return;
+
+    // Não duplica os campos caso o modal seja aberto várias vezes.
+    if (
+        document.getElementById('cv-nacionalidade') &&
+        document.getElementById('cv-naturalidade')
+    ) {
+        return;
+    }
+
+    const nascimento = document.getElementById('cv-nascimento');
+    if (!nascimento) return;
+
+    const linhaNascimento = nascimento.closest('.grid-cv');
+    if (!linhaNascimento) return;
+
+    const linha = document.createElement('div');
+    linha.className = 'grid-cv cv-dados-pessoais-grid';
+    linha.style.gridTemplateColumns = '1fr 1fr';
+    linha.style.marginBottom = '15px';
+
+    const blocoNacionalidade = document.createElement('div');
+    blocoNacionalidade.innerHTML = `
+        <label for="cv-nacionalidade">Nacionalidade</label>
+        <input
+            type="text"
+            id="cv-nacionalidade"
+            placeholder="Ex: Brasileira"
+            autocomplete="country-name"
+        >
+    `;
+
+    const blocoNaturalidade = document.createElement('div');
+    blocoNaturalidade.innerHTML = `
+        <label for="cv-naturalidade">Naturalidade</label>
+        <input
+            type="text"
+            id="cv-naturalidade"
+            placeholder="Ex: Duque de Caxias - RJ"
+        >
+    `;
+
+    linha.appendChild(blocoNacionalidade);
+    linha.appendChild(blocoNaturalidade);
+
+    linhaNascimento.insertAdjacentElement('afterend', linha);
+}
+
+function formatarDataCurriculoCRM(valor) {
+    const texto = String(valor || '').trim();
+    if (!texto) return '';
+
+    // Input type="date" normalmente entrega AAAA-MM-DD.
+    const matchIso = texto.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (matchIso) {
+        return `${matchIso[3]}/${matchIso[2]}/${matchIso[1]}`;
+    }
+
+    // Caso já esteja em DD/MM/AAAA, mantém como está.
+    const matchBr = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (matchBr) return texto;
+
+    return texto;
+}
+
 // ============================================================
 // CURRÍCULO — RESPONSIVIDADE E ROLAGEM DO MODAL
 // ============================================================
 function prepararModalCurriculoResponsivo() {
     const modal = document.getElementById('modal-curriculo');
     if (!modal) return;
+
+    // Garante os novos campos mesmo sem alterar o index.html.
+    garantirCamposPessoaisCurriculoCRM();
 
     // Injeta uma única vez. Usamos !important porque o modal já possui
     // estilos antigos no HTML que estavam bloqueando a rolagem.
@@ -3060,6 +3134,9 @@ function garantirLayoutPDFCurriculo() {
                     <div><strong>Telefone:</strong> <span id="pdf-tel"></span></div>
                     <div><strong>E-mail:</strong> <span id="pdf-email"></span></div>
                     <div><strong>Endereço:</strong> <span id="pdf-endereco"></span></div>
+                    <div><strong>Data de nascimento:</strong> <span id="pdf-nascimento"></span></div>
+                    <div><strong>Nacionalidade:</strong> <span id="pdf-nacionalidade"></span></div>
+                    <div><strong>Naturalidade:</strong> <span id="pdf-naturalidade"></span></div>
                 </div>
             </div>
         </div>
@@ -3112,6 +3189,9 @@ async function gerarCurriculo() {
     const tel2 = document.getElementById('cv-tel-2').value;
     const tel3 = document.getElementById('cv-tel-3').value;
     const email = document.getElementById('cv-email').value;
+    const nascimento = document.getElementById('cv-nascimento')?.value || '';
+    const nacionalidade = document.getElementById('cv-nacionalidade')?.value || '';
+    const naturalidade = document.getElementById('cv-naturalidade')?.value || '';
     const logradouro = document.getElementById('cv-logradouro').value;
     const numero = document.getElementById('cv-numero').value;
     const bairro = document.getElementById('cv-bairro').value;
@@ -3149,6 +3229,12 @@ async function gerarCurriculo() {
     document.getElementById('pdf-tel').innerText = tels.length > 0 ? tels.join(' / ') : '(N\u00E3o informado)';
     document.getElementById('pdf-email').innerText = email || '(N\u00E3o informado)';
     document.getElementById('pdf-endereco').innerText = endereco || '(N\u00E3o informado)';
+    document.getElementById('pdf-nascimento').innerText =
+        formatarDataCurriculoCRM(nascimento) || '(N\u00E3o informado)';
+    document.getElementById('pdf-nacionalidade').innerText =
+        nacionalidade || '(N\u00E3o informado)';
+    document.getElementById('pdf-naturalidade').innerText =
+        naturalidade || '(N\u00E3o informado)';
     document.getElementById('pdf-objetivo').innerText = objetivo || 'N\u00E3o informado.';
 
     const pdfPhoto = document.getElementById('pdf-photo');
