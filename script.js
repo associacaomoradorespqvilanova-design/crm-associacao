@@ -2058,6 +2058,146 @@ function formatarDataCurriculoCRM(valor) {
     return texto;
 }
 
+
+// ============================================================
+// CURRÍCULO — ESCOLARIDADE SEPARADA DE CURSOS
+// ============================================================
+const ESCOLARIDADES_CURRICULO_CRM = [
+    'ENSINO FUNDAMENTAL INCOMPLETO',
+    'ENSINO FUNDAMENTAL CURSANDO',
+    'ENSINO FUNDAMENTAL COMPLETO',
+    'ENSINO MÉDIO INCOMPLETO',
+    'ENSINO MÉDIO CURSANDO',
+    'ENSINO MÉDIO COMPLETO',
+    'ENSINO TÉCNICO INCOMPLETO',
+    'ENSINO TÉCNICO CURSANDO',
+    'ENSINO TÉCNICO COMPLETO',
+    'ENSINO SUPERIOR INCOMPLETO',
+    'ENSINO SUPERIOR CURSANDO',
+    'ENSINO SUPERIOR COMPLETO',
+    'PÓS-GRADUAÇÃO INCOMPLETA',
+    'PÓS-GRADUAÇÃO CURSANDO',
+    'PÓS-GRADUAÇÃO COMPLETA',
+    'MESTRADO INCOMPLETO',
+    'MESTRADO CURSANDO',
+    'MESTRADO COMPLETO',
+    'DOUTORADO INCOMPLETO',
+    'DOUTORADO CURSANDO',
+    'DOUTORADO COMPLETO'
+];
+
+function normalizarEscolaridadeCurriculoCRM(valor) {
+    return String(valor || '')
+        .trim()
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ');
+}
+
+function obterEscolaridadeCanonicaCurriculoCRM(valor) {
+    const chave = normalizarEscolaridadeCurriculoCRM(valor);
+    if (!chave) return '';
+
+    const encontrada = ESCOLARIDADES_CURRICULO_CRM.find(item =>
+        normalizarEscolaridadeCurriculoCRM(item) === chave
+    );
+
+    return encontrada || '';
+}
+
+function limparValorOpcionalCursoCurriculoCRM(valor) {
+    const texto = String(valor || '').trim();
+    const chave = normalizarEscolaridadeCurriculoCRM(texto);
+
+    if (!texto) return '';
+    if (['-', '--', '---', 'N/A', 'NA', 'NAO INFORMADO', 'NÃO INFORMADO'].includes(chave)) {
+        return '';
+    }
+
+    return texto;
+}
+
+function garantirEstruturaFormacaoCurriculoCRM() {
+    const containerCursos = document.getElementById('cursos-container');
+    if (!containerCursos) return;
+
+    const blocoCursos = containerCursos.closest('.grid-cv') || containerCursos.parentElement;
+    if (!blocoCursos) return;
+
+    let escolaridade = document.getElementById('cv-escolaridade');
+
+    if (!escolaridade) {
+        const bloco = document.createElement('div');
+        bloco.className = 'grid-cv full cv-escolaridade-bloco';
+        bloco.style.marginBottom = '15px';
+
+        bloco.innerHTML = `
+            <label for="cv-escolaridade">Escolaridade</label>
+            <select id="cv-escolaridade">
+                <option value="">Selecione...</option>
+                ${ESCOLARIDADES_CURRICULO_CRM
+                    .map(item => `<option value="${item}">${item}</option>`)
+                    .join('')}
+            </select>
+        `;
+
+        blocoCursos.insertAdjacentElement('beforebegin', bloco);
+        escolaridade = document.getElementById('cv-escolaridade');
+    }
+
+    // Agora o bloco abaixo representa somente cursos/formação complementar.
+    const titulo = blocoCursos.querySelector('label');
+    if (titulo && /FORMAÇÃO\s*&\s*CURSOS|FORMACAO\s*&\s*CURSOS/i.test(titulo.textContent || '')) {
+        titulo.textContent = 'Cursos / Formação Complementar (Máx 3)';
+    }
+
+    return escolaridade;
+}
+
+function migrarEscolaridadeDosCursosCurriculoCRM() {
+    const select = garantirEstruturaFormacaoCurriculoCRM();
+    if (!select) return;
+
+    const itens = [...document.querySelectorAll('#cursos-container .dynamic-item')];
+    let valorEscolaridade = select.value || '';
+
+    itens.forEach(item => {
+        const cursoInput = item.querySelector('.input-curso');
+        const textoCurso = cursoInput?.value || '';
+        const escolaridadeReconhecida = obterEscolaridadeCanonicaCurriculoCRM(textoCurso);
+
+        if (!escolaridadeReconhecida) return;
+
+        if (!valorEscolaridade) {
+            valorEscolaridade = escolaridadeReconhecida;
+            select.value = escolaridadeReconhecida;
+        }
+
+        // Currículos antigos usavam escolaridade como se fosse um curso.
+        // Remove essa linha para ela não reaparecer em "Cursos" nem no PDF.
+        item.remove();
+        state.cursoCount = Math.max(0, (state.cursoCount || 0) - 1);
+    });
+}
+
+// Inicializa os novos campos sem depender da função abrirModal().
+// Isso evita falha em versões do CRM que tenham outra rotina para abrir o currículo.
+function inicializarCamposPessoaisCurriculoCRM() {
+    try {
+        garantirCamposPessoaisCurriculoCRM();
+        garantirEstruturaFormacaoCurriculoCRM();
+    } catch (erro) {
+        console.warn('Não foi possível inicializar os dados pessoais do currículo:', erro);
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inicializarCamposPessoaisCurriculoCRM, { once: true });
+} else {
+    inicializarCamposPessoaisCurriculoCRM();
+}
+
 // ============================================================
 // CURRÍCULO — RESPONSIVIDADE E ROLAGEM DO MODAL
 // ============================================================
@@ -2067,6 +2207,7 @@ function prepararModalCurriculoResponsivo() {
 
     // Garante os novos campos mesmo sem alterar o index.html.
     garantirCamposPessoaisCurriculoCRM();
+    garantirEstruturaFormacaoCurriculoCRM();
 
     // Injeta uma única vez. Usamos !important porque o modal já possui
     // estilos antigos no HTML que estavam bloqueando a rolagem.
@@ -2596,6 +2737,8 @@ function preencherCurriculoComDadosCRM(registro) {
 
     try {
         limparFotoCurriculoAoCarregarCRM();
+        garantirCamposPessoaisCurriculoCRM();
+        garantirEstruturaFormacaoCurriculoCRM();
 
         const campos = registro.dados.campos || {};
 
@@ -2653,6 +2796,8 @@ function preencherCurriculoComDadosCRM(registro) {
             if (instEl) instEl.value = curso.inst || '';
             if (periodoEl) periodoEl.value = curso.periodo || '';
         });
+
+        migrarEscolaridadeDosCursosCurriculoCRM();
 
         const experiencias =
             Array.isArray(registro.dados.experiencias)
@@ -2968,6 +3113,12 @@ function garantirLayoutPDFCurriculo() {
         'pdf-tel',
         'pdf-email',
         'pdf-endereco',
+        'pdf-nascimento',
+        'pdf-nacionalidade',
+        'pdf-naturalidade',
+        'pdf-escolaridade',
+        'pdf-escolaridade-section',
+        'pdf-cursos-section',
         'pdf-objetivo',
         'pdf-photo',
         'pdf-habilidades',
@@ -3151,7 +3302,12 @@ function garantirLayoutPDFCurriculo() {
             <ul id="pdf-habilidades"></ul>
         </section>
 
-        <section class="cvpdf-section">
+        <section class="cvpdf-section" id="pdf-escolaridade-section">
+            <h2 class="cvpdf-section-title">Escolaridade</h2>
+            <div id="pdf-escolaridade" class="pdf-entry-title"></div>
+        </section>
+
+        <section class="cvpdf-section" id="pdf-cursos-section">
             <h2 class="cvpdf-section-title">Cursos e Formação Complementar</h2>
             <div id="pdf-cursos"></div>
         </section>
@@ -3168,7 +3324,13 @@ function garantirLayoutPDFCurriculo() {
 }
 
 async function gerarCurriculo() {
-    const nome = document.getElementById('cv-nome').value;
+    // FIX 2026-09-04 V2: garante que Nacionalidade e Naturalidade existam
+    // mesmo que o index.html ainda seja a versão antiga.
+    garantirCamposPessoaisCurriculoCRM();
+    garantirEstruturaFormacaoCurriculoCRM();
+    migrarEscolaridadeDosCursosCurriculoCRM();
+
+    const nome = document.getElementById('cv-nome')?.value || '';
     if (!nome) {
         alert("Por favor, preencha pelo menos o Nome Completo.");
         return;
@@ -3192,6 +3354,7 @@ async function gerarCurriculo() {
     const nascimento = document.getElementById('cv-nascimento')?.value || '';
     const nacionalidade = document.getElementById('cv-nacionalidade')?.value || '';
     const naturalidade = document.getElementById('cv-naturalidade')?.value || '';
+    const escolaridade = document.getElementById('cv-escolaridade')?.value || '';
     const logradouro = document.getElementById('cv-logradouro').value;
     const numero = document.getElementById('cv-numero').value;
     const bairro = document.getElementById('cv-bairro').value;
@@ -3207,9 +3370,22 @@ async function gerarCurriculo() {
     const cursosNodes = document.querySelectorAll('#cursos-container .dynamic-item');
     const cursos = [];
     cursosNodes.forEach(node => {
-        const curso = node.querySelector('.input-curso').value || 'Curso n\u00E3o informado';
-        const inst = node.querySelector('.input-inst').value || 'Institui\u00E7\u00E3o n\u00E3o informada';
-        const periodo = node.querySelector('.input-periodo').value || 'Per\u00EDodo n\u00E3o informado';
+        const curso = limparValorOpcionalCursoCurriculoCRM(
+            node.querySelector('.input-curso')?.value || ''
+        );
+        const inst = limparValorOpcionalCursoCurriculoCRM(
+            node.querySelector('.input-inst')?.value || ''
+        );
+        const periodo = limparValorOpcionalCursoCurriculoCRM(
+            node.querySelector('.input-periodo')?.value || ''
+        );
+
+        // A seção Cursos só existe no PDF quando houver nome de curso preenchido.
+        if (!curso) return;
+
+        // Proteção extra para cadastros antigos que usavam escolaridade no campo Curso.
+        if (obterEscolaridadeCanonicaCurriculoCRM(curso)) return;
+
         cursos.push({ curso, inst, periodo });
     });
     const expNodes = document.querySelectorAll('#exp-container .dynamic-item');
@@ -3225,17 +3401,25 @@ async function gerarCurriculo() {
     // Recria a área de impressão automaticamente quando necessário.
     garantirLayoutPDFCurriculo();
 
-    document.getElementById('pdf-nome').innerText = nome;
-    document.getElementById('pdf-tel').innerText = tels.length > 0 ? tels.join(' / ') : '(N\u00E3o informado)';
-    document.getElementById('pdf-email').innerText = email || '(N\u00E3o informado)';
-    document.getElementById('pdf-endereco').innerText = endereco || '(N\u00E3o informado)';
-    document.getElementById('pdf-nascimento').innerText =
-        formatarDataCurriculoCRM(nascimento) || '(N\u00E3o informado)';
-    document.getElementById('pdf-nacionalidade').innerText =
-        nacionalidade || '(N\u00E3o informado)';
-    document.getElementById('pdf-naturalidade').innerText =
-        naturalidade || '(N\u00E3o informado)';
-    document.getElementById('pdf-objetivo').innerText = objetivo || 'N\u00E3o informado.';
+    const definirTextoPDF = (id, valor) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = valor;
+    };
+
+    definirTextoPDF('pdf-nome', nome);
+    definirTextoPDF('pdf-tel', tels.length > 0 ? tels.join(' / ') : '(N\u00E3o informado)');
+    definirTextoPDF('pdf-email', email || '(N\u00E3o informado)');
+    definirTextoPDF('pdf-endereco', endereco || '(N\u00E3o informado)');
+    definirTextoPDF('pdf-nascimento', formatarDataCurriculoCRM(nascimento) || '(N\u00E3o informado)');
+    definirTextoPDF('pdf-nacionalidade', nacionalidade || '(N\u00E3o informado)');
+    definirTextoPDF('pdf-naturalidade', naturalidade || '(N\u00E3o informado)');
+    definirTextoPDF('pdf-escolaridade', escolaridade || '');
+    definirTextoPDF('pdf-objetivo', objetivo || 'N\u00E3o informado.');
+
+    const pdfEscolaridadeSection = document.getElementById('pdf-escolaridade-section');
+    if (pdfEscolaridadeSection) {
+        pdfEscolaridadeSection.style.display = escolaridade ? 'block' : 'none';
+    }
 
     const pdfPhoto = document.getElementById('pdf-photo');
     if (state.fotoBase64) {
@@ -3259,14 +3443,32 @@ async function gerarCurriculo() {
     }
 
     const pdfCursos = document.getElementById('pdf-cursos');
+    const pdfCursosSection = document.getElementById('pdf-cursos-section');
     pdfCursos.innerHTML = '';
+
     if (cursos.length === 0) {
-        pdfCursos.innerHTML = '<p style="font-size:12px; color:#888;">Nenhum curso informado.</p>';
+        // Sem curso preenchido = a seção inteira desaparece do PDF.
+        if (pdfCursosSection) pdfCursosSection.style.display = 'none';
     } else {
+        if (pdfCursosSection) pdfCursosSection.style.display = 'block';
+
         cursos.forEach(c => {
             const div = document.createElement('div');
             div.className = 'pdf-entry';
-            div.innerHTML = `<div class="pdf-entry-title">${c.curso}</div><div class="pdf-entry-sub">${c.inst}</div><div class="pdf-entry-period">${c.periodo}</div>`;
+
+            const partes = [
+                `<div class="pdf-entry-title">${c.curso}</div>`
+            ];
+
+            if (c.inst) {
+                partes.push(`<div class="pdf-entry-sub">${c.inst}</div>`);
+            }
+
+            if (c.periodo) {
+                partes.push(`<div class="pdf-entry-period">${c.periodo}</div>`);
+            }
+
+            div.innerHTML = partes.join('');
             pdfCursos.appendChild(div);
         });
     }
