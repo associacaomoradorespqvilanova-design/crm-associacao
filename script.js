@@ -534,7 +534,7 @@ function garantirControlesFiltroCartoes(nomes) {
             font-size:11px;
         `;
 
-        tabela.parentElement.insertBefore(toolbar, tabela);
+        tabela.parentElement.before(toolbar);
     }
 
     const nomesValidos = nomes || [];
@@ -715,7 +715,7 @@ function gerenciarLinhasCartao(dataChave) {
         const data = formatarDataCartaoCompleta(item.data);
 
         return `
-            <div style="
+            <div class="ger-cartoes-linha" style="
                 display:grid;
                 grid-template-columns:minmax(140px,1fr) 90px 110px auto;
                 gap:8px;
@@ -7263,6 +7263,106 @@ async function pesquisarHistoricoCompraVendaCRM() {
     }
 }
 
+function montarFormularioCompraVendaCRM_() {
+    const rotulos = {
+        contrato: 'Nº do contrato',
+        data: 'Data',
+        ano: 'Ano',
+        cep: 'CEP',
+        proprietario: 'Proprietário',
+        endereco: 'Endereço',
+        rg: 'RG',
+        emissor: 'Órgão emissor',
+        cpf: 'CPF',
+        nacionalidade: 'Nacionalidade',
+        naturalidade: 'Naturalidade',
+        estadocivil: 'Estado civil',
+        profissao: 'Profissão',
+        bairro: 'Bairro',
+        municipio: 'Município',
+        uf: 'UF',
+        frente: 'Frente (m)',
+        lateral: 'Lateral (m)',
+        total: 'Área total (m²)',
+        valor: 'Valor',
+        pagamento: 'Forma de pagamento',
+        tipo_transferencia: 'Situação',
+        vendedor: 'Vendedor / Transferente / Testemunha',
+        rgvendedor: 'RG do vendedor / transferente',
+        emissorv: 'Órgão emissor do vendedor / transferente',
+        cpfvendedor: 'CPF do vendedor / transferente',
+        declarante: 'Declarante'
+    };
+
+    // Os campos originais também são usados na impressão. Só o CSS de tela
+    // reorganiza os campos em larguras menores que a folha.
+    const css = `
+        .cvenda-mobile-label { display: none; }
+
+        @media screen and (max-width: 819px) {
+            #menu-principal {
+                position: static;
+                box-sizing: border-box;
+                width: 100%;
+                min-height: 100vh;
+                height: auto;
+                padding: 20px;
+                text-align: center;
+            }
+
+            #menu-principal h2 { font-size: 20px; margin: 0 0 24px; }
+            .menu-botoes { width: min(100%, 320px); gap: 12px; }
+            .btn-menu { width: 100%; min-height: 56px; height: auto; font-size: 16px; }
+
+            #container-formulario {
+                box-sizing: border-box;
+                width: 100%;
+                height: auto;
+                padding: 16px;
+                background: #fff !important;
+            }
+
+            #container-formulario .cvenda-mobile-label {
+                display: block;
+                margin: 12px 0 4px;
+                color: #255a31;
+                font-weight: 700;
+            }
+
+            #container-formulario .cvenda-mobile-label:has(+ [style*="display: none"]) {
+                display: none;
+            }
+
+            #container-formulario .campo {
+                position: static !important;
+                box-sizing: border-box;
+                width: 100% !important;
+                min-height: 44px;
+                padding: 8px 10px;
+                border: 1px solid #b7c9bd;
+                border-radius: 8px;
+                font-size: 16px;
+            }
+
+            #container-formulario > button,
+            #obs-container { position: static !important; }
+
+            #container-formulario > button { min-height: 44px; transform: none; }
+            #btnBuscarCEP, #btnBuscarCPF { margin-top: 6px; }
+            #container-formulario > .btn { margin: 16px 8px 0 0; }
+            #obs-container { width: 100% !important; }
+            #obs { font-size: 16px !important; }
+        }
+    `;
+
+    return COMPRA_VENDA_HTML_CRM
+        .replace('</head>', `<style>${css}</style></head>`)
+        .replace(/<(?:input|select) class="campo" id="([^"]+)"/g, (tag, id) =>
+            rotulos[id] ? `<label class="cvenda-mobile-label" for="${id}">${rotulos[id]}</label>${tag}` : tag
+        )
+        .replace('<div id="obs-container"', '<label class="cvenda-mobile-label" for="obs">Observações</label><div id="obs-container"');
+}
+
 function continuarCompraVendaAposConsultaCRM() {
     if (!compraVendaVerificacaoState.verificado) return;
 
@@ -7299,7 +7399,7 @@ function continuarCompraVendaAposConsultaCRM() {
         }
     }, { once: true });
 
-    iframe.srcdoc = COMPRA_VENDA_HTML_CRM;
+    iframe.srcdoc = montarFormularioCompraVendaCRM_();
 }
 
 
