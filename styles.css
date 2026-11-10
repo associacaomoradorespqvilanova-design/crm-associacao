@@ -799,3 +799,175 @@ body.cartoes-modal-open {
   .cartoes-v3-tabs { gap:4px; }
   #modal-multiplas-entregas .cartoes-v3-tab { padding:7px 8px !important; }
 }
+
+.comprovante-mobile-label { display: none; }
+.comprovante-moradia { display: contents; }
+
+@media screen and (max-width: 900px) {
+  #dashboard-screen { width: 100%; min-width: 0; }
+  .grid-container { grid-template-columns: minmax(0, 1fr); }
+  #agenda-table-container,
+  #cards-table-container { overflow-x: auto; }
+  .panel-header { flex-wrap: wrap; gap: 8px; }
+  .card-content { min-width: 0; }
+  .menu-option,
+  .crm-reminder-text { overflow-wrap: anywhere; }
+
+  .modal-overlay > .modal-box:not(.cartoes-v3-shell) {
+    max-width: calc(100% - 20px) !important;
+    max-height: calc(100dvh - 20px);
+    min-width: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    overflow-wrap: anywhere;
+  }
+
+  .modal-box :is(input, select, textarea),
+  #login-screen input,
+  #busca-editor-area :is(input, select),
+  #modal-carteirinhas-crm :is(input, select, textarea) {
+    min-width: 0;
+    max-width: 100%;
+    font-size: 16px;
+  }
+
+  .modal-actions { flex-wrap: wrap; }
+  #modal-curriculo .grid-cv > *,
+  #cesta-fields > *,
+  .crm-reminder-form > * { min-width: 0; }
+  .busca-header { padding-right: 32px; }
+  .busca-resultados,
+  #busca-editor-area { flex: none; max-height: none; overflow: visible; }
+  .busca-resultados .card .nome { max-width: 100%; white-space: normal; }
+  #busca-editor-area .header-editor,
+  #busca-editor-area .alerta-duplicidade { flex-wrap: wrap; gap: 8px; }
+  #busca-editor-area .header-editor h4 { flex-basis: 100% !important; }
+
+  #modal-compra-venda-crm .cvenda-close,
+  #modal-whatsapp-crm .wa-close { flex-shrink: 0; }
+  #modal-compra-venda-crm iframe { min-height: 0; }
+
+  #modal-gerenciar-linhas-cartoes > div {
+    max-width: 100%;
+    max-height: calc(100dvh - 28px) !important;
+    overscroll-behavior: contain;
+  }
+}
+
+@media screen and (max-width: 820px) {
+  /* A impressão usa o HTML A4 gerado separadamente. */
+  #modal-comprovante-print {
+    align-items: flex-start;
+    height: 100dvh;
+    padding: 10px !important;
+    overscroll-behavior: contain;
+  }
+
+  #comprovante-bg {
+    width: min(520px, 100%) !important;
+    height: auto !important;
+    background-image: none !important;
+    padding: 16px;
+  }
+
+  #comprovante-bg .comprovante-mobile-label {
+    display: block;
+    margin: 12px 0 4px;
+    color: #4a7c2e;
+    font-weight: 700;
+  }
+
+  #comprovante-bg h3.comprovante-mobile-label { margin: 0 48px 16px 0; }
+
+  #comprovante-bg .input-field-print {
+    position: static !important;
+    width: 100% !important;
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px 10px;
+    font-size: 16px !important;
+    border: 1px solid #b7c9bd;
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  #comprovante-bg .comprovante-moradia {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    margin: 4px 12px 0 0;
+  }
+
+  #comprovante-bg .comprovante-moradia span { margin: 0; }
+
+  #comprovante-bg input[type="checkbox"] {
+    width: 20px !important;
+    height: 20px !important;
+    min-height: 0;
+    margin: 0;
+  }
+
+  #comprovante-bg .close-btn {
+    top: 8px !important;
+    right: 8px !important;
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  #comprovante-bg #address-suggestions,
+  #comprovante-bg .btn-sm,
+  #comprovante-bg .buttons-container { position: static !important; }
+
+  #comprovante-bg #address-suggestions { width: 100% !important; }
+  #comprovante-bg .btn-sm { min-height: 40px; margin-top: 6px; }
+  #comprovante-bg .buttons-container {
+    flex-wrap: wrap;
+    margin-top: 16px;
+    transform: none !important;
+  }
+
+  #comprovante-bg .buttons-container button { flex: 1 1 auto; width: auto; min-height: 44px; }
+}
+
+@media screen and (max-width: 560px) {
+  .panel { padding: 14px; }
+  .btn-action,
+  .modal-actions button { min-height: 44px; }
+  .modal-box:not(.cartoes-v3-shell) { padding: 16px; }
+  .modal-box:not(.cartoes-v3-shell) > h3 { padding-inline: 28px; }
+  .modal-box .close-btn {
+    top: 6px !important;
+    right: 6px !important;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+  }
+
+  .busca-titulo { font-size: 20px; }
+  .busca-bar { border-radius: 16px; padding: 8px; }
+  .busca-bar .busca-divider,
+  .busca-bar > i { display: none; }
+  .busca-bar .busca-tipo-select,
+  .busca-bar #busca-input { flex: 1 1 100%; max-width: 100%; margin-bottom: 0; }
+  .busca-bar #busca-btnSearch { margin: 4px 0 0; min-height: 44px; }
+
+  #modal-cesta > .modal-box,
+  .crm-reminder-modal { padding: 16px !important; }
+  #modal-cesta h2 { padding-right: 32px; font-size: 18px; }
+  #cesta-fields { grid-template-columns: minmax(0, 1fr) !important; }
+  #cesta-tipos-editor > div { flex-wrap: wrap; }
+  #cesta-monthsContainer .month { width: calc((100% - 10px) / 2); }
+  #cesta-suggestions { width: 100% !important; }
+  #cesta-formArea button { min-height: 44px; }
+  .crm-reminder-heading { gap: 8px; }
+  .crm-reminder-heading-icon { flex-shrink: 0; }
+
+  #ger-cartoes-lista .ger-cartoes-linha {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    overflow-wrap: anywhere;
+  }
+
+  #ger-cartoes-lista .ger-cartoes-linha button { min-height: 40px; min-width: 40px; }
+}
