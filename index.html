@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
 
     <title>Associação PQ Vila Nova - CRM</title>
 
@@ -15,7 +15,7 @@
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js"></script>
 
-    <link rel="stylesheet" href="styles.css?v=20260817-4">
+    <link rel="stylesheet" href="styles.css?v=20261110-mobile">
 </head>
 <body>
 
@@ -64,7 +64,9 @@
         <div class="grid-container">
             <div class="panel">
                 <div class="panel-header"><h3>AGENDA QUADRA</h3><button class="btn-sm" onclick="abrirModal('modal-agenda')">+ Adicionar Data</button></div>
-                <table><thead><tr><th>DATA</th><th>HORÁRIO</th><th>NOME</th><th>END</th><th>TEL</th><th>AÇÕES</th></tr></thead><tbody id="agenda-list"></tbody></table>
+                <div id="agenda-table-container">
+                    <table><thead><tr><th>DATA</th><th>HORÁRIO</th><th>NOME</th><th>END</th><th>TEL</th><th>AÇÕES</th></tr></thead><tbody id="agenda-list"></tbody></table>
+                </div>
             </div>
             
             <div class="col-center">
@@ -90,7 +92,9 @@
             <div class="panel">
                 <div class="panel-header"><h3>CARTÕES</h3><button class="btn-sm" onclick="abrirModal('modal-cartoes')">+ Adicionar</button></div>
                 <div id="cards-container">
-                    <table class="table-cards"><thead id="cards-header"><tr><th>DATA</th><th id="th-responsaveis" colspan="1">RESPONSÁVEIS</th><th>TOTAL DIA</th><th>AÇÕES</th></tr></thead><tbody id="cards-list"></tbody></table>
+                    <div id="cards-table-container">
+                        <table class="table-cards"><thead id="cards-header"><tr><th>DATA</th><th id="th-responsaveis" colspan="1">RESPONSÁVEIS</th><th>TOTAL DIA</th><th>AÇÕES</th></tr></thead><tbody id="cards-list"></tbody></table>
+                    </div>
                 </div>
                 <div class="total-geral" id="totais-gerais" style="display:none;"></div>
             </div>
@@ -344,27 +348,52 @@
     <div id="modal-comprovante-print" class="modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); backdrop-filter:blur(6px); z-index:1000; justify-content:center; overflow-y:auto; padding:30px 0;">
         <div id="comprovante-bg" style="position:relative; width:794px; height:1123px; background-image:url('https://i.imgur.com/lFhk0Hq.png'); background-size:100% 100%; background-color:white; background-position:center; border-radius:12px; box-shadow:0 20px 50px rgba(0,0,0,0.4); flex-shrink:0; margin:0 auto; overflow:hidden;">
             <span class="close-btn" onclick="fecharComprovantePrint()" style="position:absolute; top:-15px; right:-15px; background:#4a7c2e; color:#fff; border-radius:50%; width:30px; height:30px; padding:0; display:flex; align-items:center; justify-content:center; z-index:10; border:2px solid white; box-shadow:0 4px 8px rgba(0,0,0,0.2); cursor:pointer;">×</span>
+            <h3 class="comprovante-mobile-label">Comprovante de Residência</h3>
+            <label class="comprovante-mobile-label" for="print-numero">Nº do comprovante</label>
             <input id="print-numero" class="input-field-print" style="position:absolute; top:386px; left:230px; width:80px; z-index:1;" readonly>
+            <label class="comprovante-mobile-label" for="print-data">Data</label>
             <input id="print-data" class="input-field-print" style="position:absolute; top:386px; left:390px; width:130px; z-index:1;">
+            <label class="comprovante-mobile-label" for="print-ano">Ano</label>
             <input id="print-ano" class="input-field-print" style="position:absolute; top:386px; left:580px; width:80px; z-index:1;">
+            <label class="comprovante-mobile-label" for="print-nome">Nome completo</label>
             <input id="print-nome" class="input-field-print" style="position:absolute; top:437px; left:167px; width:500px; font-size:18px; z-index:1;" onblur="detectarGeneroENacionalidadeComprovante()">
+            <label class="comprovante-mobile-label" for="print-endereco">Endereço</label>
             <input id="print-endereco" class="input-field-print" style="position:absolute; top:508px; left:216px; width:350px; z-index:1;" oninput="buscarSugestoesEndereco()" autocomplete="off">
             <div id="address-suggestions" class="suggestions-box" style="display:none; position:absolute; top:540px; left:216px; width:350px;"></div>
+            <label class="comprovante-mobile-label" for="print-numero_endereco">Nº da residência</label>
             <input id="print-numero_endereco" class="input-field-print" style="position:absolute; top:508px; left:629px; width:90px; z-index:1;">
+            <label class="comprovante-mobile-label" for="print-complemento">Complemento</label>
             <input id="print-complemento" class="input-field-print" style="position:absolute; top:568px; left:240px; width:210px; z-index:1;">
+            <label class="comprovante-mobile-label" for="print-cep">CEP</label>
             <input id="print-cep" class="input-field-print" maxlength="9" style="position:absolute; top:568px; left:530px; width:150px; z-index:1;" oninput="formatarCEPPrint(this)" onblur="autoBuscarCEP(this)">
             <button class="btn-sm no-print" style="position:absolute; top:565px; left:690px; padding:2px 8px; font-size:11px; z-index:2; border-radius:4px; background:#7baa48; color:white; border:1px solid #4a7c2e; cursor:pointer;" onclick="buscarCEPPrint()">Buscar</button>
+            <label class="comprovante-mobile-label" for="print-bairro">Bairro</label>
             <input id="print-bairro" class="input-field-print" style="position:absolute; top:633px; left:165px; width:350px; z-index:1;">
+            <label class="comprovante-mobile-label" for="print-uf">UF</label>
             <input id="print-uf" class="input-field-print" style="position:absolute; top:633px; left:630px; width:80px; z-index:1;">
+            <label class="comprovante-mobile-label" for="print-nacionalidade">Nacionalidade</label>
             <input id="print-nacionalidade" class="input-field-print" style="position:absolute; top:695px; left:247px; width:150px; z-index:1;">
+            <label class="comprovante-mobile-label" for="print-estado_civil">Estado civil</label>
             <input id="print-estado_civil" class="input-field-print" style="position:absolute; top:695px; left:555px; width:150px; z-index:1;">
+            <label class="comprovante-mobile-label" for="print-cpf">CPF</label>
             <input id="print-cpf" class="input-field-print" maxlength="14" style="position:absolute; top:758px; left:135px; width:188px; z-index:1;" oninput="formatarCPFPrint(this)" onblur="autoBuscarCPF(this)">
             <button class="btn-sm no-print" style="position:absolute; top:755px; left:330px; padding:2px 8px; font-size:11px; z-index:2; border-radius:4px; background:#7baa48; color:white; border:1px solid #4a7c2e; cursor:pointer;" onclick="buscarCPFPrint()">Buscar</button>
+            <label class="comprovante-mobile-label" for="print-rg">RG</label>
             <input id="print-rg" class="input-field-print" maxlength="12" style="position:absolute; top:758px; left:395px; width:100px; z-index:1;" oninput="formatarRGPrint(this)">
+            <label class="comprovante-mobile-label" for="print-emissor">Órgão emissor</label>
             <select id="print-emissor" class="input-field-print" style="position:absolute; top:758px; left:625px; width:120px; z-index:1;"><option value="">SELECIONE</option><option value="DETRAN/RJ" selected>DETRAN/RJ</option></select>
-            <input type="checkbox" id="print-propria" class="input-field-print" style="position:absolute; top:844px; left:249px; z-index:1; width:16px; height:16px;">
-            <input type="checkbox" id="print-alugada" class="input-field-print" style="position:absolute; top:844px; left:425px; z-index:1; width:16px; height:16px;">
-            <input type="checkbox" id="print-emprestada" class="input-field-print" style="position:absolute; top:844px; left:652px; z-index:1; width:16px; height:16px;">
+            <label class="comprovante-moradia">
+                <input type="checkbox" id="print-propria" class="input-field-print" style="position:absolute; top:844px; left:249px; z-index:1; width:16px; height:16px;">
+                <span class="comprovante-mobile-label">Própria</span>
+            </label>
+            <label class="comprovante-moradia">
+                <input type="checkbox" id="print-alugada" class="input-field-print" style="position:absolute; top:844px; left:425px; z-index:1; width:16px; height:16px;">
+                <span class="comprovante-mobile-label">Alugada</span>
+            </label>
+            <label class="comprovante-moradia">
+                <input type="checkbox" id="print-emprestada" class="input-field-print" style="position:absolute; top:844px; left:652px; z-index:1; width:16px; height:16px;">
+                <span class="comprovante-mobile-label">Emprestada</span>
+            </label>
             <div class="buttons-container no-print" style="position:absolute; bottom:25px; left:50%; transform:translateX(-50%); display:flex; gap:10px; z-index:10;">
                 <button class="btn-cancel" onclick="fecharComprovantePrint()" style="padding:10px 20px; border-radius:6px; border:none; background:#ccc; color:#333; cursor:pointer;">Cancelar</button>
                 <button class="btn-primary btn-save" onclick="salvarApenas()" style="padding:10px 20px; border-radius:6px; border:none; color:white; cursor:pointer; background:#4CAF50;">💾 Salvar</button>
@@ -373,6 +402,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=20261016-contratos-2"></script>
+    <script src="script.js?v=20261110-mobile"></script>
 </body>
 </html>
