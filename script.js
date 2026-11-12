@@ -1,13 +1,13 @@
 // ============================================================
 // CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbzMMvIDHBV2TOtOkwERQjV1b9gS1YoGyGFg7AVBdEzk-rpc01ROO01sI98W9wI3C4fUxA/exec";
-const CRM_BACKEND_VERSAO = '20260902-1';
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbwv2jY88cRIyUWwNk9koNq4tJlKswmMz572uM7pa1gPKScnqPgGeCNW6_3WBh-f365q1g/exec";
+const CRM_BACKEND_VERSAO = '20261112-fila-1';
 
 // ============================================================
 // GET VIA JSONP
 // ============================================================
-function fetchFromGS(acao, params = {}, signal, timeoutMs = 45000) {
+function fetchFromGSRemoto(acao, params = {}, signal, timeoutMs = 45000) {
     return new Promise((resolve, reject) => {
         const callbackName = 'cb' + Date.now() + Math.random().toString(36).substr(2, 8);
         const urlParams = new URLSearchParams({ acao, callback: callbackName, ...params });
@@ -39,50 +39,14 @@ function fetchFromGS(acao, params = {}, signal, timeoutMs = 45000) {
 // ============================================================
 // POST PARA GOOGLE SHEETS
 // ============================================================
+function fetchFromGS(acao, params = {}, signal, timeoutMs = 45000) {
+    return crmStore.read(acao, params, signal, timeoutMs);
+}
 async function postParaGoogleSheets(acao, dados = {}) {
-    const identificador = 'gs_post_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
-    const iframe = document.createElement('iframe');
-    iframe.name = identificador;
-    iframe.hidden = true;
-    iframe.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(iframe);
-    // Aguarda o about:blank inicial antes de observar a resposta do Web App.
-    await new Promise(resolve => setTimeout(resolve, 0));
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = URL_API_GS;
-    form.target = identificador;
-    form.hidden = true;
-    const criarCampo = (nome, valor) => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = nome;
-        input.value = valor;
-        form.appendChild(input);
-    };
-    criarCampo('acao', acao);
-    criarCampo('dados', JSON.stringify(dados));
-    document.body.appendChild(form);
-    try {
-        await new Promise((resolve, reject) => {
-            let terminou = false;
-            const finalizar = erro => {
-                if (terminou) return;
-                terminou = true;
-                clearTimeout(timeout);
-                erro ? reject(erro) : resolve();
-            };
-            const timeout = setTimeout(() => finalizar(new Error('O envio ao Google Apps Script excedeu 60 segundos.')), 60000);
-            iframe.addEventListener('load', () => finalizar(), { once: true });
-            form.submit();
-        });
-    } finally {
-        form.remove();
-        setTimeout(() => iframe.remove(), 1000);
-    }
-    // Qualquer grava\u00E7\u00E3o pode alterar os resultados; evita mostrar dados antigos.
-    if (typeof buscaCacheMemoria !== 'undefined' && buscaCacheMemoria) buscaCacheMemoria.clear();
+    const result = await crmStore.enqueue(acao, dados);
+    if (typeof buscaCacheMemoria !== 'undefined') buscaCacheMemoria.clear();
     if (typeof buscaUltimaConsulta !== 'undefined') buscaUltimaConsulta = null;
+    return result;
 }
 
 // ============================================================
@@ -219,6 +183,8 @@ function login() {
 
 function loginSuccess() {
     try {
+        inicializarSincronizacaoCRM();
+        carregarBaseBuscaLocalCRM().catch(console.warn);
         registrarAtividadeCRM_(true);
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('dashboard-screen').style.display = 'block';
@@ -247,6 +213,7 @@ function loginSuccess() {
 }
 
 function logout(motivo = '') {
+    crmStore.pause();
     limparSessaoCRM_();
 
     const dashboard = document.getElementById('dashboard-screen');
@@ -305,8 +272,11 @@ async function carregarDashboard() {
 
         renderizarAgendaComDados(state.dadosAgenda);
         renderizarCartoesComDados(state.dadosCartoes, state.responsaveis);
+        // O dashboard já trouxe os pendentes; evita reler a mesma aba.
+        if (Array.isArray(dados.pendentes) && crmStore.peek('listarPendentesMesAtual') === undefined) {
+            await crmStore.setCache('listarPendentesMesAtual', {}, dados.pendentes);
+        }
         renderizarPendentesCestaHome();
-        
         if (dados.totalPendentes) {
             const contador = document.getElementById('busca-contador');
             if(contador) contador.textContent = `\uD83D\uDCE6 ${dados.totalPendentes.total} pendentes`;
@@ -1341,25 +1311,6 @@ function criarIdLoteEntregas() {
 
 function aguardarCartoes(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
-async function confirmarGravacaoLoteEntregas(loteId, totalEsperado) {
-    let ultimaResposta = null;
-    for (let tentativa = 1; tentativa <= 6; tentativa++) {
-        await aguardarCartoes(tentativa === 1 ? 900 : 1400);
-        try {
-            ultimaResposta = await fetchFromGS('confirmarLoteCartoesEntrega', {
-                loteId,
-                esperado: String(totalEsperado),
-                _: String(Date.now())
-            });
-            if (ultimaResposta?.success && Number(ultimaResposta.total) === Number(totalEsperado)) return ultimaResposta;
-            if (ultimaResposta?.success === false && ultimaResposta?.definitivo) break;
-        } catch (erro) {
-            console.warn(`Tentativa ${tentativa} de confirmar o lote falhou:`, erro);
-        }
-    }
-    const detalhe = ultimaResposta?.message || ultimaResposta?.error || 'O servidor n\u00E3o confirmou a grava\u00E7\u00E3o. Atualize a implanta\u00E7\u00E3o do Google Apps Script.';
-    throw new Error(`${detalhe} Os campos foram mantidos para voc\u00EA tentar novamente.`);
-}
 
 async function enviarTodasEntregas() {
     if (!validarCampos()) return;
@@ -1376,23 +1327,14 @@ async function enviarTodasEntregas() {
     btnEnviar.disabled = true;
     if (statusDiv) statusDiv.style.display = 'none';
     try {
-        const backend = await fetchFromGS('statusBackendCRM', { _: String(Date.now()) }, undefined, 25000);
-        if (backend?.versao !== CRM_BACKEND_VERSAO) {
-            throw new Error('O Google Apps Script publicado ainda esta na versao antiga. Crie uma NOVA VERSAO em Gerenciar implantacoes antes de enviar.');
-        }
         const assinatura = JSON.stringify(entregas);
-        const loteId = cartoesLotePendente?.assinatura === assinatura
-            ? cartoesLotePendente.loteId
-            : criarIdLoteEntregas();
+        const loteId = cartoesLotePendente?.assinatura === assinatura ? cartoesLotePendente.loteId : criarIdLoteEntregas();
         cartoesLotePendente = { loteId, assinatura };
         await postParaGoogleSheets('salvarLoteCartoesEntrega', { loteId, entregas });
-        const confirmacao = await confirmarGravacaoLoteEntregas(loteId, entregas.length);
         if (statusDiv) {
             statusDiv.style.display = 'block';
-            statusDiv.style.background = '#e8f5e9';
-            statusDiv.style.color = '#2e7d32';
-            statusDiv.style.border = '2px solid #a5d6a7';
-            statusDiv.innerText = `\u2705 ${confirmacao.total} registro(s) confirmados na aba ENTREGAS!`;
+            statusDiv.style.background = '#fff4d8'; statusDiv.style.color = '#71510b';
+            statusDiv.innerText = `${entregas.length} cartão(ões) salvos neste computador. Sincronização em segundo plano.`;
         }
         cartoesLotePendente = null;
         limparCamposNomeEndereco();
@@ -1541,6 +1483,7 @@ function mensagemProgressoOCR(info) {
 }
 
 async function obterWorkerCartoesOCR() {
+    await garantirRecursoCRM('ocr');
     if (typeof Tesseract === 'undefined') throw new Error('O leitor OCR n\u00E3o foi carregado. Verifique a internet e recarregue a p\u00E1gina.');
     if (!cartoesScannerWorkerPromise) {
         const oem = Tesseract.OEM?.LSTM_ONLY ?? 1;
@@ -1966,8 +1909,8 @@ async function renderizarPendentesCestaHome() {
     } catch (e) { console.error(e); const c=document.getElementById('cesta-pendentes-home'); if(c)c.innerHTML='<span style="color:#888;">Erro ao carregar pendentes.</span>'; }
 }
 async function abrirModalCestaComNome(nome){abrirModal('modal-cesta');setTimeout(()=>{buscarEPreencherCesta(nome,false);},300);}
-async function editarNomePendente(nomeAntigo,linha){const novoNome=prompt(`Digite o novo nome para "${nomeAntigo}":`,nomeAntigo);if(novoNome===null)return;if(novoNome.trim()===''){alert("O nome n\u00E3o pode estar vazio.");return;}await postParaGoogleSheets('editarNomeMoradorCesta',{linha,novoNome:novoNome.trim().toUpperCase()});alert("\u2705 Nome atualizado com sucesso!");await renderizarPendentesCestaHome();await carregarNomesCesta();}
-async function deletarPendente(linha,nome){if(!confirm(`Tem certeza que deseja EXCLUIR permanentemente o cadastro de "${nome}"?`))return;await postParaGoogleSheets('deletarMoradorCesta',{linha});alert("\u2705 Cadastro exclu\u00EDdo com sucesso!");await renderizarPendentesCestaHome();await carregarNomesCesta();}
+async function editarNomePendente(nomeAntigo,linha){const novoNome=prompt(`Digite o novo nome para "${nomeAntigo}":`,nomeAntigo);if(novoNome===null)return;if(novoNome.trim()===''){alert("O nome n\u00E3o pode estar vazio.");return;}await postParaGoogleSheets('editarNomeMoradorCesta',{linha,novoNome:novoNome.trim().toUpperCase()});alert("\u2705 Nome salvo neste computador. Sincronização em segundo plano.");await renderizarPendentesCestaHome();await carregarNomesCesta();}
+async function deletarPendente(linha,nome){if(!confirm(`Tem certeza que deseja EXCLUIR permanentemente o cadastro de "${nome}"?`))return;await postParaGoogleSheets('deletarMoradorCesta',{linha});alert("\u2705 Exclusão salva neste computador. Sincronização em segundo plano.");await renderizarPendentesCestaHome();await carregarNomesCesta();}
 async function buscarEPreencherCesta(nome,isQRCode=false){try{const resp=await fetchFromGS('buscarMoradorCesta',{nome});if(!resp||!resp.dados){alert(isQRCode?"\u274C Morador n\u00E3o encontrado na planilha.":"\u274C Morador n\u00E3o encontrado.");return;}cestaState.currentLine=resp.linha;cestaState.currentDados=resp.dados;renderFormCesta(resp.dados);if(isQRCode){const confirmar=confirm(`Deseja marcar a cesta como ENTREGUE para ${nome} (com a data de hoje)?`);if(confirmar){const monthLabels=["JANEIRO","FEVEREIRO","MAR\u00C7O","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];const todayIndex=new Date().getMonth();const today=new Date();const dia=String(today.getDate()).padStart(2,'0');const mes=String(today.getMonth()+1).padStart(2,'0');const monthId=headerToId(monthLabels[todayIndex]);const monthField=document.getElementById(monthId);if(monthField){monthField.value=`${dia}/${mes}`;atualizarMesesUICesta();await salvarCestaAutomatico();alert("\u2705 Cesta entregue com sucesso!");}else alert("Erro ao encontrar o m\u00EAs atual para marcar.");}}}catch(e){console.error(e);alert(isQRCode?"Erro ao buscar os dados via QR Code.":"Erro ao buscar os dados.");}}
 function renderFormCesta(dadosArray){
     const formArea = document.getElementById('cesta-formArea'); if(!formArea) return; formArea.style.display='block';
@@ -1982,9 +1925,9 @@ function atualizarMesesUICesta(){const months=document.querySelectorAll('#cesta-
 async function salvarCestaAutomatico(){if(!cestaState.currentLine)return;const inputs=document.querySelectorAll('#cesta-fields .field, #cesta-monthsContainer input');const payload={};inputs.forEach(inp=>{payload[inp.id]=inp.value;});await postParaGoogleSheets('salvarMoradorCesta',{linha:cestaState.currentLine,payload});renderizarPendentesCestaHome();}
 const btnSaveCesta = document.getElementById('cesta-btnSave');
 if(btnSaveCesta){
-    btnSaveCesta.addEventListener('click',async()=>{if(!cestaState.currentLine){alert("Nenhum morador selecionado.");return;}const inputs=document.querySelectorAll('#cesta-fields .field, #cesta-monthsContainer input');const payload={};inputs.forEach(inp=>{payload[inp.id]=inp.value;});await postParaGoogleSheets('salvarMoradorCesta',{linha:cestaState.currentLine,payload});alert("\u2705 Dados salvos com sucesso!");atualizarMesesUICesta();renderizarPendentesCestaHome();});
+    btnSaveCesta.addEventListener('click',async()=>{if(!cestaState.currentLine){alert("Nenhum morador selecionado.");return;}const inputs=document.querySelectorAll('#cesta-fields .field, #cesta-monthsContainer input');const payload={};inputs.forEach(inp=>{payload[inp.id]=inp.value;});await postParaGoogleSheets('salvarMoradorCesta',{linha:cestaState.currentLine,payload});alert("\u2705 Dados salvos neste computador. Sincronização em segundo plano.");atualizarMesesUICesta();renderizarPendentesCestaHome();});
 }
-async function gerarCarteirinha(){const nome=document.getElementById('cesta-search').value.trim();if(!nome){alert("Busque um morador antes de gerar a carteirinha.");return;}const qrContainer=document.getElementById('card-qrcode');if(!qrContainer)return;qrContainer.innerHTML='';document.getElementById('card-nome').innerText=nome;try{cestaState.qrCodeInstance=new QRCode(qrContainer,{text:nome,width:75,height:75,colorDark:"#4a7c2e",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.H});}catch(e){alert("Erro ao gerar QR Code");return;}setTimeout(async()=>{try{const cardDiv=document.getElementById('carteirinha-print-area');const canvas=await html2canvas(cardDiv,{scale:2});const{jsPDF}=window.jspdf;const pdf=new jsPDF('l','mm','a6');const imgData=canvas.toDataURL('image/jpeg',0.95);pdf.addImage(imgData,'JPEG',0,0,148,105);const pdfBlob=pdf.output('blob');window.open(URL.createObjectURL(pdfBlob),'_blank');}catch(error){console.error(error);alert("Erro ao gerar a imagem da carteirinha.");}},300);}
+async function gerarCarteirinha(){try{await garantirRecursoCRM('qr');}catch(e){alert(e.message);return;}const nome=document.getElementById('cesta-search').value.trim();if(!nome){alert("Busque um morador antes de gerar a carteirinha.");return;}const qrContainer=document.getElementById('card-qrcode');if(!qrContainer)return;qrContainer.innerHTML='';document.getElementById('card-nome').innerText=nome;try{cestaState.qrCodeInstance=new QRCode(qrContainer,{text:nome,width:75,height:75,colorDark:"#4a7c2e",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.H});}catch(e){alert("Erro ao gerar QR Code");return;}setTimeout(async()=>{try{const cardDiv=document.getElementById('carteirinha-print-area');const canvas=await html2canvas(cardDiv,{scale:2});const{jsPDF}=window.jspdf;const pdf=new jsPDF('l','mm','a6');const imgData=canvas.toDataURL('image/jpeg',0.95);pdf.addImage(imgData,'JPEG',0,0,148,105);const pdfBlob=pdf.output('blob');window.open(URL.createObjectURL(pdfBlob),'_blank');}catch(error){console.error(error);alert("Erro ao gerar a imagem da carteirinha.");}},300);}
 
 
 // ============================================================
@@ -2698,7 +2641,7 @@ async function salvarCadastroCurriculoCRM(mostrarMensagem = true) {
     }
 
     atualizarStatusCurriculoSalvoCRM(
-        '⏳ Salvando currículo na planilha...',
+        '⏳ Salvando neste computador...',
         'buscando'
     );
 
@@ -2738,7 +2681,7 @@ async function salvarCadastroCurriculoCRM(mostrarMensagem = true) {
             nomeNormalizado;
 
         atualizarStatusCurriculoSalvoCRM(
-            '✓ Currículo salvo na planilha.',
+            '✓ Currículo salvo neste computador · sincronizando.',
             'ok'
         );
 
@@ -3203,6 +3146,7 @@ async function gerarCurriculo() {
     pdfLayout.style.display = 'block';
 
     try {
+        await Promise.all([garantirRecursoCRM('canvas'), garantirRecursoCRM('pdf')]);
         const canvas = await html2canvas(pdfLayout, { scale: 2, useCORS: true, logging: false });
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
         const { jsPDF } = window.jspdf;
@@ -3497,7 +3441,7 @@ function gerarHTMLImpressaoCRM(v, tipo = state.tipoComprovanteAtual) {
     return `<!DOCTYPE html><html><head><style>body{margin:0;padding:0;font-family:Arial,sans-serif;}.popup{position:relative;width:794px;height:1123px;background-color:white;overflow:hidden;margin:0 auto;}.popup-content{position:relative;width:100%;height:100%;}.popup-content img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;z-index:0;}.input-field{position:absolute;font-size:13px;padding:2px 4px;z-index:1;font-weight:bold;background:transparent;border:none;outline:none;color:black;text-transform:uppercase;}.input-field[type="checkbox"]{width:16px;height:16px;accent-color:black;}@media print{body{margin:0!important;padding:0!important;}}</style></head><body><div class="popup"><div class="popup-content"><img src="${bgImage}" alt="Declaração de residência"><input class="input-field" style="top:386px;left:230px;width:80px" value="${v.numero}" readonly><input class="input-field" style="top:386px;left:390px;width:130px" value="${v.data}" readonly><input class="input-field" style="top:386px;left:580px;width:80px" value="${v.ano}" readonly><input class="input-field" style="top:437px;left:167px;width:500px;font-size:18px" value="${v.nome}" readonly><input class="input-field" style="top:508px;left:216px;width:350px" value="${v.endereco}" readonly><input class="input-field" style="top:508px;left:629px;width:90px" value="${v.numero_endereco}" readonly><input class="input-field" style="top:568px;left:240px;width:210px" value="${v.complemento}" readonly><input class="input-field" style="top:568px;left:530px;width:150px" value="${v.cep}" readonly><input class="input-field" style="top:633px;left:165px;width:350px" value="${v.bairro}" readonly><input class="input-field" style="top:633px;left:630px;width:80px" value="${v.uf}" readonly><input class="input-field" style="top:695px;left:247px;width:150px" value="${v.nacionalidade}" readonly><input class="input-field" style="top:695px;left:555px;width:150px" value="${v.estado_civil}" readonly><input class="input-field" style="top:758px;left:135px;width:188px" value="${v.cpf}" readonly><input class="input-field" style="top:758px;left:395px;width:100px" value="${v.rg}" readonly><input class="input-field" style="top:758px;left:625px;width:120px" value="${v.emissor}" readonly><input type="checkbox" class="input-field" style="top:844px;left:249px" ${v.propria?'checked':''} readonly><input type="checkbox" class="input-field" style="top:844px;left:425px" ${v.alugada?'checked':''} readonly><input type="checkbox" class="input-field" style="top:844px;left:652px" ${v.emprestada?'checked':''} readonly></div></div></body></html>`;
 }
 async function salvarDadosComprovante(){ const dados=[document.getElementById('print-numero').value,document.getElementById('print-data').value,document.getElementById('print-ano').value,document.getElementById('print-nome').value.toUpperCase(),document.getElementById('print-endereco').value.toUpperCase(),document.getElementById('print-numero_endereco').value.toUpperCase(),document.getElementById('print-complemento').value.toUpperCase(),document.getElementById('print-cep').value,document.getElementById('print-bairro').value.toUpperCase(),document.getElementById('print-uf').value.toUpperCase(),document.getElementById('print-nacionalidade').value.toUpperCase(),document.getElementById('print-estado_civil').value.toUpperCase(),document.getElementById('print-cpf').value,document.getElementById('print-rg').value,document.getElementById('print-emissor').value.toUpperCase(),document.getElementById('print-propria').checked?"Casa Pr\u00F3pria":"",document.getElementById('print-alugada').checked?"Alugada":"",document.getElementById('print-emprestada').checked?"Emprestada":""]; await postParaGoogleSheets('salvarDeclaracao',dados); }
-async function salvarApenas(){ const btn=document.querySelector('#modal-comprovante-print .btn-save'); if(!btn)return; btn.innerText='Salvando...'; btn.disabled=true; try{ await salvarDadosComprovante(); alert("Dados salvos com sucesso!"); fecharComprovantePrint(); }catch(e){alert("Erro ao salvar: "+e.message);}finally{btn.innerText='\uD83D\uDCBE Salvar';btn.disabled=false;} }
+async function salvarApenas(){ const btn=document.querySelector('#modal-comprovante-print .btn-save'); if(!btn)return; btn.innerText='Salvando...'; btn.disabled=true; try{ await salvarDadosComprovante(); alert("Dados salvos neste computador. Sincronização em segundo plano."); fecharComprovantePrint(); }catch(e){alert("Erro ao salvar: "+e.message);}finally{btn.innerText='\uD83D\uDCBE Salvar';btn.disabled=false;} }
 async function salvarEImprimir(){ const btn=document.querySelector('#modal-comprovante-print .btn-print'); if(!btn)return; btn.innerText='Salvando...'; btn.disabled=true; try{ await salvarDadosComprovante(); const v=obterValoresComprovante(); let htmlPrint=gerarHTMLImpressaoCRM(v, state.tipoComprovanteAtual); htmlPrint=htmlPrint.replace('</body>',`<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},800);});<\/script></body>`); const win=window.open('','_blank'); if(win){win.document.write(htmlPrint);win.document.close();win.focus();}else{alert("Pop-up bloqueado! Permita pop-ups.");} fecharComprovantePrint(); }catch(e){alert("Erro ao salvar e imprimir: "+e.message);}finally{btn.innerText='\uD83D\uDDA8\uFE0F Imprimir';btn.disabled=false;} }
 function fecharModal(id){
     const modal=document.getElementById(id);
@@ -3526,7 +3470,7 @@ var buscaUltimaConsulta = null;
 var buscaCacheMemoria = new Map();
 var buscaContagemEnderecos = new Map();
 var buscaResultadosAuxiliares = new Map();
-const BUSCA_DEBOUNCE_MS = 650;
+const BUSCA_DEBOUNCE_MS = 180;
 const BUSCA_CACHE_MS = 60000;
 
 function normalizarTextoBusca(valor) {
@@ -3654,7 +3598,7 @@ function inicializarEventosBusca() {
             clearTimeout(debounceTimerBusca);
             const tipo = buscaTipoSelect ? buscaTipoSelect.value : 'todos';
             const termo = inputBusca.value.trim();
-            if (!termo) { limparBusca(false); return; }
+            if (!termo) { if (document.getElementById('busca-endereco')?.value.trim()) executarBusca(); else limparBusca(false); return; }
             if (termo.length < minimoCaracteresBusca(tipo)) {
                 if (buscaResultados) buscaResultados.innerHTML = `<div style="text-align:center; padding:30px; color:#888;">Digite pelo menos ${minimoCaracteresBusca(tipo)} caractere(s).</div>`;
                 return;
@@ -3677,6 +3621,7 @@ function prepararModalBusca() {
             inputBusca.focus();
             inputBusca.placeholder = placeholderBusca(buscaTipoSelect ? buscaTipoSelect.value : 'todos');
         }
+        const enderecoBusca = document.getElementById('busca-endereco'); if (enderecoBusca) enderecoBusca.value = '';
         todosResultadosBusca = [];
         if (contadorBusca) contadorBusca.textContent = '\u23F3 ...';
         const editorArea = document.getElementById('busca-editor-area');
@@ -3691,53 +3636,6 @@ function prepararModalBusca() {
 
 async function carregarTotalCartoesBusca() { if (!contadorBusca) return; contadorBusca.textContent = '\u23F3 ...'; try { const resp=await fetchFromGS('contarCartoesPendentes'); if(resp && resp.success) contadorBusca.textContent=`\uD83D\uDCE6 ${resp.total} pendentes`; else { contadorBusca.textContent='\u26A0\uFE0F Erro'; console.error(resp); } } catch(erro){ console.error(erro); contadorBusca.textContent='\u26A0\uFE0F Erro'; } }
 
-async function executarBusca() {
-    if (!inputBusca) { inputBusca = document.getElementById('busca-input'); if (!inputBusca) return; }
-    const termo = inputBusca.value.trim();
-    const tipo = buscaTipoSelect ? buscaTipoSelect.value : 'todos';
-    if (!termo) { limparBusca(false); return; }
-    if (termo.length < minimoCaracteresBusca(tipo)) {
-        if (buscaResultados) buscaResultados.innerHTML = `<div style="text-align:center; padding:30px; color:#888;">Digite pelo menos ${minimoCaracteresBusca(tipo)} caractere(s).</div>`;
-        return;
-    }
-
-    const chaveMemoria = chaveBuscaMemoria(tipo, termo);
-    const respostaMemoria = obterBuscaMemoria(chaveMemoria);
-    if (respostaMemoria) {
-        buscaUltimaConsulta = { tipo, termo, resposta: respostaMemoria };
-        processarResultados(respostaMemoria);
-        return;
-    }
-
-    const respostaRefinada = refinarBuscaAnterior(tipo, termo);
-    if (respostaRefinada) {
-        salvarBuscaMemoria(chaveMemoria, respostaRefinada);
-        buscaUltimaConsulta = { tipo, termo, resposta: respostaRefinada };
-        processarResultados(respostaRefinada);
-        return;
-    }
-
-    if (buscaRequestController) buscaRequestController.abort();
-    const controllerAtual = new AbortController();
-    buscaRequestController = controllerAtual;
-    const sequenciaAtual = ++buscaSequencia;
-    if (buscaResultados) { buscaResultados.style.display = 'flex'; buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">\u23F3 Buscando...</div>'; }
-    const params = { termo, campo: tipo };
-    try {
-        const resultado = await fetchFromGS('pesquisarCartoes', params, controllerAtual.signal);
-        if (sequenciaAtual !== buscaSequencia) return;
-        if (!resultado || resultado.error) throw new Error(resultado?.error || 'Resposta inv\u00E1lida do servidor');
-        salvarBuscaMemoria(chaveMemoria, resultado);
-        buscaUltimaConsulta = { tipo, termo, resposta: resultado };
-        processarResultados(resultado);
-    } catch (e) {
-        if (e.name === 'AbortError') return;
-        console.error(e);
-        if (buscaResultados) buscaResultados.innerHTML = '<div style="text-align:center; padding:30px; color:#d32f2f;">\u274C Erro na busca. Tente novamente.</div>';
-    } finally {
-        if (buscaRequestController === controllerAtual) buscaRequestController = null;
-    }
-}
 
 function processarResultados(resposta) {
     todosResultadosBusca = Array.isArray(resposta?.resultados) ? resposta.resultados : [];
@@ -3761,36 +3659,8 @@ function processarResultados(resposta) {
     renderizarResultados();
 }
 
-function renderizarResultados() {
-    if (!buscaResultados) buscaResultados = document.getElementById('busca-resultados');
-    if (!buscaResultados) return;
-    const exibir = [...todosResultadosBusca];
-    exibir.sort((a, b) => {
-        const parseDate = (str) => { if (!str) return 0; let d = new Date(str); if (!isNaN(d.getTime())) return d.getTime(); const p = String(str).split('/'); if (p.length === 3) { d = new Date(p[2], p[1] - 1, p[0]); if (!isNaN(d.getTime())) return d.getTime(); } return 0; };
-        return Number(b.score || 0) - Number(a.score || 0) || parseDate(b.data) - parseDate(a.data) || Number(b.linha) - Number(a.linha);
-    });
-    if (!exibir.length) { buscaResultados.innerHTML = '<div style="text-align:center; padding:25px; color:#999;">Nenhum pendente encontrado.</div>'; return; }
-    let html = '';
-    exibir.forEach(item => {
-        const qtdEndereco = contarIguaisPorEndereco(item);
-        const multiIcon = qtdEndereco > 1 ? `<span style="background:#e3f2fd; padding:2px 8px; border-radius:12px; margin-left:5px;">\uD83D\uDC65 ${qtdEndereco}</span>` : '';
-        const statusClass = String(item.status || '').toUpperCase().trim() === 'BLOQUEADO' ? 'bloqueado' : '';
-        const seloRecente = ehDataRecenteBusca(item.data) ? '<div class="selo-container"><div class="selo">RECENTE</div></div>' : '';
-        html += `
-            <div class="card" onclick="abrirEditorBuscaRapido(${Number(item.linha)})">
-                <span class="numero">${escapeHtml(item.numero || '-')}</span>
-                <span class="nome" title="${escapeHtml(item.nome || '')}">${escapeHtml(item.nome || '')}</span>
-                <div class="detalhes">
-                    <span class="data-destaque">\uD83D\uDCC5 ${escapeHtml(formatarDataBR(item.data))}</span>
-                    ${seloRecente}
-                    <span>\uD83D\uDCCD ${escapeHtml(item.endereco || 'SEM ENDERE\u00C7O')} ${multiIcon}</span>
-                    <span>\uD83D\uDCE6 ${escapeHtml(item.tipo || '')}</span>
-                    <span class="status-badge ${statusClass}">${escapeHtml(item.status || 'PENDENTE')}</span>
-                </div>
-            </div>`;
-    });
-    buscaResultados.innerHTML = html;
-}
+async function executarBusca() { return crmExecutarBusca(); }
+function renderizarResultados() { return crmRenderizarBusca(); }
 
 function limparBusca(recarregarTotal = true) {
     clearTimeout(debounceTimerBusca);
@@ -3807,7 +3677,7 @@ function limparBusca(recarregarTotal = true) {
     if (recarregarTotal) carregarTotalCartoesBusca();
 }
 
-function normalizarEndereco(endereco) { return String(endereco || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
+function normalizarEndereco(endereco) { return crmEndereco(endereco); }
 function contarIguaisPorEndereco(item) { return buscaContagemEnderecos.get(normalizarEndereco(item.endereco)) || 0; }
 function ehDataRecenteBusca(valor) {
     if (!valor) return false;
@@ -3891,7 +3761,11 @@ function abrirEditorBuscaRapido(linha) {
         atualizarVisibilidadeEditarTodosBusca(Number(linha));
     }
 
-    if (numeroBloco) {
+    if (item.posicao) {
+        const span = document.getElementById(`posicao-span-busca-${Number(linha)}`);
+        span.textContent = `${item.posicao}º de ${item.totalBloco} · bloco ${numeroBloco}`;
+        span.classList.remove('posicao-badge-piscante');
+    } else if (numeroBloco) {
         fetchFromGS('obterPosicaoNoBlocoBackend', { numeroBloco, linhaAtual: Number(linha) })
             .then(result => {
                 const span = document.getElementById(`posicao-span-busca-${Number(linha)}`);
@@ -3933,14 +3807,14 @@ window.salvarEdicaoBusca = async function (linha) {
         status: itemOriginal.status || '',
         numero: get(`edit-num-busca-${Number(linha)}`) || itemOriginal.numero || '',
         endereco: get(`edit-end-busca-${Number(linha)}`) || itemOriginal.endereco || '',
-        cpf: get(`edit-cpf-busca-${Number(linha)}`) || itemOriginal.cpf || '',
-        entregueA: get(`edit-entrega-busca-${Number(linha)}`) || itemOriginal.entregueA || '',
+        cpf: get(`edit-cpf-busca-${Number(linha)}`) ?? itemOriginal.cpf ?? '',
+        entregueA: get(`edit-entrega-busca-${Number(linha)}`) ?? itemOriginal.entregueA ?? '',
         dataEntrega: itemOriginal.dataEntrega || '',
-        telefone: get(`edit-tel-busca-${Number(linha)}`) || itemOriginal.telefone || ''
+        telefone: get(`edit-tel-busca-${Number(linha)}`) ?? itemOriginal.telefone ?? ''
     };
     try {
         await postParaGoogleSheets('atualizarCartao', { linha, dados });
-        alert('\u2705 Dados salvos com sucesso!');
+        alert('\u2705 Dados salvos neste computador. Sincronização em segundo plano.');
         cancelarEdicaoBusca(linha);
         executarBusca();
     } catch (erro) {
@@ -3960,24 +3834,25 @@ window.confirmarEntregaBusca = function (linha) {
 };
 
 async function finalizarEntregaBusca(linha, nomeEntregueA, dataEntrega, telefoneAdicional) {
+    const original = obterResultadoBuscaPorLinha(linha) || {};
     const get = id => document.getElementById(id)?.value;
     const dados = {
-        nome: get(`edit-nome-busca-${Number(linha)}`) || '',
-        data: get(`edit-data-busca-${Number(linha)}`) || '',
-        quantidade: 1,
-        obs: '',
-        tipo: 'CART\u00C3O',
+        nome: get(`edit-nome-busca-${Number(linha)}`) ?? original.nome ?? '',
+        data: get(`edit-data-busca-${Number(linha)}`) ?? original.data ?? '',
+        quantidade: original.quantidade || 1,
+        obs: original.obs || '',
+        tipo: original.tipo || 'CARTÃO',
         status: 'ENTREGUE',
-        numero: get(`edit-num-busca-${Number(linha)}`) || '',
-        endereco: get(`edit-end-busca-${Number(linha)}`) || '',
-        cpf: get(`edit-cpf-busca-${Number(linha)}`) || '',
+        numero: get(`edit-num-busca-${Number(linha)}`) ?? original.numero ?? '',
+        endereco: get(`edit-end-busca-${Number(linha)}`) ?? original.endereco ?? '',
+        cpf: get(`edit-cpf-busca-${Number(linha)}`) ?? original.cpf ?? '',
         entregueA: nomeEntregueA,
         dataEntrega: dataEntrega,
-        telefone: (telefoneAdicional && telefoneAdicional.trim() !== '') ? telefoneAdicional.trim() : ''
+        telefone: (telefoneAdicional && telefoneAdicional.trim() !== '') ? telefoneAdicional.trim() : original.telefone || ''
     };
     try {
         await postParaGoogleSheets('atualizarCartao', { linha, dados });
-        alert('\u2705 Cart\u00E3o marcado como ENTREGUE com sucesso!');
+        alert('\u2705 Entrega salva neste computador. Sincronização em segundo plano.');
         cancelarEdicaoBusca(linha);
         executarBusca();
     } catch (erro) {
@@ -4008,27 +3883,7 @@ function tokensNomePessoaBusca(nome) {
 // - nome é exatamente igual; OU
 // - é uma abreviação segura: primeiro nome igual, último sobrenome igual
 //   e todas as palavras do nome menor existem no nome maior.
-function nomesRepresentamMesmaPessoaBusca(nomeA, nomeB) {
-    const normA = normalizarNomePessoaBusca(nomeA);
-    const normB = normalizarNomePessoaBusca(nomeB);
-
-    if (!normA || !normB) return false;
-    if (normA === normB) return true;
-
-    const a = tokensNomePessoaBusca(nomeA);
-    const b = tokensNomePessoaBusca(nomeB);
-
-    if (a.length < 2 || b.length < 2) return false;
-
-    if (a[0] !== b[0]) return false;
-    if (a[a.length - 1] !== b[b.length - 1]) return false;
-
-    const menor = a.length <= b.length ? a : b;
-    const maior = a.length <= b.length ? b : a;
-    const setMaior = new Set(maior);
-
-    return menor.every(token => setMaior.has(token));
-}
+function nomesRepresentamMesmaPessoaBusca(nomeA, nomeB) { return crmPessoasCompativeis(nomeA, nomeB); }
 
 function filtrarCartoesMesmaPessoaMesmoEnderecoBusca(cartoes, referencia) {
     const enderecoRef = normalizarEndereco(referencia?.endereco || '');
@@ -4084,6 +3939,8 @@ async function atualizarVisibilidadeEditarTodosBusca(linhaAtual) {
 }
 
 async function obterCartoesMesmoEnderecoBusca(enderecoOriginal) {
+    const local = crmStore.peek('baseBuscaLocalCRM');
+    if (local?.completo) return local.itens.filter(i => crmTexto(i.status) !== 'entregue' && crmEndereco(i.endereco) === crmEndereco(enderecoOriginal));
     const enderecoNorm = normalizarEndereco(enderecoOriginal);
     const conhecidos = [...todosResultadosBusca, ...buscaResultadosAuxiliares.values()];
     let cartoes = conhecidos.filter(item => normalizarEndereco(item.endereco) === enderecoNorm);
@@ -4339,7 +4196,7 @@ async function salvarEdicaoMassivaBusca(linhas, linhaReferencia) {
         );
 
         alert(
-            '✅ Alterações aplicadas somente aos cartões da mesma pessoa!'
+            '✅ Edições salvas neste computador. Sincronização em segundo plano.'
         );
 
         cancelarEdicaoBusca(
@@ -4365,7 +4222,7 @@ async function salvarEdicaoMassivaBusca(linhas, linhaReferencia) {
 // Migração dos antigos pop-ups do Google Sheets para o CRM.
 // ============================================================
 
-const COMPRA_VENDA_HTML_CRM = "<!DOCTYPE html>\n<html>\n\n<head>\n\n<!-- jQuery e Summernote (Editor de Texto Rico) -->\n<script src=\"https://code.jquery.com/jquery-3.6.0.min.js\"></script>\n<link href=\"https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote-lite.min.css\" rel=\"stylesheet\">\n<script src=\"https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote-lite.min.js\"></script>\n\n<style>\n\n@media print {\n\n  .no-print,\n  .no-print * {\n    display: none !important;\n    visibility: hidden !important;\n  }\n\n  body {\n    -webkit-print-color-adjust: exact !important;\n    print-color-adjust: exact !important;\n    margin: 0;\n    padding: 0;\n    background: white !important;\n  }\n\n  /* =========================\n     PADRÃO = IMPRIME SÓ CONTRATO\n  ========================= */\n\n  #notaFiscal {\n    display: none !important;\n  }\n\n  .container {\n    display: block !important;\n  }\n\n  /* =========================\n     QUANDO FOR IMPRIMIR NOTA\n  ========================= */\n\n  body.imprimindo-nota .container {\n    display: none !important;\n  }\n\n  body.imprimindo-nota #notaFiscal {\n    display: block !important;\n    zoom: 0.40 !important;\n    width: 1000px !important;\n    margin: 0 auto !important;\n    padding: 0 !important;\n  }\n\n  /* =========================\n     IMPRESSÃO: ESCONDE O EDITOR E MOSTRA A CAIXA RESERVA\n  ========================= */\n  #obs-container, #obs-container * {\n    background: transparent !important;\n    border: none !important;\n    outline: none !important;\n    box-shadow: none !important;\n  }\n\n  #wrapper-obs {\n    display: none !important;\n  }\n\n  #print-area-obs {\n    display: block !important;\n    height: 155px !important;\n    max-height: 155px !important;\n    min-height: 155px !important;\n    width: 100% !important;\n    padding: 0 !important;\n    margin: 0 !important;\n    overflow: hidden !important;\n    font-weight: bold !important;\n    font-size: 14px !important;\n    font-family: Arial, sans-serif !important;\n  }\n}\n\nbody {\n  margin: 0;\n  font-family: 'Segoe UI', Arial, sans-serif;\n  background: #f2f2f2;\n}\n\n/* =========================\n   MENU PRINCIPAL (3 Botões)\n========================= */\n#menu-principal {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 800px;\n  height: 1150px;\n  display: flex;\n  flex-direction: column;\n  justify-content: center;\n  align-items: center;\n  background: #eaf4f4;\n  z-index: 100;\n  border-radius: 8px;\n  box-shadow: inset 0 0 30px rgba(0,0,0,0.05);\n}\n\n#menu-principal h2 {\n  font-size: 28px;\n  color: #1a3b3b;\n  margin-bottom: 50px;\n  text-transform: uppercase;\n  letter-spacing: 2px;\n  border-bottom: 3px solid #1a3b3b;\n  padding-bottom: 15px;\n}\n\n.menu-botoes {\n  display: flex;\n  flex-direction: column;\n  gap: 20px;\n  align-items: center;\n}\n\n.btn-menu {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  gap: 15px;\n  width: 320px;\n  height: 70px;\n  border: none;\n  border-radius: 40px;\n  font-size: 22px;\n  font-weight: bold;\n  color: white;\n  cursor: pointer;\n  transition: all 0.3s ease;\n  box-shadow: 0 6px 15px rgba(0,0,0,0.15);\n  padding: 15px 25px;\n}\n\n.btn-menu span {\n  font-size: 30px;\n}\n\n.btn-menu:hover {\n  transform: translateY(-5px) scale(1.02);\n  box-shadow: 0 10px 25px rgba(0,0,0,0.25);\n}\n\n.btn-menu:active {\n  transform: scale(0.95);\n}\n\n.btn-compra {\n  background: linear-gradient(145deg, #004d99, #003366);\n}\n\n.btn-transferencia {\n  background: linear-gradient(145deg, #2e7d32, #1b5e20);\n}\n\n.btn-atualizacao {\n  background: linear-gradient(145deg, #b8860b, #8b6508);\n}\n\n/* =========================\n   CONTAINER DO CONTRATO\n========================= */\n.container {\n  position: relative;\n  width: 800px;\n  height: 1150px;\n  background-image: url(\"https://i.imgur.com/u0FKrsJ.png\");\n  background-size: cover;\n  display: none; /* Começa oculto */\n  border-radius: 8px;\n}\n\n.btn-voltar {\n  position: absolute;\n  top: 15px;\n  left: 15px;\n  z-index: 30;\n  background: rgba(255, 255, 255, 0.95);\n  color: #333;\n  border: 1px solid #ccc;\n  padding: 8px 16px;\n  border-radius: 20px;\n  font-weight: bold;\n  font-size: 14px;\n  cursor: pointer;\n  box-shadow: 0 2px 8px rgba(0,0,0,0.1);\n  transition: 0.2s;\n}\n.btn-voltar:hover {\n  background: #fff;\n  box-shadow: 0 4px 12px rgba(0,0,0,0.2);\n}\n\n.campo {\n  position: absolute;\n  background-color: transparent;\n  font-weight: bold;\n  font-size: 14px;\n  border: none;\n  text-transform: uppercase;\n}\n\ninput[type=\"text\"],\nselect {\n  background-color: rgba(255,255,255,0.75);\n  border: 1px solid #999;\n  padding: 2px 4px;\n  font-weight: bold;\n  font-size: 16px;\n  text-transform: uppercase;\n  z-index: 2;\n  box-sizing: border-box;\n}\n\n.btn {\n  position: absolute;\n  bottom: 20px;\n  left: 50%;\n  transform: translateX(-50%);\n  padding: 10px 20px;\n  background-color: green;\n  color: white;\n  border: none;\n  font-size: 18px;\n  border-radius: 5px;\n  cursor: pointer;\n  z-index: 10;\n}\n\n.btn-imprimir {\n  left: calc(50% + 130px);\n  background-color: #2196F3;\n}\n\n.btn-buscar-cpf {\n  position: absolute;\n  background-color: #ff9800;\n  color: white;\n  border: none;\n  border-radius: 4px;\n  padding: 2px 10px;\n  font-size: 12px;\n  cursor: pointer;\n  z-index: 5;\n}\n.btn-buscar-cpf:hover {\n  background-color: #e68900;\n}\n\n</style>\n\n\n<script>\n(function () {\n  function criarRunner(successHandler, failureHandler) {\n    return new Proxy({}, {\n      get: function (_, prop) {\n        if (prop === 'withSuccessHandler') {\n          return function (fn) {\n            return criarRunner(fn, failureHandler);\n          };\n        }\n\n        if (prop === 'withFailureHandler') {\n          return function (fn) {\n            return criarRunner(successHandler, fn);\n          };\n        }\n\n        return function () {\n          const args = Array.prototype.slice.call(arguments);\n\n          Promise.resolve(\n            window.parent.compraVendaBridgeCall(String(prop), args)\n          )\n          .then(function (res) {\n            if (typeof successHandler === 'function') {\n              successHandler(res);\n            }\n          })\n          .catch(function (err) {\n            const erro = {\n              message: err && err.message ? err.message : String(err)\n            };\n\n            if (typeof failureHandler === 'function') {\n              failureHandler(erro);\n            } else {\n              console.error('Erro no módulo Compra e Venda:', erro.message);\n              alert('Erro: ' + erro.message);\n            }\n          });\n        };\n      }\n    });\n  }\n\n  window.google = window.google || {};\n  window.google.script = window.google.script || {};\n\n  Object.defineProperty(window.google.script, 'run', {\n    configurable: true,\n    get: function () {\n      return criarRunner(null, null);\n    }\n  });\n})();\n</script>\n\n</head>\n\n<body>\n\n<!-- =========================\n   MENU PRINCIPAL (3 BOTÕES)\n========================= -->\n<div id=\"menu-principal\" class=\"no-print\">\n    <h2>Selecione o Tipo de Documento</h2>\n    <div class=\"menu-botoes\">\n        <button class=\"btn-menu btn-compra\" onclick=\"selecionarTipo('compra')\">\n            <span>📜</span> COMPRA E VENDA\n        </button>\n        <button class=\"btn-menu btn-transferencia\" onclick=\"selecionarTipo('transferencia')\">\n            <span>🔄</span> TRANSFERÊNCIA (Posse)\n        </button>\n        <button class=\"btn-menu btn-atualizacao\" onclick=\"selecionarTipo('atualizacao')\">\n            <span>📝</span> ATUALIZAÇÃO (Posse)\n        </button>\n    </div>\n</div>\n\n<!-- =========================\nCONTRATO (SEUS CAMPOS ORIGINAIS)\n========================= -->\n\n<div class=\"container\" id=\"container-formulario\">\n\n    <button class=\"btn-voltar no-print\" onclick=\"voltarMenu()\">↩ VOLTAR</button>\n\n    <!-- CABEÇALHO & CAMPOS FIXOS -->\n    <input class=\"campo\" id=\"contrato\" style=\"top: 267px; left: 160px; width: 70px;\">\n    <input class=\"campo\" id=\"data\" style=\"top: 269px; left: 315px; width: 150px;\">\n    <input class=\"campo\" id=\"ano\" style=\"top: 268px; left: 610px; width: 60px;\">\n\n    <input class=\"campo\" id=\"cep\" style=\"top: 336px; left: 610px; width: 100px;\" onblur=\"buscarCEP()\">\n    <button type=\"button\" id=\"btnBuscarCEP\" class=\"button no-print\" style=\"position:absolute; top:565px; left:690px; z-index:2; padding:4px 8px; font-size:12px; background:#ff9800; color:#fff; border:none; border-radius:4px; cursor:pointer;\" onclick=\"buscarCEP()\">Buscar CEP</button>\n\n    <input class=\"campo\" id=\"proprietario\" style=\"top:292px; left:185px; width:540px;\">\n    <input class=\"campo\" id=\"endereco\" style=\"top:336px; left:163px; width:390px;\">\n    \n    <input class=\"campo\" id=\"rg\" style=\"top:360px; left:110px; width:100px;\">\n    <input class=\"campo\" id=\"emissor\" style=\"top:360px; left:330px; width:90px;\">\n    <input class=\"campo\" id=\"cpf\" style=\"top:360px; left:590px; width:130px;\">\n    <button type=\"button\" id=\"btnBuscarCPF\" class=\"btn-buscar-cpf no-print\" style=\"top:358px; left:730px; z-index:5;\" onclick=\"buscarCPF()\">Buscar</button>\n\n    <input class=\"campo\" id=\"nacionalidade\" style=\"top:381px; left:219px; width:180px;\">\n    <input class=\"campo\" id=\"naturalidade\" style=\"top:381px; left:540px; width:180px;\">\n    <input class=\"campo\" id=\"estadocivil\" style=\"top:404px; left:195px; width:180px;\">\n    <input class=\"campo\" id=\"profissao\" style=\"top:404px; left:469px; width:200px;\">\n    \n    <input class=\"campo\" id=\"bairro\" style=\"top:428px; left:145px; width:180px;\">\n    <input class=\"campo\" id=\"municipio\" style=\"top:428px; left:470px; width:180px;\">\n    <input class=\"campo\" id=\"uf\" style=\"top:426px; left:660px; width:60px;\">\n\n    <input class=\"campo\" id=\"frente\" style=\"top:450px; left:250px; width:70px;\">\n    <input class=\"campo\" id=\"lateral\" style=\"top:450px; left:420px; width:70px;\">\n    <input class=\"campo\" id=\"total\" style=\"top:450px; left:650px; width:70px;\">\n\n    <input class=\"campo\" id=\"valor\" style=\"top:473px; left:230px; width:420px;\" onblur=\"formatarValor()\"/>\n\n    <!-- CAMPO FORMA DE PAGAMENTO -->\n    <select class=\"campo\" id=\"pagamento\" style=\"top:495px; left:280px; width:400px;\">\n        <option value=\"\">Selecione</option>\n        <option value=\"À VISTA\">À VISTA</option>\n        <option value=\"TRANSFERÊNCIA\">TRANSFERÊNCIA</option>\n        <option value=\"DOAÇÃO\">DOAÇÃO</option>\n        <option value=\"ATUALIZAÇÃO\">ATUALIZAÇÃO</option>\n        <option value=\"PARCELADO\">PARCELADO</option>\n        <option value=\"DESMEMBRAMENTO\">DESMEMBRAMENTO</option>\n    </select>\n\n    <!-- DROPDOWN DE SITUAÇÃO (SÓ VAI APARECER NA COMPRA E VENDA) -->\n    <select class=\"campo\" id=\"tipo_transferencia\" style=\"top: 522px; left: 80px; width: 100px; display: none;\" onchange=\"atualizarCampoTransferente()\">\n        <option value=\"ATUALIZAÇÃO\">ATUALIZAÇÃO</option>\n        <option value=\"TRANSFERÊNCIA\">TRANSFERÊNCIA</option>\n    </select>\n    \n    <!-- CAMPO VENDEDOR / TESTEMUNHA -->\n    <input class=\"campo\" id=\"vendedor\" style=\"top:522px; left:190px; width:530px;\" oninput=\"copiarVendedorParaDeclarante()\">\n    \n    <input class=\"campo\" id=\"rgvendedor\" style=\"top:575px; left:100px; width:130px;\">\n    <input class=\"campo\" id=\"emissorv\" style=\"top:575px; left:430px; width:90px;\">\n    <input class=\"campo\" id=\"cpfvendedor\" style=\"top:575px; left:590px; width:150px;\">\n\n    <input class=\"campo\" id=\"declarante\" style=\"top:600px; left:190px; width:520px;\">\n\n    <!-- =========================\n       CAIXA DE TEXTO COM EDITOR (TELA) E CAIXA RESERVA (IMPRESSÃO)\n    ========================= -->\n    <div id=\"obs-container\" style=\"position:absolute; top:730px; left:90px; width:650px; height:155px; z-index:2;\">\n        \n        <!-- Editor com botões na tela -->\n        <div id=\"wrapper-obs\" style=\"width:100%; height:100%; background:rgba(255,255,255,0.75); border:1px solid #999; overflow:hidden; border-radius:4px;\">\n            <textarea id=\"obs\" style=\"width:100%; height:100%; border:none; padding:8px; resize:none; background:transparent; font-weight:bold; font-size:14px; font-family:Arial; box-sizing:border-box;\"></textarea>\n        </div>\n        \n        <!-- Caixa de texto invisível para impressão -->\n        <div id=\"print-area-obs\" style=\"width:100%; height:100%; background:transparent; border:none; overflow:hidden; display:none; font-weight:bold; font-size:14px; font-family:Arial; padding:8px; box-sizing:border-box; white-space:pre-wrap;\"></div>\n    </div>\n\n    <button class=\"btn no-print\" type=\"button\" onclick=\"salvar()\">Salvar</button>\n    <button class=\"btn btn-imprimir no-print\" type=\"button\" onclick=\"imprimir()\">Imprimir</button>\n\n</div>\n\n<!-- =========================\nNOTA FISCAL NOVA\n========================= -->\n\n<div id=\"notaFiscal\" style=\"display:none; width:850px; margin:auto; padding:20px; font-family:Arial; background:white;\">\n<div style=\"border:5px solid #0f6b38; border-radius:35px; padding:35px; position:relative; overflow:hidden; background:white;\">\n<div style=\"display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:30px;\">\n<div style=\"display:flex; align-items:center; gap:20px;\">\n<img src='https://i.imgur.com/sX9Nm0k.png' style='width:160px; height:160px; object-fit:contain; border-radius:50%; border:4px solid #0f6b38; padding:10px;'>\n<div>\n<div style=\"font-size:34px; font-weight:bold; color:#0f6b38; line-height:1.1;\">ASSOCIAÇÃO<br>MORADORES<br><span style=\"color:#5ea532;\">PARQUE VILA NOVA</span></div>\n<div style=\"margin-top:10px; font-size:16px; color:#2b5c36;\">TRABALHANDO POR UMA<br>COMUNIDADE MELHOR</div>\n</div>\n</div>\n<div style=\"text-align:right;\">\n<div style=\"font-size:60px; font-weight:bold; color:#0f6b38; line-height:1;\">NOTA FISCAL</div>\n<div style=\"margin-top:20px; border:3px solid #5ea532; border-radius:15px; padding:15px 25px; font-size:40px; font-weight:bold; color:#5ea532;\">Nº <span id=\"numeroNota\"></span></div>\n</div>\n</div>\n\n<div style=\"border:3px solid #5ea532; border-radius:25px; padding:30px; margin-bottom:30px;\">\n<div style=\"font-size:18px; color:#2b5c36; margin-bottom:8px;\">NOME:</div>\n<div id=\"notaNome\" style=\"font-size:42px; font-weight:bold; margin-bottom:25px;\"></div>\n<div style=\"font-size:18px; color:#2b5c36; margin-bottom:8px;\">CPF:</div>\n<div id=\"notaCPF\" style=\"font-size:32px; font-weight:bold; margin-bottom:25px;\"></div>\n<div style=\"font-size:18px; color:#2b5c36; margin-bottom:8px;\">FORMA DE PAGAMENTO:</div>\n<div id=\"notaPagamento\" style=\"font-size:32px; font-weight:bold; margin-bottom:25px;\"></div>\n<div style=\"font-size:18px; color:#2b5c36; margin-bottom:8px;\">VALOR DO DOCUMENTO:</div>\n<div id=\"notaValor\" style=\"font-size:50px; font-weight:bold; color:#0f6b38;\"></div>\n</div>\n\n<table style=\"width:100%; border-collapse:collapse; border:3px solid #0f6b38; overflow:hidden; border-radius:20px;\">\n<tr style=\"background:linear-gradient(90deg,#006b3a,#6ab536); color:white;\">\n<th style=\"padding:20px; font-size:26px;\">DESCRIÇÃO</th>\n<th style=\"font-size:26px; width:250px;\">VALOR</th>\n</tr>\n<tr>\n<td style=\"padding:35px; font-size:30px; border-right:2px solid #0f6b38;\">PRESTAÇÃO DE SERVIÇOS / DOCUMENTAÇÃO</td>\n<td style=\"text-align:center; font-size:36px; font-weight:bold;\"><span id=\"notaValorTabela\"></span></td>\n</tr>\n<tr>\n<td style=\"text-align:right; padding:25px; font-size:34px; font-weight:bold; color:#0f6b38;\">TOTAL</td>\n<td style=\"text-align:center; font-size:45px; font-weight:bold; color:#0f6b38;\"><span id=\"notaTotal\"></span></td>\n</tr>\n</table>\n<div style=\"margin-top:70px; text-align:center;\"><div style=\"width:420px; margin:auto; border-top:3px solid #0f6b38; padding-top:12px; font-size:28px; color:#0f6b38;\">ASSINATURA</div></div>\n</div>\n</div>\n\n<script>\n\n    // ============================================================\n    // 🔴 LINKS DOS 3 BACKGROUNDS\n    // ============================================================\n    const url_fundo_compra = \"https://i.imgur.com/L1Qv1pI.png\";\n    const url_fundo_transferencia = \"https://i.imgur.com/Ea22z5w.png\";\n    const url_fundo_atualizacao = \"https://i.imgur.com/yFpEQSo.png\";\n    // ============================================================\n\n    // =========================\n    // LÓGICA DO MENU (3 Botões e Ajuste de Layout)\n    // =========================\n    function selecionarTipo(tipo) {\n        document.getElementById('menu-principal').style.display = 'none';\n        const container = document.getElementById('container-formulario');\n        \n        if (tipo === 'compra') {\n            container.style.backgroundImage = \"url('\" + url_fundo_compra + \"')\";\n        } else if (tipo === 'transferencia') {\n            container.style.backgroundImage = \"url('\" + url_fundo_transferencia + \"')\";\n        } else if (tipo === 'atualizacao') {\n            container.style.backgroundImage = \"url('\" + url_fundo_atualizacao + \"')\";\n        }\n        \n        ajustarLayout(tipo);\n        container.style.display = 'block';\n    }\n\n    function voltarMenu() {\n        document.getElementById('container-formulario').style.display = 'none';\n        document.getElementById('menu-principal').style.display = 'flex';\n    }\n\n    // =========================\n    // CONTROLE DO DROPDOWN E LAYOUT\n    // =========================\n    function atualizarCampoTransferente() {\n        const tipo = document.getElementById('tipo_transferencia').value;\n        const campo = document.getElementById('vendedor');\n        if (tipo === 'ATUALIZAÇÃO') {\n            campo.value = '';\n            campo.disabled = true;\n            campo.style.opacity = '0.6';\n            document.getElementById('declarante').value = ''; \n        } else {\n            campo.disabled = false;\n            campo.style.opacity = '1';\n        }\n    }\n\n    function ajustarLayout(tipo) {\n        const dropdownSituacao = document.getElementById('tipo_transferencia');\n        const campoPagamento = document.getElementById('pagamento');\n        const campoVendedor = document.getElementById('vendedor');\n        const campoDeclarante = document.getElementById('declarante');\n        const containerObs = document.getElementById('obs-container');\n        \n        const btnBuscarCEP = document.getElementById('btnBuscarCEP');\n        const btnBuscarCPF = document.getElementById('btnBuscarCPF');\n        \n        // Elementos RG, Emissor, CPF do Transferente\n        const rgVendedor = document.getElementById('rgvendedor');\n        const emissorV = document.getElementById('emissorv');\n        const cpfVendedor = document.getElementById('cpfvendedor');\n        \n        if (tipo === 'compra') {\n            // =========================\n            // COMPRA E VENDA\n            // =========================\n            dropdownSituacao.style.display = 'none'; \n            campoPagamento.style.display = 'block';\n            \n            btnBuscarCEP.style.display = 'block';\n            btnBuscarCPF.style.display = 'block';\n            \n            campoVendedor.style.top = '522px';\n            campoVendedor.style.left = '190px';\n            campoVendedor.style.width = '530px';\n            campoVendedor.disabled = false;\n            campoVendedor.style.opacity = '1';\n            \n            rgVendedor.style.display = 'block';\n            emissorV.style.display = 'block';\n            cpfVendedor.style.display = 'block';\n            \n            campoDeclarante.style.top = '600px';\n            campoDeclarante.style.left = '190px';\n            campoDeclarante.style.width = '520px';\n            \n            containerObs.style.top = '730px';\n            containerObs.style.height = '155px';\n            \n        } else if (tipo === 'transferencia') {\n            // =========================\n            // TRANSFERÊNCIA (POSSE)\n            // =========================\n            dropdownSituacao.style.display = 'none';\n            campoPagamento.style.display = 'none';\n            \n            btnBuscarCEP.style.display = 'none';\n            btnBuscarCPF.style.display = 'none';\n            \n            // Campo Transferente deslocado para a direita\n            campoVendedor.style.top = '522px';\n            campoVendedor.style.left = '205px';\n            campoVendedor.style.width = '585px';\n            campoVendedor.disabled = false;\n            campoVendedor.style.opacity = '1';\n            \n            // RG, Emissor e CPF do Transferente APARECEM\n            rgVendedor.style.display = 'block';\n            emissorV.style.display = 'block';\n            cpfVendedor.style.display = 'block';\n            \n            rgVendedor.style.top = '575px';\n            rgVendedor.style.left = '100px';\n            emissorV.style.top = '575px';\n            emissorV.style.left = '430px';\n            cpfVendedor.style.top = '575px';\n            cpfVendedor.style.left = '590px';\n            \n            campoDeclarante.style.top = '600px';\n            campoDeclarante.style.left = '190px';\n            campoDeclarante.style.width = '520px';\n            \n            containerObs.style.top = '730px';\n            containerObs.style.height = '155px';\n\n        } else if (tipo === 'atualizacao') {\n            // =========================\n            // ATUALIZAÇÃO (POSSE) - CORREÇÃO DO TESTEMUNHA\n            // =========================\n            dropdownSituacao.style.display = 'none';\n            campoPagamento.style.display = 'none';\n            \n            btnBuscarCEP.style.display = 'none';\n            btnBuscarCPF.style.display = 'none';\n            \n            // Testemunha alinhada (Aumentei o left levemente para 205px para dar um pequeno espaço)\n            campoVendedor.style.top = '602px';\n            campoVendedor.style.left = '185px';\n            campoVendedor.style.width = '585px';\n            campoVendedor.disabled = false;\n            campoVendedor.style.opacity = '1';\n            \n            // RG, Emissor e CPF do Transferente DESAPARECEM\n            rgVendedor.style.display = 'none';\n            emissorV.style.display = 'none';\n            cpfVendedor.style.display = 'none';\n            \n            campoDeclarante.style.top = '690px';\n            campoDeclarante.style.left = '190px';\n            campoDeclarante.style.width = '520px';\n            \n            containerObs.style.top = '675px';\n            containerObs.style.height = '155px';\n        }\n    }\n\n    /* =========================\n    JAVASCRIPT ORIGINAL\n    ========================= */\n\n    function calcularTotal() {\n      const frente = parseFloat(document.getElementById(\"frente\").value) || 0;\n      const lateral = parseFloat(document.getElementById(\"lateral\").value) || 0;\n      const total = (frente * lateral).toFixed(2);\n      document.getElementById(\"total\").value = total + \" m²\";\n    }\n\n    document.getElementById(\"frente\").addEventListener(\"input\", calcularTotal);\n    document.getElementById(\"lateral\").addEventListener(\"input\", calcularTotal);\n\n    let ultimoValorDigitado = \"\";\n\n    function formatarValor() {\n      const input = document.getElementById(\"valor\");\n      let valorBruto = input.value.replace(/\\D/g, '');\n      if (!valorBruto) {\n        ultimoValorDigitado = \"\";\n        return;\n      }\n      if (valorBruto === ultimoValorDigitado) return;\n      const valor = parseInt(valorBruto);\n      const valorMilhar = valor * 1000;\n      const valorFormatado = valorMilhar.toLocaleString('pt-BR') + \",00\";\n      const extenso = numeroPorExtenso(valor).trim() + \" MIL REAIS\";\n      input.value = `${valorFormatado} (${extenso})`;\n      ultimoValorDigitado = valorBruto;\n    }\n\n    function numeroPorExtenso(n) {\n      const unidades = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'];\n      const especiais = ['dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];\n      const dezenas = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];\n      const centenas = ['', 'cem', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];\n\n      if (n === 0) return 'zero';\n      if (n === 100) return 'cem';\n      let partes = [];\n      if (n >= 100) {\n        let c = Math.floor(n / 100);\n        partes.push(n % 100 === 0 ? centenas[c] : (c === 1 ? 'cento' : centenas[c]));\n        n %= 100;\n      }\n      if (n >= 20) {\n        let d = Math.floor(n / 10);\n        partes.push(dezenas[d]);\n        n %= 10;\n      } else if (n >= 10) {\n        partes.push(especiais[n - 10]);\n        n = 0;\n      }\n      if (n > 0) partes.push(unidades[n]);\n      return partes.join(' e ');\n    }\n\n    function copiarVendedorParaDeclarante() {\n      document.getElementById(\"declarante\").value = document.getElementById(\"vendedor\").value;\n    }\n\n    window.onload = () => {\n      const hoje = new Date();\n      const meses = [\"JANEIRO\", \"FEVEREIRO\", \"MARÇO\", \"ABRIL\", \"MAIO\", \"JUNHO\", \"JULHO\", \"AGOSTO\", \"SETEMBRO\", \"OUTUBRO\", \"NOVEMBRO\", \"DEZEMBRO\"];\n      document.getElementById(\"data\").value = `${hoje.getDate()} DE ${meses[hoje.getMonth()]}`;\n      document.getElementById(\"ano\").value = hoje.getFullYear();\n      google.script.run.withSuccessHandler(num => {\n        document.getElementById(\"contrato\").value = String(num).padStart(6, '0');\n      }).obterProximoNumeroContrato();\n\n      // =========================\n      // INICIALIZA O EDITOR DE TEXTO RICO\n      // =========================\n      $('#obs').summernote({\n          height: 155,\n          minHeight: 100,\n          maxHeight: 200,\n          toolbar: [\n              ['style', ['bold', 'italic', 'underline']],\n              ['fontsize', ['fontsize']],\n              ['para', ['ul', 'ol', 'paragraph']],\n              ['clear', ['clear']]\n          ],\n          placeholder: 'Digite aqui as cláusulas, observações e informações extras...'\n      });\n    };\n\n    function coletarDados() {\n      // NOTA: O array tem 21 itens (campoExtra1 e campoExtra2 foram removidos)\n      return [\n        document.getElementById(\"contrato\").value,\n        document.getElementById(\"data\").value,\n        document.getElementById(\"ano\").value,\n        document.getElementById(\"proprietario\").value,\n        document.getElementById(\"cpf\").value,\n        document.getElementById(\"rg\").value,\n        document.getElementById(\"cep\").value,\n        document.getElementById(\"endereco\").value,\n        document.getElementById(\"bairro\").value,\n        document.getElementById(\"municipio\").value,\n        document.getElementById(\"uf\").value,\n        document.getElementById(\"vendedor\").value,\n        document.getElementById(\"cpfvendedor\").value,\n        document.getElementById(\"rgvendedor\").value,\n        document.getElementById(\"frente\").value + \"m\",\n        document.getElementById(\"lateral\").value + \"m\",\n        document.getElementById(\"total\").value,\n        document.getElementById(\"pagamento\").value,\n        document.getElementById(\"valor\").value,\n        document.getElementById(\"declarante\").value,\n        $('#obs').summernote('code') // Salva o texto com toda a formatação HTML\n      ];\n    }\n\n    function salvar() {\n      const dados = coletarDados();\n      google.script.run.withSuccessHandler(() => {\n        alert(\"Dados salvos com sucesso!\");\n      }).salvarCompraVenda(dados);\n    }\n\n    function buscarCPF() {\n      const cpf = document.getElementById(\"cpf\").value.replace(/\\D/g, '');\n      if (cpf.length !== 11) {\n        alert(\"CPF inválido. Digite 11 números.\");\n        return;\n      }\n      google.script.run.withSuccessHandler(function(resultado) {\n        if (!resultado || !resultado.encontrado) {\n          alert(\"CPF não encontrado na base de dados.\");\n          return;\n        }\n        preencherDados(resultado.dados);\n      }).withFailureHandler(function(erro) {\n        alert(\"Erro ao buscar CPF: \" + erro.message);\n      }).buscarDadosPorCPFCompraVenda(cpf);\n    }\n\n    function preencherDados(dados) {\n      const mapa = {\n        'proprietario': dados.nome || '',\n        'rg': dados.rg || '',\n        'emissor': dados.emissor || '',\n        'nacionalidade': dados.nacionalidade || '',\n        'naturalidade': dados.naturalidade || '',\n        'estadocivil': dados.estadocivil || '',\n        'profissao': dados.profissao || '',\n        'endereco': dados.endereco || '',\n        'bairro': dados.bairro || '',\n        'municipio': dados.municipio || '',\n        'uf': dados.uf || '',\n        'cep': dados.cep || ''\n      };\n      Object.keys(mapa).forEach(id => {\n        const el = document.getElementById(id);\n        if (el) el.value = mapa[id];\n      });\n      if (dados.frente) document.getElementById('frente').value = dados.frente;\n      if (dados.lateral) document.getElementById('lateral').value = dados.lateral;\n      calcularTotal();\n    }\n\n    function imprimir() {\n      let valorDocumento = prompt(\"VALOR DO DOCUMENTO:\");\n      if (!valorDocumento) {\n        alert(\"Informe um valor.\");\n        return;\n      }\n      let formaPagamento = confirm(\"FORMA DE PAGAMENTO:\\n\\nOK = PIX\\nCANCELAR = DINHEIRO\");\n      let pagamentoSelecionado = formaPagamento ? \"PIX\" : \"DINHEIRO\";\n      valorDocumento = Number(valorDocumento.replace(\",\", \".\")).toLocaleString('pt-BR', {\n        style: 'currency',\n        currency: 'BRL'\n      });\n      const dados = coletarDados();\n\n      google.script.run.withSuccessHandler(() => {\n\n        // =========================\n        // PASSA O CONTEÚDO DO EDITOR PARA A CAIXA RESERVA\n        // =========================\n        const conteudo = $('#obs').summernote('code');\n        const textoLimpo = $('<div>').html(conteudo).text().trim();\n        const printArea = document.getElementById('print-area-obs');\n\n        if (textoLimpo.length > 0) {\n            printArea.innerHTML = conteudo;\n        } else {\n            printArea.innerHTML = '';\n        }\n\n        // =========================\n        // PRIMEIRA IMPRESSÃO: CONTRATO\n        // =========================\n        document.body.classList.remove(\"imprimindo-nota\");\n\n        setTimeout(() => {\n          try { window.print(); } catch (e) { console.log(\"Erro na impressão do contrato (ignorado):\", e); }\n        }, 500);\n\n        gerarNotaFiscal(valorDocumento, pagamentoSelecionado);\n\n        setTimeout(() => {\n          document.body.classList.add(\"imprimindo-nota\");\n          try { window.print(); } catch (e) { console.log(\"Erro na impressão da nota fiscal (ignorado):\", e); }\n          document.body.classList.remove(\"imprimindo-nota\");\n        }, 1000);\n\n        google.script.run.withSuccessHandler(novoNumero => {\n          document.getElementById(\"contrato\").value = String(novoNumero).padStart(6, '0');\n        }).incrementarNumeroContrato();\n        google.script.run.incrementarNumeroNota();\n\n      }).salvarCompraVenda(dados);\n    }\n\n    function gerarNotaFiscal(valorDocumento, pagamentoSelecionado) {\n      google.script.run.withSuccessHandler(numero => {\n        document.getElementById(\"numeroNota\").innerText = String(numero).padStart(6, '0');\n      }).obterProximoNumeroNota();\n      document.getElementById(\"notaNome\").innerText = document.getElementById(\"proprietario\").value.toUpperCase();\n      document.getElementById(\"notaCPF\").innerText = document.getElementById(\"cpf\").value;\n      document.getElementById(\"notaPagamento\").innerText = pagamentoSelecionado;\n      document.getElementById(\"notaValor\").innerText = valorDocumento;\n      document.getElementById(\"notaValorTabela\").innerText = valorDocumento;\n      document.getElementById(\"notaTotal\").innerText = valorDocumento;\n    }\n\n    function buscarCEP() {\n      const cep = document.getElementById(\"cep\").value.replace(/\\D/g,'');\n      if(cep.length !== 8){\n        alert(\"CEP inválido\");\n        return;\n      }\n      fetch(\"https://viacep.com.br/ws/\" + cep + \"/json/\")\n      .then(response => response.json())\n      .then(d => {\n        if(d.erro){\n          alert(\"CEP não encontrado\");\n          return;\n        }\n        document.getElementById(\"endereco\").value = (d.logradouro || \"\").toUpperCase();\n        document.getElementById(\"bairro\").value = (d.bairro || \"\").toUpperCase();\n        document.getElementById(\"municipio\").value = (d.localidade || \"\").toUpperCase();\n        document.getElementById(\"uf\").value = (d.uf || \"\").toUpperCase();\n      });\n    }\n\n</script>\n\n</body>\n</html>";
+const COMPRA_VENDA_HTML_CRM = "<!DOCTYPE html>\n<html>\n\n<head>\n\n<!-- jQuery e Summernote (Editor de Texto Rico) -->\n<script src=\"https://code.jquery.com/jquery-3.6.0.min.js\"></script>\n<link href=\"https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote-lite.min.css\" rel=\"stylesheet\">\n<script src=\"https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote-lite.min.js\"></script>\n\n<style>\n\n@media print {\n\n  .no-print,\n  .no-print * {\n    display: none !important;\n    visibility: hidden !important;\n  }\n\n  body {\n    -webkit-print-color-adjust: exact !important;\n    print-color-adjust: exact !important;\n    margin: 0;\n    padding: 0;\n    background: white !important;\n  }\n\n  /* =========================\n     PADRÃO = IMPRIME SÓ CONTRATO\n  ========================= */\n\n  #notaFiscal {\n    display: none !important;\n  }\n\n  .container {\n    display: block !important;\n  }\n\n  /* =========================\n     QUANDO FOR IMPRIMIR NOTA\n  ========================= */\n\n  body.imprimindo-nota .container {\n    display: none !important;\n  }\n\n  body.imprimindo-nota #notaFiscal {\n    display: block !important;\n    zoom: 0.40 !important;\n    width: 1000px !important;\n    margin: 0 auto !important;\n    padding: 0 !important;\n  }\n\n  /* =========================\n     IMPRESSÃO: ESCONDE O EDITOR E MOSTRA A CAIXA RESERVA\n  ========================= */\n  #obs-container, #obs-container * {\n    background: transparent !important;\n    border: none !important;\n    outline: none !important;\n    box-shadow: none !important;\n  }\n\n  #wrapper-obs {\n    display: none !important;\n  }\n\n  #print-area-obs {\n    display: block !important;\n    height: 155px !important;\n    max-height: 155px !important;\n    min-height: 155px !important;\n    width: 100% !important;\n    padding: 0 !important;\n    margin: 0 !important;\n    overflow: hidden !important;\n    font-weight: bold !important;\n    font-size: 14px !important;\n    font-family: Arial, sans-serif !important;\n  }\n}\n\nbody {\n  margin: 0;\n  font-family: 'Segoe UI', Arial, sans-serif;\n  background: #f2f2f2;\n}\n\n/* =========================\n   MENU PRINCIPAL (3 Botões)\n========================= */\n#menu-principal {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 800px;\n  height: 1150px;\n  display: flex;\n  flex-direction: column;\n  justify-content: center;\n  align-items: center;\n  background: #eaf4f4;\n  z-index: 100;\n  border-radius: 8px;\n  box-shadow: inset 0 0 30px rgba(0,0,0,0.05);\n}\n\n#menu-principal h2 {\n  font-size: 28px;\n  color: #1a3b3b;\n  margin-bottom: 50px;\n  text-transform: uppercase;\n  letter-spacing: 2px;\n  border-bottom: 3px solid #1a3b3b;\n  padding-bottom: 15px;\n}\n\n.menu-botoes {\n  display: flex;\n  flex-direction: column;\n  gap: 20px;\n  align-items: center;\n}\n\n.btn-menu {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  gap: 15px;\n  width: 320px;\n  height: 70px;\n  border: none;\n  border-radius: 40px;\n  font-size: 22px;\n  font-weight: bold;\n  color: white;\n  cursor: pointer;\n  transition: all 0.3s ease;\n  box-shadow: 0 6px 15px rgba(0,0,0,0.15);\n  padding: 15px 25px;\n}\n\n.btn-menu span {\n  font-size: 30px;\n}\n\n.btn-menu:hover {\n  transform: translateY(-5px) scale(1.02);\n  box-shadow: 0 10px 25px rgba(0,0,0,0.25);\n}\n\n.btn-menu:active {\n  transform: scale(0.95);\n}\n\n.btn-compra {\n  background: linear-gradient(145deg, #004d99, #003366);\n}\n\n.btn-transferencia {\n  background: linear-gradient(145deg, #2e7d32, #1b5e20);\n}\n\n.btn-atualizacao {\n  background: linear-gradient(145deg, #b8860b, #8b6508);\n}\n\n/* =========================\n   CONTAINER DO CONTRATO\n========================= */\n.container {\n  position: relative;\n  width: 800px;\n  height: 1150px;\n  background-image: url(\"https://i.imgur.com/u0FKrsJ.png\");\n  background-size: cover;\n  display: none; /* Começa oculto */\n  border-radius: 8px;\n}\n\n.btn-voltar {\n  position: absolute;\n  top: 15px;\n  left: 15px;\n  z-index: 30;\n  background: rgba(255, 255, 255, 0.95);\n  color: #333;\n  border: 1px solid #ccc;\n  padding: 8px 16px;\n  border-radius: 20px;\n  font-weight: bold;\n  font-size: 14px;\n  cursor: pointer;\n  box-shadow: 0 2px 8px rgba(0,0,0,0.1);\n  transition: 0.2s;\n}\n.btn-voltar:hover {\n  background: #fff;\n  box-shadow: 0 4px 12px rgba(0,0,0,0.2);\n}\n\n.campo {\n  position: absolute;\n  background-color: transparent;\n  font-weight: bold;\n  font-size: 14px;\n  border: none;\n  text-transform: uppercase;\n}\n\ninput[type=\"text\"],\nselect {\n  background-color: rgba(255,255,255,0.75);\n  border: 1px solid #999;\n  padding: 2px 4px;\n  font-weight: bold;\n  font-size: 16px;\n  text-transform: uppercase;\n  z-index: 2;\n  box-sizing: border-box;\n}\n\n.btn {\n  position: absolute;\n  bottom: 20px;\n  left: 50%;\n  transform: translateX(-50%);\n  padding: 10px 20px;\n  background-color: green;\n  color: white;\n  border: none;\n  font-size: 18px;\n  border-radius: 5px;\n  cursor: pointer;\n  z-index: 10;\n}\n\n.btn-imprimir {\n  left: calc(50% + 130px);\n  background-color: #2196F3;\n}\n\n.btn-buscar-cpf {\n  position: absolute;\n  background-color: #ff9800;\n  color: white;\n  border: none;\n  border-radius: 4px;\n  padding: 2px 10px;\n  font-size: 12px;\n  cursor: pointer;\n  z-index: 5;\n}\n.btn-buscar-cpf:hover {\n  background-color: #e68900;\n}\n\n</style>\n\n\n<script>\n(function () {\n  function criarRunner(successHandler, failureHandler) {\n    return new Proxy({}, {\n      get: function (_, prop) {\n        if (prop === 'withSuccessHandler') {\n          return function (fn) {\n            return criarRunner(fn, failureHandler);\n          };\n        }\n\n        if (prop === 'withFailureHandler') {\n          return function (fn) {\n            return criarRunner(successHandler, fn);\n          };\n        }\n\n        return function () {\n          const args = Array.prototype.slice.call(arguments);\n\n          Promise.resolve(\n            window.parent.compraVendaBridgeCall(String(prop), args)\n          )\n          .then(function (res) {\n            if (typeof successHandler === 'function') {\n              successHandler(res);\n            }\n          })\n          .catch(function (err) {\n            const erro = {\n              message: err && err.message ? err.message : String(err)\n            };\n\n            if (typeof failureHandler === 'function') {\n              failureHandler(erro);\n            } else {\n              console.error('Erro no módulo Compra e Venda:', erro.message);\n              alert('Erro: ' + erro.message);\n            }\n          });\n        };\n      }\n    });\n  }\n\n  window.google = window.google || {};\n  window.google.script = window.google.script || {};\n\n  Object.defineProperty(window.google.script, 'run', {\n    configurable: true,\n    get: function () {\n      return criarRunner(null, null);\n    }\n  });\n})();\n</script>\n\n</head>\n\n<body>\n\n<!-- =========================\n   MENU PRINCIPAL (3 BOTÕES)\n========================= -->\n<div id=\"menu-principal\" class=\"no-print\">\n    <h2>Selecione o Tipo de Documento</h2>\n    <div class=\"menu-botoes\">\n        <button class=\"btn-menu btn-compra\" onclick=\"selecionarTipo('compra')\">\n            <span>📜</span> COMPRA E VENDA\n        </button>\n        <button class=\"btn-menu btn-transferencia\" onclick=\"selecionarTipo('transferencia')\">\n            <span>🔄</span> TRANSFERÊNCIA (Posse)\n        </button>\n        <button class=\"btn-menu btn-atualizacao\" onclick=\"selecionarTipo('atualizacao')\">\n            <span>📝</span> ATUALIZAÇÃO (Posse)\n        </button>\n    </div>\n</div>\n\n<!-- =========================\nCONTRATO (SEUS CAMPOS ORIGINAIS)\n========================= -->\n\n<div class=\"container\" id=\"container-formulario\">\n\n    <button class=\"btn-voltar no-print\" onclick=\"voltarMenu()\">↩ VOLTAR</button>\n\n    <!-- CABEÇALHO & CAMPOS FIXOS -->\n    <input class=\"campo\" id=\"contrato\" style=\"top: 267px; left: 160px; width: 70px;\">\n    <input class=\"campo\" id=\"data\" style=\"top: 269px; left: 315px; width: 150px;\">\n    <input class=\"campo\" id=\"ano\" style=\"top: 268px; left: 610px; width: 60px;\">\n\n    <input class=\"campo\" id=\"cep\" style=\"top: 336px; left: 610px; width: 100px;\" onblur=\"buscarCEP()\">\n    <button type=\"button\" id=\"btnBuscarCEP\" class=\"button no-print\" style=\"position:absolute; top:565px; left:690px; z-index:2; padding:4px 8px; font-size:12px; background:#ff9800; color:#fff; border:none; border-radius:4px; cursor:pointer;\" onclick=\"buscarCEP()\">Buscar CEP</button>\n\n    <input class=\"campo\" id=\"proprietario\" style=\"top:292px; left:185px; width:540px;\">\n    <input class=\"campo\" id=\"endereco\" style=\"top:336px; left:163px; width:390px;\">\n    \n    <input class=\"campo\" id=\"rg\" style=\"top:360px; left:110px; width:100px;\">\n    <input class=\"campo\" id=\"emissor\" style=\"top:360px; left:330px; width:90px;\">\n    <input class=\"campo\" id=\"cpf\" style=\"top:360px; left:590px; width:130px;\">\n    <button type=\"button\" id=\"btnBuscarCPF\" class=\"btn-buscar-cpf no-print\" style=\"top:358px; left:730px; z-index:5;\" onclick=\"buscarCPF()\">Buscar</button>\n\n    <input class=\"campo\" id=\"nacionalidade\" style=\"top:381px; left:219px; width:180px;\">\n    <input class=\"campo\" id=\"naturalidade\" style=\"top:381px; left:540px; width:180px;\">\n    <input class=\"campo\" id=\"estadocivil\" style=\"top:404px; left:195px; width:180px;\">\n    <input class=\"campo\" id=\"profissao\" style=\"top:404px; left:469px; width:200px;\">\n    \n    <input class=\"campo\" id=\"bairro\" style=\"top:428px; left:145px; width:180px;\">\n    <input class=\"campo\" id=\"municipio\" style=\"top:428px; left:470px; width:180px;\">\n    <input class=\"campo\" id=\"uf\" style=\"top:426px; left:660px; width:60px;\">\n\n    <input class=\"campo\" id=\"frente\" style=\"top:450px; left:250px; width:70px;\">\n    <input class=\"campo\" id=\"lateral\" style=\"top:450px; left:420px; width:70px;\">\n    <input class=\"campo\" id=\"total\" style=\"top:450px; left:650px; width:70px;\">\n\n    <input class=\"campo\" id=\"valor\" style=\"top:473px; left:230px; width:420px;\" onblur=\"formatarValor()\"/>\n\n    <!-- CAMPO FORMA DE PAGAMENTO -->\n    <select class=\"campo\" id=\"pagamento\" style=\"top:495px; left:280px; width:400px;\">\n        <option value=\"\">Selecione</option>\n        <option value=\"À VISTA\">À VISTA</option>\n        <option value=\"TRANSFERÊNCIA\">TRANSFERÊNCIA</option>\n        <option value=\"DOAÇÃO\">DOAÇÃO</option>\n        <option value=\"ATUALIZAÇÃO\">ATUALIZAÇÃO</option>\n        <option value=\"PARCELADO\">PARCELADO</option>\n        <option value=\"DESMEMBRAMENTO\">DESMEMBRAMENTO</option>\n    </select>\n\n    <!-- DROPDOWN DE SITUAÇÃO (SÓ VAI APARECER NA COMPRA E VENDA) -->\n    <select class=\"campo\" id=\"tipo_transferencia\" style=\"top: 522px; left: 80px; width: 100px; display: none;\" onchange=\"atualizarCampoTransferente()\">\n        <option value=\"ATUALIZAÇÃO\">ATUALIZAÇÃO</option>\n        <option value=\"TRANSFERÊNCIA\">TRANSFERÊNCIA</option>\n    </select>\n    \n    <!-- CAMPO VENDEDOR / TESTEMUNHA -->\n    <input class=\"campo\" id=\"vendedor\" style=\"top:522px; left:190px; width:530px;\" oninput=\"copiarVendedorParaDeclarante()\">\n    \n    <input class=\"campo\" id=\"rgvendedor\" style=\"top:575px; left:100px; width:130px;\">\n    <input class=\"campo\" id=\"emissorv\" style=\"top:575px; left:430px; width:90px;\">\n    <input class=\"campo\" id=\"cpfvendedor\" style=\"top:575px; left:590px; width:150px;\">\n\n    <input class=\"campo\" id=\"declarante\" style=\"top:600px; left:190px; width:520px;\">\n\n    <!-- =========================\n       CAIXA DE TEXTO COM EDITOR (TELA) E CAIXA RESERVA (IMPRESSÃO)\n    ========================= -->\n    <div id=\"obs-container\" style=\"position:absolute; top:730px; left:90px; width:650px; height:155px; z-index:2;\">\n        \n        <!-- Editor com botões na tela -->\n        <div id=\"wrapper-obs\" style=\"width:100%; height:100%; background:rgba(255,255,255,0.75); border:1px solid #999; overflow:hidden; border-radius:4px;\">\n            <textarea id=\"obs\" style=\"width:100%; height:100%; border:none; padding:8px; resize:none; background:transparent; font-weight:bold; font-size:14px; font-family:Arial; box-sizing:border-box;\"></textarea>\n        </div>\n        \n        <!-- Caixa de texto invisível para impressão -->\n        <div id=\"print-area-obs\" style=\"width:100%; height:100%; background:transparent; border:none; overflow:hidden; display:none; font-weight:bold; font-size:14px; font-family:Arial; padding:8px; box-sizing:border-box; white-space:pre-wrap;\"></div>\n    </div>\n\n    <button class=\"btn no-print\" type=\"button\" onclick=\"salvar()\">Salvar</button>\n    <button class=\"btn btn-imprimir no-print\" type=\"button\" onclick=\"imprimir()\">Imprimir</button>\n\n</div>\n\n<!-- =========================\nNOTA FISCAL NOVA\n========================= -->\n\n<div id=\"notaFiscal\" style=\"display:none; width:850px; margin:auto; padding:20px; font-family:Arial; background:white;\">\n<div style=\"border:5px solid #0f6b38; border-radius:35px; padding:35px; position:relative; overflow:hidden; background:white;\">\n<div style=\"display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:30px;\">\n<div style=\"display:flex; align-items:center; gap:20px;\">\n<img src='https://i.imgur.com/sX9Nm0k.png' style='width:160px; height:160px; object-fit:contain; border-radius:50%; border:4px solid #0f6b38; padding:10px;'>\n<div>\n<div style=\"font-size:34px; font-weight:bold; color:#0f6b38; line-height:1.1;\">ASSOCIAÇÃO<br>MORADORES<br><span style=\"color:#5ea532;\">PARQUE VILA NOVA</span></div>\n<div style=\"margin-top:10px; font-size:16px; color:#2b5c36;\">TRABALHANDO POR UMA<br>COMUNIDADE MELHOR</div>\n</div>\n</div>\n<div style=\"text-align:right;\">\n<div style=\"font-size:60px; font-weight:bold; color:#0f6b38; line-height:1;\">NOTA FISCAL</div>\n<div style=\"margin-top:20px; border:3px solid #5ea532; border-radius:15px; padding:15px 25px; font-size:40px; font-weight:bold; color:#5ea532;\">Nº <span id=\"numeroNota\"></span></div>\n</div>\n</div>\n\n<div style=\"border:3px solid #5ea532; border-radius:25px; padding:30px; margin-bottom:30px;\">\n<div style=\"font-size:18px; color:#2b5c36; margin-bottom:8px;\">NOME:</div>\n<div id=\"notaNome\" style=\"font-size:42px; font-weight:bold; margin-bottom:25px;\"></div>\n<div style=\"font-size:18px; color:#2b5c36; margin-bottom:8px;\">CPF:</div>\n<div id=\"notaCPF\" style=\"font-size:32px; font-weight:bold; margin-bottom:25px;\"></div>\n<div style=\"font-size:18px; color:#2b5c36; margin-bottom:8px;\">FORMA DE PAGAMENTO:</div>\n<div id=\"notaPagamento\" style=\"font-size:32px; font-weight:bold; margin-bottom:25px;\"></div>\n<div style=\"font-size:18px; color:#2b5c36; margin-bottom:8px;\">VALOR DO DOCUMENTO:</div>\n<div id=\"notaValor\" style=\"font-size:50px; font-weight:bold; color:#0f6b38;\"></div>\n</div>\n\n<table style=\"width:100%; border-collapse:collapse; border:3px solid #0f6b38; overflow:hidden; border-radius:20px;\">\n<tr style=\"background:linear-gradient(90deg,#006b3a,#6ab536); color:white;\">\n<th style=\"padding:20px; font-size:26px;\">DESCRIÇÃO</th>\n<th style=\"font-size:26px; width:250px;\">VALOR</th>\n</tr>\n<tr>\n<td style=\"padding:35px; font-size:30px; border-right:2px solid #0f6b38;\">PRESTAÇÃO DE SERVIÇOS / DOCUMENTAÇÃO</td>\n<td style=\"text-align:center; font-size:36px; font-weight:bold;\"><span id=\"notaValorTabela\"></span></td>\n</tr>\n<tr>\n<td style=\"text-align:right; padding:25px; font-size:34px; font-weight:bold; color:#0f6b38;\">TOTAL</td>\n<td style=\"text-align:center; font-size:45px; font-weight:bold; color:#0f6b38;\"><span id=\"notaTotal\"></span></td>\n</tr>\n</table>\n<div style=\"margin-top:70px; text-align:center;\"><div style=\"width:420px; margin:auto; border-top:3px solid #0f6b38; padding-top:12px; font-size:28px; color:#0f6b38;\">ASSINATURA</div></div>\n</div>\n</div>\n\n<script>\n\n    // ============================================================\n    // 🔴 LINKS DOS 3 BACKGROUNDS\n    // ============================================================\n    const url_fundo_compra = \"https://i.imgur.com/L1Qv1pI.png\";\n    const url_fundo_transferencia = \"https://i.imgur.com/Ea22z5w.png\";\n    const url_fundo_atualizacao = \"https://i.imgur.com/yFpEQSo.png\";\n    // ============================================================\n\n    // =========================\n    // LÓGICA DO MENU (3 Botões e Ajuste de Layout)\n    // =========================\n    function selecionarTipo(tipo) {\n        document.getElementById('menu-principal').style.display = 'none';\n        const container = document.getElementById('container-formulario');\n        \n        if (tipo === 'compra') {\n            container.style.backgroundImage = \"url('\" + url_fundo_compra + \"')\";\n        } else if (tipo === 'transferencia') {\n            container.style.backgroundImage = \"url('\" + url_fundo_transferencia + \"')\";\n        } else if (tipo === 'atualizacao') {\n            container.style.backgroundImage = \"url('\" + url_fundo_atualizacao + \"')\";\n        }\n        \n        ajustarLayout(tipo);\n        container.style.display = 'block';\n    }\n\n    function voltarMenu() {\n        document.getElementById('container-formulario').style.display = 'none';\n        document.getElementById('menu-principal').style.display = 'flex';\n    }\n\n    // =========================\n    // CONTROLE DO DROPDOWN E LAYOUT\n    // =========================\n    function atualizarCampoTransferente() {\n        const tipo = document.getElementById('tipo_transferencia').value;\n        const campo = document.getElementById('vendedor');\n        if (tipo === 'ATUALIZAÇÃO') {\n            campo.value = '';\n            campo.disabled = true;\n            campo.style.opacity = '0.6';\n            document.getElementById('declarante').value = ''; \n        } else {\n            campo.disabled = false;\n            campo.style.opacity = '1';\n        }\n    }\n\n    function ajustarLayout(tipo) {\n        const dropdownSituacao = document.getElementById('tipo_transferencia');\n        const campoPagamento = document.getElementById('pagamento');\n        const campoVendedor = document.getElementById('vendedor');\n        const campoDeclarante = document.getElementById('declarante');\n        const containerObs = document.getElementById('obs-container');\n        \n        const btnBuscarCEP = document.getElementById('btnBuscarCEP');\n        const btnBuscarCPF = document.getElementById('btnBuscarCPF');\n        \n        // Elementos RG, Emissor, CPF do Transferente\n        const rgVendedor = document.getElementById('rgvendedor');\n        const emissorV = document.getElementById('emissorv');\n        const cpfVendedor = document.getElementById('cpfvendedor');\n        \n        if (tipo === 'compra') {\n            // =========================\n            // COMPRA E VENDA\n            // =========================\n            dropdownSituacao.style.display = 'none'; \n            campoPagamento.style.display = 'block';\n            \n            btnBuscarCEP.style.display = 'block';\n            btnBuscarCPF.style.display = 'block';\n            \n            campoVendedor.style.top = '522px';\n            campoVendedor.style.left = '190px';\n            campoVendedor.style.width = '530px';\n            campoVendedor.disabled = false;\n            campoVendedor.style.opacity = '1';\n            \n            rgVendedor.style.display = 'block';\n            emissorV.style.display = 'block';\n            cpfVendedor.style.display = 'block';\n            \n            campoDeclarante.style.top = '600px';\n            campoDeclarante.style.left = '190px';\n            campoDeclarante.style.width = '520px';\n            \n            containerObs.style.top = '730px';\n            containerObs.style.height = '155px';\n            \n        } else if (tipo === 'transferencia') {\n            // =========================\n            // TRANSFERÊNCIA (POSSE)\n            // =========================\n            dropdownSituacao.style.display = 'none';\n            campoPagamento.style.display = 'none';\n            \n            btnBuscarCEP.style.display = 'none';\n            btnBuscarCPF.style.display = 'none';\n            \n            // Campo Transferente deslocado para a direita\n            campoVendedor.style.top = '522px';\n            campoVendedor.style.left = '205px';\n            campoVendedor.style.width = '585px';\n            campoVendedor.disabled = false;\n            campoVendedor.style.opacity = '1';\n            \n            // RG, Emissor e CPF do Transferente APARECEM\n            rgVendedor.style.display = 'block';\n            emissorV.style.display = 'block';\n            cpfVendedor.style.display = 'block';\n            \n            rgVendedor.style.top = '575px';\n            rgVendedor.style.left = '100px';\n            emissorV.style.top = '575px';\n            emissorV.style.left = '430px';\n            cpfVendedor.style.top = '575px';\n            cpfVendedor.style.left = '590px';\n            \n            campoDeclarante.style.top = '600px';\n            campoDeclarante.style.left = '190px';\n            campoDeclarante.style.width = '520px';\n            \n            containerObs.style.top = '730px';\n            containerObs.style.height = '155px';\n\n        } else if (tipo === 'atualizacao') {\n            // =========================\n            // ATUALIZAÇÃO (POSSE) - CORREÇÃO DO TESTEMUNHA\n            // =========================\n            dropdownSituacao.style.display = 'none';\n            campoPagamento.style.display = 'none';\n            \n            btnBuscarCEP.style.display = 'none';\n            btnBuscarCPF.style.display = 'none';\n            \n            // Testemunha alinhada (Aumentei o left levemente para 205px para dar um pequeno espaço)\n            campoVendedor.style.top = '602px';\n            campoVendedor.style.left = '185px';\n            campoVendedor.style.width = '585px';\n            campoVendedor.disabled = false;\n            campoVendedor.style.opacity = '1';\n            \n            // RG, Emissor e CPF do Transferente DESAPARECEM\n            rgVendedor.style.display = 'none';\n            emissorV.style.display = 'none';\n            cpfVendedor.style.display = 'none';\n            \n            campoDeclarante.style.top = '690px';\n            campoDeclarante.style.left = '190px';\n            campoDeclarante.style.width = '520px';\n            \n            containerObs.style.top = '675px';\n            containerObs.style.height = '155px';\n        }\n    }\n\n    /* =========================\n    JAVASCRIPT ORIGINAL\n    ========================= */\n\n    function calcularTotal() {\n      const frente = parseFloat(document.getElementById(\"frente\").value) || 0;\n      const lateral = parseFloat(document.getElementById(\"lateral\").value) || 0;\n      const total = (frente * lateral).toFixed(2);\n      document.getElementById(\"total\").value = total + \" m²\";\n    }\n\n    document.getElementById(\"frente\").addEventListener(\"input\", calcularTotal);\n    document.getElementById(\"lateral\").addEventListener(\"input\", calcularTotal);\n\n    let ultimoValorDigitado = \"\";\n\n    function formatarValor() {\n      const input = document.getElementById(\"valor\");\n      let valorBruto = input.value.replace(/\\D/g, '');\n      if (!valorBruto) {\n        ultimoValorDigitado = \"\";\n        return;\n      }\n      if (valorBruto === ultimoValorDigitado) return;\n      const valor = parseInt(valorBruto);\n      const valorMilhar = valor * 1000;\n      const valorFormatado = valorMilhar.toLocaleString('pt-BR') + \",00\";\n      const extenso = numeroPorExtenso(valor).trim() + \" MIL REAIS\";\n      input.value = `${valorFormatado} (${extenso})`;\n      ultimoValorDigitado = valorBruto;\n    }\n\n    function numeroPorExtenso(n) {\n      const unidades = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'];\n      const especiais = ['dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];\n      const dezenas = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];\n      const centenas = ['', 'cem', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];\n\n      if (n === 0) return 'zero';\n      if (n === 100) return 'cem';\n      let partes = [];\n      if (n >= 100) {\n        let c = Math.floor(n / 100);\n        partes.push(n % 100 === 0 ? centenas[c] : (c === 1 ? 'cento' : centenas[c]));\n        n %= 100;\n      }\n      if (n >= 20) {\n        let d = Math.floor(n / 10);\n        partes.push(dezenas[d]);\n        n %= 10;\n      } else if (n >= 10) {\n        partes.push(especiais[n - 10]);\n        n = 0;\n      }\n      if (n > 0) partes.push(unidades[n]);\n      return partes.join(' e ');\n    }\n\n    function copiarVendedorParaDeclarante() {\n      document.getElementById(\"declarante\").value = document.getElementById(\"vendedor\").value;\n    }\n\n    window.onload = () => {\n      const hoje = new Date();\n      const meses = [\"JANEIRO\", \"FEVEREIRO\", \"MARÇO\", \"ABRIL\", \"MAIO\", \"JUNHO\", \"JULHO\", \"AGOSTO\", \"SETEMBRO\", \"OUTUBRO\", \"NOVEMBRO\", \"DEZEMBRO\"];\n      document.getElementById(\"data\").value = `${hoje.getDate()} DE ${meses[hoje.getMonth()]}`;\n      document.getElementById(\"ano\").value = hoje.getFullYear();\n      google.script.run.withSuccessHandler(num => {\n        document.getElementById(\"contrato\").value = String(num).padStart(6, '0');\n      }).obterProximoNumeroContrato();\n\n      // =========================\n      // INICIALIZA O EDITOR DE TEXTO RICO\n      // =========================\n      $('#obs').summernote({\n          height: 155,\n          minHeight: 100,\n          maxHeight: 200,\n          toolbar: [\n              ['style', ['bold', 'italic', 'underline']],\n              ['fontsize', ['fontsize']],\n              ['para', ['ul', 'ol', 'paragraph']],\n              ['clear', ['clear']]\n          ],\n          placeholder: 'Digite aqui as cláusulas, observações e informações extras...'\n      });\n    };\n\n    function coletarDados() {\n      // NOTA: O array tem 21 itens (campoExtra1 e campoExtra2 foram removidos)\n      return [\n        document.getElementById(\"contrato\").value,\n        document.getElementById(\"data\").value,\n        document.getElementById(\"ano\").value,\n        document.getElementById(\"proprietario\").value,\n        document.getElementById(\"cpf\").value,\n        document.getElementById(\"rg\").value,\n        document.getElementById(\"cep\").value,\n        document.getElementById(\"endereco\").value,\n        document.getElementById(\"bairro\").value,\n        document.getElementById(\"municipio\").value,\n        document.getElementById(\"uf\").value,\n        document.getElementById(\"vendedor\").value,\n        document.getElementById(\"cpfvendedor\").value,\n        document.getElementById(\"rgvendedor\").value,\n        document.getElementById(\"frente\").value + \"m\",\n        document.getElementById(\"lateral\").value + \"m\",\n        document.getElementById(\"total\").value,\n        document.getElementById(\"pagamento\").value,\n        document.getElementById(\"valor\").value,\n        document.getElementById(\"declarante\").value,\n        $('#obs').summernote('code') // Salva o texto com toda a formatação HTML\n      ];\n    }\n\n    function salvar() {\n      const dados = coletarDados();\n      google.script.run.withSuccessHandler(() => {\n        alert(\"Dados salvos neste computador. Sincronização em segundo plano.\");\n      }).salvarCompraVenda(dados);\n    }\n\n    function buscarCPF() {\n      const cpf = document.getElementById(\"cpf\").value.replace(/\\D/g, '');\n      if (cpf.length !== 11) {\n        alert(\"CPF inválido. Digite 11 números.\");\n        return;\n      }\n      google.script.run.withSuccessHandler(function(resultado) {\n        if (!resultado || !resultado.encontrado) {\n          alert(\"CPF não encontrado na base de dados.\");\n          return;\n        }\n        preencherDados(resultado.dados);\n      }).withFailureHandler(function(erro) {\n        alert(\"Erro ao buscar CPF: \" + erro.message);\n      }).buscarDadosPorCPFCompraVenda(cpf);\n    }\n\n    function preencherDados(dados) {\n      const mapa = {\n        'proprietario': dados.nome || '',\n        'rg': dados.rg || '',\n        'emissor': dados.emissor || '',\n        'nacionalidade': dados.nacionalidade || '',\n        'naturalidade': dados.naturalidade || '',\n        'estadocivil': dados.estadocivil || '',\n        'profissao': dados.profissao || '',\n        'endereco': dados.endereco || '',\n        'bairro': dados.bairro || '',\n        'municipio': dados.municipio || '',\n        'uf': dados.uf || '',\n        'cep': dados.cep || ''\n      };\n      Object.keys(mapa).forEach(id => {\n        const el = document.getElementById(id);\n        if (el) el.value = mapa[id];\n      });\n      if (dados.frente) document.getElementById('frente').value = dados.frente;\n      if (dados.lateral) document.getElementById('lateral').value = dados.lateral;\n      calcularTotal();\n    }\n\n    function imprimir() {\n      let valorDocumento = prompt(\"VALOR DO DOCUMENTO:\");\n      if (!valorDocumento) {\n        alert(\"Informe um valor.\");\n        return;\n      }\n      let formaPagamento = confirm(\"FORMA DE PAGAMENTO:\\n\\nOK = PIX\\nCANCELAR = DINHEIRO\");\n      let pagamentoSelecionado = formaPagamento ? \"PIX\" : \"DINHEIRO\";\n      valorDocumento = Number(valorDocumento.replace(\",\", \".\")).toLocaleString('pt-BR', {\n        style: 'currency',\n        currency: 'BRL'\n      });\n      const dados = coletarDados();\n\n      google.script.run.withSuccessHandler(() => {\n\n        // =========================\n        // PASSA O CONTEÚDO DO EDITOR PARA A CAIXA RESERVA\n        // =========================\n        const conteudo = $('#obs').summernote('code');\n        const textoLimpo = $('<div>').html(conteudo).text().trim();\n        const printArea = document.getElementById('print-area-obs');\n\n        if (textoLimpo.length > 0) {\n            printArea.innerHTML = conteudo;\n        } else {\n            printArea.innerHTML = '';\n        }\n\n        // =========================\n        // PRIMEIRA IMPRESSÃO: CONTRATO\n        // =========================\n        document.body.classList.remove(\"imprimindo-nota\");\n\n        setTimeout(() => {\n          try { window.print(); } catch (e) { console.log(\"Erro na impressão do contrato (ignorado):\", e); }\n        }, 500);\n\n        gerarNotaFiscal(valorDocumento, pagamentoSelecionado);\n\n        setTimeout(() => {\n          document.body.classList.add(\"imprimindo-nota\");\n          try { window.print(); } catch (e) { console.log(\"Erro na impressão da nota fiscal (ignorado):\", e); }\n          document.body.classList.remove(\"imprimindo-nota\");\n        }, 1000);\n\n        google.script.run.withSuccessHandler(novoNumero => {\n          document.getElementById(\"contrato\").value = String(novoNumero).padStart(6, '0');\n        }).incrementarNumeroContrato();\n        google.script.run.incrementarNumeroNota();\n\n      }).salvarCompraVenda(dados);\n    }\n\n    function gerarNotaFiscal(valorDocumento, pagamentoSelecionado) {\n      google.script.run.withSuccessHandler(numero => {\n        document.getElementById(\"numeroNota\").innerText = String(numero).padStart(6, '0');\n      }).obterProximoNumeroNota();\n      document.getElementById(\"notaNome\").innerText = document.getElementById(\"proprietario\").value.toUpperCase();\n      document.getElementById(\"notaCPF\").innerText = document.getElementById(\"cpf\").value;\n      document.getElementById(\"notaPagamento\").innerText = pagamentoSelecionado;\n      document.getElementById(\"notaValor\").innerText = valorDocumento;\n      document.getElementById(\"notaValorTabela\").innerText = valorDocumento;\n      document.getElementById(\"notaTotal\").innerText = valorDocumento;\n    }\n\n    function buscarCEP() {\n      const cep = document.getElementById(\"cep\").value.replace(/\\D/g,'');\n      if(cep.length !== 8){\n        alert(\"CEP inválido\");\n        return;\n      }\n      fetch(\"https://viacep.com.br/ws/\" + cep + \"/json/\")\n      .then(response => response.json())\n      .then(d => {\n        if(d.erro){\n          alert(\"CEP não encontrado\");\n          return;\n        }\n        document.getElementById(\"endereco\").value = (d.logradouro || \"\").toUpperCase();\n        document.getElementById(\"bairro\").value = (d.bairro || \"\").toUpperCase();\n        document.getElementById(\"municipio\").value = (d.localidade || \"\").toUpperCase();\n        document.getElementById(\"uf\").value = (d.uf || \"\").toUpperCase();\n      });\n    }\n\n</script>\n\n</body>\n</html>";
 
 function localizarBotaoPorTextoCRM(texto) {
     const alvo = String(texto || '').trim().toUpperCase();
@@ -5631,7 +5488,7 @@ async function salvarMoradorCarteirinhasCRM(opcoes = {}) {
     ) {
         atualizarIndicadorSalvamentoCarteirinhasCRM(
             'salvo',
-            '✓ Tudo salvo'
+            '✓ Salvo neste computador'
         );
         return true;
     }
@@ -5667,7 +5524,7 @@ async function salvarMoradorCarteirinhasCRM(opcoes = {}) {
 
         atualizarIndicadorSalvamentoCarteirinhasCRM(
             'salvo',
-            '✓ Salvo na planilha'
+            '✓ Salvo neste computador · sincronizando'
         );
 
         // Se o nome foi alterado, atualiza o campo de pesquisa e a lista.
@@ -6585,7 +6442,7 @@ function atualizarAbasWhatsapp() {
     document.getElementById('wa-tab-enviado')?.classList.toggle('active', whatsappCRMState.aba === 'enviado');
 }
 
-async function carregarWhatsappPendentes() {
+async function carregarWhatsappPendentes(forcar = false) {
     if (whatsappCRMState.carregando) return;
 
     whatsappCRMState.carregando = true;
@@ -6593,7 +6450,7 @@ async function carregarWhatsappPendentes() {
     if (lista) lista.innerHTML = '<div class="wa-loading">⏳ Carregando cartões pendentes...</div>';
 
     try {
-        const resposta = await fetchFromGS('listarWhatsappPendentes', { _: String(Date.now()) }, undefined, 30000);
+        const resposta = await (forcar ? crmStore.refresh('listarWhatsappPendentes', {}, undefined, 30000) : fetchFromGS('listarWhatsappPendentes', { _: String(Date.now()) }, undefined, 30000));
 
         if (!resposta || resposta.success === false) {
             throw new Error(resposta?.message || resposta?.error || 'Não foi possível carregar os contatos.');
@@ -6985,7 +6842,7 @@ function garantirModalLembretesCRM_() {
                 <div class="crm-reminder-heading-icon">🔔</div>
                 <div>
                     <h3>Lembretes</h3>
-                    <p>Salvos automaticamente na planilha <strong>LEMBRETES_CRM</strong>.</p>
+                    <p>Salvos neste computador e sincronizados automaticamente com a planilha.</p>
                 </div>
             </div>
 
@@ -7605,3 +7462,906 @@ function continuarCompraVendaAposConsultaCRM() {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar, { once:true });
     else iniciar();
 })();
+
+// ============================================================
+// RECURSOS DE VELOCIDADE, FILA E BUSCA
+// As seções principais acima mantêm a ordem do seu JS original.
+// A conexão com a planilha continua na configuração do início.
+// ============================================================
+
+// === INICIO crm-resources.js ===
+/* Recursos pesados carregam somente quando a função correspondente é usada. */
+(function (root) {
+    const resources = {
+        canvas: ['html2canvas', 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'],
+        pdf: ['jspdf', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'],
+        qr: ['QRCode', 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js'],
+        ocr: ['Tesseract', 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js']
+    };
+    const pending = new Map();
+    root.garantirRecursoCRM = function (name) {
+        const [global, url] = resources[name];
+        if (root[global]) return Promise.resolve(root[global]);
+        if (pending.has(name)) return pending.get(name);
+        const promise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            let done = false;
+            const finish = error => {
+                if (done) return; done = true; clearTimeout(timer);
+                if (error) { pending.delete(name); script.remove(); reject(error); }
+                else resolve(root[global]);
+            };
+            const timer = setTimeout(() => finish(new Error('O recurso demorou para carregar. Confira a conexão e tente novamente.')), 30000);
+            script.async = true; script.src = url;
+            script.onload = () => finish(root[global] ? null : new Error('O recurso não carregou corretamente. Tente novamente.'));
+            script.onerror = () => finish(new Error('Não foi possível carregar este recurso. Confira a conexão.'));
+            document.head.appendChild(script);
+        });
+        pending.set(name, promise); return promise;
+    };
+})(window);
+// === FIM crm-resources.js ===
+;
+
+// === INICIO crm-store.js ===
+/* Fila durável + cache local. Nenhuma gravação depende de um iframe carregar. */
+(function (root) {
+    'use strict';
+    const copy = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const uncached = new Set(['statusBackendCRM', 'statusFilaCRM', 'baseBuscaCRM', 'getNumero',
+        'obterProximoNumeroContratoCompraVenda', 'obterProximoNumeroNotaCompraVenda',
+        'confirmarGravacaoDocumentoCRM', 'confirmarLoteCartoesEntrega', 'atualizarTelefonesWhatsapp']);
+    const critical = new Set(['salvarDeclaracao', 'salvarCompraVenda',
+        'incrementarNumeroContratoCompraVenda', 'incrementarNumeroNotaCompraVenda']);
+    class CRMStore {
+        constructor(options) {
+            this.options = options;
+            this.cache = new Map(); this.queue = []; this.inflight = new Map();
+            this.listeners = new Set(); this.epoch = 0; this.running = false; this.enabled = false;
+            this.message = ''; this.editChain = Promise.resolve();
+            this.owner = root.crypto.randomUUID(); this.ready = this.open();
+            this.channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(options.name) : null;
+            if (this.channel) this.channel.onmessage = () => this.ready.then(() => this.reload()).then(() => { this.emit('external'); this.kick(); });
+            root.addEventListener('online', () => this.kick());
+            root.addEventListener('visibilitychange', () => { if (!root.document.hidden) this.kick(); });
+        }
+        async open() {
+            this.db = await new Promise((resolve, reject) => {
+                const req = indexedDB.open(this.options.name, 1);
+                req.onupgradeneeded = () => {
+                    const db = req.result;
+                    db.createObjectStore('cache', { keyPath: 'key' });
+                    db.createObjectStore('queue', { keyPath: 'seq', autoIncrement: true });
+                    db.createObjectStore('meta', { keyPath: 'key' });
+                };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(new Error('Não foi possível salvar neste navegador. Libere o armazenamento antes de editar.'));
+                req.onblocked = () => reject(new Error('Feche as outras abas do CRM e tente novamente.'));
+            });
+            await this.reload();
+        }
+        transaction(stores, callback) {
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction(stores, 'readwrite');
+                try { callback(tx); } catch (err) { tx.abort(); reject(err); return; }
+                tx.oncomplete = resolve;
+                tx.onerror = tx.onabort = () => reject(tx.error || new Error('Armazenamento cheio ou indisponível. A edição não foi salva.'));
+            });
+        }
+        getAll(store) {
+            return new Promise((resolve, reject) => {
+                const req = this.db.transaction(store).objectStore(store).getAll();
+                req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error);
+            });
+        }
+        async reload() {
+            const [entries, queue] = await Promise.all([this.getAll('cache'), this.getAll('queue')]);
+            this.cache = new Map(entries.map(item => [item.key, item]));
+            this.queue = queue.sort((a, b) => a.seq - b.seq); this.epoch++;
+        }
+        serialize(task) {
+            const run = () => navigator.locks ? navigator.locks.request(this.options.name + ':edit', task) : task();
+            const next = this.editChain.catch(() => {}).then(run);
+            this.editChain = next; return next;
+        }
+        key(action, params = {}) {
+            return JSON.stringify([action, Object.keys(params).filter(k => !['_', 'callback'].includes(k)).sort().map(k => [k, String(params[k])])]);
+        }
+        project(action, params, value, operations = this.queue) {
+            let result = copy(value);
+            for (const op of operations) result = this.options.reduce(action, params, result, op);
+            return result;
+        }
+        peek(action, params = {}) {
+            const entry = this.cache.get(this.key(action, params));
+            return entry ? this.project(action, params, entry.value) : undefined;
+        }
+        async read(action, params = {}, signal, timeout) {
+            await this.ready;
+            if (uncached.has(action)) return this.options.network(action, params, signal, timeout);
+            const entry = this.cache.get(this.key(action, params));
+            if (entry) {
+                if (!this.queue.length && navigator.onLine && Date.now() - entry.at > 30000) this.refresh(action, params).catch(err => { this.message = err.message; this.emit('network'); });
+                return this.project(action, params, entry.value);
+            }
+            const local = this.options.local?.(action, params, this);
+            if (local !== undefined) return local;
+            return this.refresh(action, params, signal, timeout);
+        }
+        async refresh(action, params = {}, signal, timeout) {
+            await this.ready;
+            const key = this.key(action, params);
+            // Requests with AbortSignal belong to their caller, not to another request.
+            if (!signal && this.inflight.has(key)) return this.inflight.get(key);
+            const epoch = this.epoch;
+            const promise = (async () => {
+                const value = await this.options.network(action, params, signal, timeout);
+                if (value?.success === false || value?.status === 'error' || value?.error) throw new Error(value.message || value.error || 'Consulta recusada.');
+                await this.serialize(async () => {
+                    if (this.epoch !== epoch) return; // Do not let an older response undo a newer edit.
+                    const entry = { key, action, params: copy(params), value: copy(value), at: Date.now() };
+                    await this.transaction(['cache'], tx => tx.objectStore('cache').put(entry));
+                    this.cache.set(key, entry); this.emit('cache', { action });
+                });
+                return this.peek(action, params) ?? this.project(action, params, value);
+            })();
+            if (!signal) this.inflight.set(key, promise);
+            try { return await promise; } finally { if (!signal) this.inflight.delete(key); }
+        }
+        async enqueueMany(commands) {
+            await this.ready;
+            return this.serialize(async () => {
+                await this.reload();
+                const records = [], additions = [];
+                for (const command of commands) {
+                    const data = copy(command.data), action = command.action;
+                    const same = [...this.queue, ...additions].find(op => op.action === action && JSON.stringify(op.data) === JSON.stringify(data));
+                    if (same) { records.push(same); continue; }
+                    const op = { id: root.crypto.randomUUID(), action, data, at: Date.now(), state: 'pending' };
+                    if (action === 'salvarLembrete') op.data.id = 'LMB-' + op.id;
+                    if (action === 'marcarWhatsappEnviado') op.data.enviadoEm = new Date(op.at).toISOString();
+                    op.targets = this.options.targets(action, op.data, this);
+                    additions.push(op); records.push(op);
+                }
+                await this.transaction(['queue'], tx => {
+                    for (const op of additions) {
+                        const req = tx.objectStore('queue').add(op);
+                        req.onsuccess = () => { op.seq = req.result; };
+                    }
+                });
+                this.queue.push(...additions); this.epoch++;
+                if (additions.length && navigator.storage?.persist) navigator.storage.persist().catch(() => {});
+                if (additions.length) { this.emit('queued', { action: additions[0].action }); this.channel?.postMessage('change'); }
+                this.kick();
+                return records;
+            });
+        }
+        async enqueue(action, data) {
+            const [record] = await this.enqueueMany([{ action, data }]);
+            if (critical.has(action)) return this.waitFor(record.id);
+            return { success: true, status: 'queued', queued: true, id: record.id };
+        }
+        async waitFor(id) {
+            for (let i = 0; i < 140; i++) {
+                const op = this.queue.find(item => item.id === id);
+                if (op?.state === 'blocked') throw new Error(op.error);
+                if (!op) {
+                    const receipts = await this.getAll('meta');
+                    const receipt = receipts.find(item => item.key === 'receipt:' + id);
+                    if (receipt) return receipt.result;
+                }
+                await sleep(500);
+            }
+            throw new Error('O documento está na fila deste computador, aguardando confirmação. Não imprima nem feche o formulário. Confira Sincronização.');
+        }
+        async lease() {
+            let acquired = false;
+            await this.transaction(['meta'], tx => {
+                const store = tx.objectStore('meta'); const req = store.get('lease');
+                req.onsuccess = () => {
+                    const lease = req.result;
+                    if (!lease || lease.owner === this.owner || lease.until < Date.now()) {
+                        store.put({ key: 'lease', owner: this.owner, until: Date.now() + 120000 }); acquired = true;
+                    }
+                };
+            });
+            return acquired;
+        }
+        async release() {
+            await this.transaction(['meta'], tx => {
+                const store = tx.objectStore('meta'); const req = store.get('lease');
+                req.onsuccess = () => { if (req.result?.owner === this.owner) store.delete('lease'); };
+            });
+        }
+        start() { this.enabled = true; this.kick(); }
+        pause() { this.enabled = false; }
+        kick() {
+            clearTimeout(this.timer);
+            if (!this.enabled || this.running || !navigator.onLine) { this.emit('status'); return; }
+            this.timer = setTimeout(() => this.flush().catch(err => { this.message = err.message; this.emit('status'); }), 250);
+        }
+        async flush() {
+            if (this.running || !this.enabled || !navigator.onLine) return;
+            this.running = true; let leased = false; this.nextDelay = 15000;
+            try {
+                await this.ready;
+                leased = await this.lease(); if (!leased) { this.nextDelay = 5000; return; }
+                await this.serialize(() => this.reload());
+                if (!this.queue.length || this.queue[0].state === 'blocked') return;
+                const backend = this.backendReady && Date.now() - this.backendReady.at < 60000 ? this.backendReady.value : await this.options.network('statusBackendCRM', {});
+                if (backend?.filaVersao !== 1) throw new Error('Fila preservada neste computador. Publique primeiro o novo Apps Script para sincronizar.');
+                this.backendReady = { at: Date.now(), value: backend };
+                const batch = [];
+                for (const op of this.queue) {
+                    if (op.state === 'blocked' || batch.length === 8) break;
+                    if (JSON.stringify([...batch, op]).length > 350000 && batch.length) break;
+                    batch.push(op);
+                }
+                this.message = 'Enviando alterações…'; this.emit('status');
+                this.heartbeat = setInterval(() => this.lease().catch(console.error), 20000);
+                // An opaque POST response is never a confirmation. Confirm by operation ID via JSONP.
+                const body = new URLSearchParams({ acao: 'sincronizarFilaCRM', dados: JSON.stringify({ protocolo: 1, operacoes: batch }) });
+                const abort = new AbortController(); const timer = setTimeout(() => abort.abort(), 45000);
+                try { await this.options.send(body, abort.signal); } catch (_) { /* The POST may have arrived; check its receipt. */ }
+                finally { clearTimeout(timer); }
+                let remaining = batch;
+                for (let attempt = 0; attempt < 22 && remaining.length; attempt++) {
+                    const status = await this.options.network('statusFilaCRM', { ids: JSON.stringify(remaining.map(op => op.id)), _: String(Date.now()) }, undefined, 10000);
+                    if (!Array.isArray(status?.operacoes)) throw new Error('Confirmação da fila indisponível. As edições continuam salvas neste computador.');
+                    for (const receipt of status.operacoes) {
+                        const op = remaining.find(item => item.id === receipt.id); if (!op) continue;
+                        if (receipt.state === 'applied') await this.commit(op, receipt.result);
+                        else if (receipt.state === 'blocked' || receipt.state === 'review') {
+                            await this.serialize(async () => {
+                                const current = this.queue.find(item => item.id === op.id); if (!current) return;
+                                const next = { ...current, state: 'blocked', error: receipt.message || 'Esta edição precisa de revisão.' };
+                                await this.transaction(['queue'], tx => tx.objectStore('queue').put(next));
+                                this.queue = this.queue.map(item => item.id === op.id ? next : item);
+                                this.emit('blocked'); this.channel?.postMessage('change');
+                            });
+                        }
+                    }
+                    remaining = remaining.filter(op => this.queue.some(item => item.id === op.id && item.state !== 'blocked'));
+                    if (this.queue[0]?.state === 'blocked') break;
+                    if (remaining.length) await sleep(2000);
+                }
+                this.message = remaining.length ? 'Aguardando confirmação. A fila será consultada novamente.' : '';
+                this.nextDelay = remaining.length ? 15000 : 250;
+            } catch (err) { this.message = err.message || 'Sem conexão com a planilha. Fila preservada.'; }
+            finally {
+                clearInterval(this.heartbeat);
+                if (leased) await this.release();
+                this.running = false; this.emit('status');
+                if (this.enabled && this.queue.length && this.queue[0].state !== 'blocked') this.timer = setTimeout(() => this.kick(), this.nextDelay);
+            }
+        }
+        async commit(op, result) {
+            await this.serialize(async () => {
+                await this.reload();
+                const current = this.queue.find(item => item.id === op.id); if (!current) return;
+                const entries = [...this.cache.values()].map(entry => ({ ...entry,
+                    value: this.options.reduce(entry.action, entry.params, copy(entry.value), { ...current, result }), at: Date.now() }));
+                await this.transaction(['cache', 'queue', 'meta'], tx => {
+                    for (const entry of entries) tx.objectStore('cache').put(entry);
+                    tx.objectStore('queue').delete(current.seq);
+                    tx.objectStore('meta').put({ key: 'receipt:' + op.id, result: result || { success: true }, at: Date.now() });
+                });
+                this.cache = new Map(entries.map(entry => [entry.key, entry]));
+                this.queue = this.queue.filter(item => item.id !== op.id); this.epoch++;
+                this.emit('synced', { action: op.action }); this.channel?.postMessage('change');
+            });
+        }
+        async discard(id) {
+            await this.ready;
+            // Only explicitly rejected/reviewed commands can be discarded. Never drop a command in flight.
+            await this.serialize(async () => {
+                await this.reload(); const op = this.queue.find(item => item.id === id);
+                if (!op || op.state !== 'blocked') throw new Error('Só é possível remover uma edição parada para revisão.');
+                await this.transaction(['queue'], tx => tx.objectStore('queue').delete(op.seq));
+                this.queue = this.queue.filter(item => item.id !== id); this.epoch++;
+                this.emit('discarded'); this.channel?.postMessage('change');
+            });
+            this.kick();
+        }
+        subscribe(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
+        emit(type, detail = {}) { for (const fn of this.listeners) { try { fn({ type, ...detail }); } catch (err) { console.error(err); } } }
+        async setCache(action, params, value, expectedEpoch) {
+            await this.ready;
+            await this.serialize(async () => {
+                if (expectedEpoch !== undefined && this.epoch !== expectedEpoch) return;
+                const entry = { key: this.key(action, params), action, params, value: copy(value), at: Date.now() };
+                await this.transaction(['cache'], tx => tx.objectStore('cache').put(entry)); this.cache.set(entry.key, entry);
+            });
+        }
+    }
+    root.CRMStore = CRMStore;
+})(window);
+// === FIM crm-store.js ===
+;
+
+// === INICIO crm-data.js ===
+/* Projeções locais: a tela lê a base conhecida + alterações ainda na fila. */
+(function (root) {
+    'use strict';
+    const clone = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+    const norm = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
+    const iso = value => {
+        const text = String(value || ''); const br = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        return br ? `${br[3]}-${br[2]}-${br[1]}` : text.slice(0, 10);
+    };
+    const fields = ['nome', 'data', 'quantidade', 'obs', 'tipo', 'status', 'numero', 'endereco', 'cpf', 'entregueA', 'dataEntrega', 'telefone', 'statusWhatsapp'];
+    const names = ['JANEIRO', 'FEVEREIRO', 'MARCO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+    const pending = item => norm(item.status) !== 'ENTREGUE';
+    function patchDelivery(item, op) {
+        const d = op.data;
+        const patch = d.dados ? Object.fromEntries(fields.filter(key => Object.prototype.hasOwnProperty.call(d.dados, key)).map(key => [key, d.dados[key]])) : {};
+        const matches = line => Number(item.linha) === Number(line) || (op.targets || []).some(t => Number(t.line) === Number(line) && t.localId && t.localId === item._localId);
+        if (op.action === 'atualizarCartao' && matches(d.linha)) Object.assign(item, patch);
+        if (op.action === 'atualizarMultiplosCartoes' && d.linhas.some(matches)) Object.assign(item, patch);
+        if (op.action === 'marcarWhatsappEnviado' && d.linhas.some(matches)) item.statusWhatsapp = new Date(op.at).toISOString();
+        return item;
+    }
+    function deliveries(items, op) {
+        const result = (items || []).map(item => patchDelivery({ ...item }, op));
+        if (op.action === 'salvarLoteCartoesEntrega') {
+            for (const [i, item] of op.data.entregas.entries()) {
+                const linha = op.result?.primeiraLinha ? op.result.primeiraLinha + i : -(op.seq * 10000 + i + 1);
+                if (!result.some(row => row._localId === op.id + ':' + i || row.linha === linha)) result.push({ ...item, status: '', linha, _localId: op.id + ':' + i, _pendingNew: !op.result });
+            }
+        }
+        return result;
+    }
+    function agenda(items, op) {
+        if (op.action === 'salvarAgenda') return [...items.filter(i => String(i.id) !== String(op.data.id)), clone({ ...op.data, periodo: op.data.periodo })];
+        if (op.action === 'deletarAgenda') return items.filter(i => String(i.id) !== String(op.data));
+        return items;
+    }
+    function cards(items, op) {
+        const d = op.data;
+        if (op.action === 'salvarCartao') return [...items.filter(i => String(i.id) !== String(d.id)), { ...d, data: iso(d.data).split('-').reverse().join('/') }];
+        if (op.action === 'deletarLinhaCartao') return items.filter(i => String(i.id) !== String(d.id));
+        if (op.action === 'editarLinhaCartao') return items.map(i => String(i.id) === String(d.id) ? { ...i, ...d, data: iso(d.data).split('-').reverse().join('/') } : i);
+        if (op.action === 'deletarDiaCartao') return items.filter(i => iso(i.data) !== iso(d.data));
+        if (op.action === 'deletarMesGeral') return items.filter(i => { const date = iso(i.data); return !(Number(date.slice(0, 4)) === Number(d.ano) && Number(date.slice(5, 7)) === Number(d.mes)); });
+        return items;
+    }
+    function responsibles(items, op) {
+        if (op.action === 'salvarResponsavel') return [...new Set([...items, String(op.data)])];
+        if (op.action === 'deletarResponsavel') return items.filter(name => name !== op.data);
+        return items;
+    }
+    function baskets(items, op) {
+        const d = op.data; let result = items;
+        if (op.action === 'deletarMoradorCesta') result = result.filter(i => Number(i.linha) !== Number(d.linha)).map(i => ({ ...i, linha: Number(i.linha) > Number(d.linha) ? Number(i.linha) - 1 : i.linha }));
+        if (op.action === 'editarNomeMoradorCesta') result = result.map(i => Number(i.linha) === Number(d.linha) ? { ...i, nome: d.novoNome } : i);
+        if (op.action === 'salvarMoradorCesta') {
+            const month = names[new Date().getMonth()]; const val = d.payload[month];
+            result = result.map(i => Number(i.linha) === Number(d.linha) ? { ...i, nome: d.payload.NOME ?? i.nome, tipo: d.payload.TIPO ?? i.tipo, _month: val } : i)
+                .filter(i => i._month === undefined || !i._month || norm(i._month) === 'X');
+        }
+        return result;
+    }
+    function reminders(value, op) {
+        let items = value.itens || [];
+        if (op.action === 'salvarLembrete') {
+            const date = op.data.data, today = new Date().toLocaleDateString('sv-SE');
+            if (!items.some(i => i.id === op.data.id)) items.push({ ...op.data, dataBR: date.split('-').reverse().join('/'), status: 'ATIVO', hoje: date === today, vencido: date < today });
+        }
+        if (op.action === 'concluirLembrete') items = items.filter(i => i.id !== op.data.id);
+        items.sort((a, b) => a.data.localeCompare(b.data));
+        return { ...value, itens: items, total: items.length, totalHoje: items.filter(i => i.hoje).length, totalVencidos: items.filter(i => i.vencido).length };
+    }
+    function reduce(action, params, value, op) {
+        if (value === undefined || value === null) return value;
+        const d = op.data;
+        let delta = 0;
+        if (op.action === 'salvarLoteCartoesEntrega') delta = d.entregas.length;
+        if (['atualizarCartao', 'atualizarMultiplosCartoes'].includes(op.action) && d.dados.status !== undefined) {
+            for (const target of op.targets || []) {
+                const wasPending = norm(target.values[5]) !== 'ENTREGUE';
+                const nowPending = norm(d.dados.status) !== 'ENTREGUE';
+                delta += Number(nowPending) - Number(wasPending);
+            }
+        }
+        if (action === 'contarCartoesPendentes') value.total = Math.max(0, Number(value.total || 0) + delta);
+        if (action === 'carregarDashboard') {
+            if (value.totalPendentes) value.totalPendentes.total = Math.max(0, Number(value.totalPendentes.total || 0) + delta);
+            value.agenda = agenda(value.agenda || [], op); value.cartoes = cards(value.cartoes || [], op);
+            value.responsaveis = responsibles(value.responsaveis || [], op); value.pendentes = baskets(value.pendentes || [], op);
+        }
+        if (action === 'listarAgenda') value.itens = agenda(value.itens || [], op);
+        if (action === 'listarCartoes') value.itens = cards(value.itens || [], op);
+        if (action === 'listarResponsaveis') value.nomes = responsibles(value.nomes || [], op);
+        if (action === 'listarPendentesMesAtual') value = baskets(value, op);
+        if (action === 'listarTiposCesta' && op.action === 'salvarTiposCesta') value = clone(d.tipos);
+        if (action === 'buscarTodosNomesCesta') {
+            if (op.action === 'editarNomeMoradorCesta') {
+                const name = op.targets?.[0]?.values?.NOME ?? op.targets?.[0]?.values?.[0];
+                value = value.map(n => n === name ? d.novoNome : n);
+            }
+            if (op.action === 'deletarMoradorCesta') value = value.filter(n => n !== (op.targets?.[0]?.values?.NOME ?? op.targets?.[0]?.values?.[0]));
+        }
+        if (action === 'buscarMoradorCesta' && Number(value.linha) === Number(d.linha)) {
+            if (op.action === 'salvarMoradorCesta') value.dados = value.dados.map(f => ({ ...f, value: d.payload[f.id] ?? f.value }));
+            if (op.action === 'editarNomeMoradorCesta') value.dados = value.dados.map(f => f.id === 'NOME' ? { ...f, value: d.novoNome } : f);
+            if (op.action === 'deletarMoradorCesta') return null;
+        }
+        if (action === 'buscarMoradorCesta' && op.action === 'deletarMoradorCesta' && Number(value.linha) > Number(d.linha)) value.linha--;
+        if (action === 'buscarMoradorCarteirinhas' && op.action === 'salvarMoradorCarteirinhas' && Number(value.linha) === Number(d.linha)) {
+            value.dados = value.dados.map(f => ({ ...f, valor: d.dados[f.coluna] ?? f.valor }));
+        }
+        if (action === 'buscarTodosNomesCarteirinhas' && op.action === 'salvarMoradorCarteirinhas') {
+            const name = Object.entries(d.dados).find(([k]) => norm(k) === 'NOME')?.[1];
+            const oldName = op.targets?.[0]?.values?.NOME;
+            if (name && oldName) value.nomes = [...new Set(value.nomes.map(n => n === oldName ? name : n))];
+        }
+        if (action === 'listarNomesCurriculosCRM' && op.action === 'salvarCurriculoCRM') value.nomes = [...new Set([...(value.nomes || []), d.nome])].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        if (action === 'buscarCurriculoCRM' && op.action === 'salvarCurriculoCRM' && norm(params.nome) === norm(d.nome)) value = { success: true, encontrado: true, registro: clone(d) };
+        if (action === 'listarLembretes') value = reminders(value, op);
+        if (action === 'baseBuscaLocalCRM') value.itens = deliveries(value.itens, op);
+        if (action === 'pesquisarCartoes') {
+            const originalCount = (value.resultados || []).length;
+            const items = deliveries(value.resultados, op).filter(pending);
+            value.resultados = items; value.total = Math.max(0, Number(value.total || 0) - (originalCount - items.length));
+        }
+        if (action === 'listarWhatsappPendentes') {
+            value.itens = (value.itens || []).filter(item => {
+                const lines = item.linhas.map(Number);
+                const affected = op.action === 'atualizarCartao' ? [Number(d.linha)] : (d.linhas || []).map(Number);
+                if (['atualizarCartao', 'atualizarMultiplosCartoes'].includes(op.action) && norm(d.dados.status) === 'ENTREGUE') item.linhas = lines.filter(line => !affected.includes(line));
+                if (op.action === 'marcarWhatsappEnviado' && lines.every(line => affected.includes(line))) {
+                    item.enviado = true; item.enviadoEm = new Date(op.at).toISOString(); item.retornaEm = new Date(op.at + 259200000).toISOString();
+                }
+                return item.linhas.length;
+            });
+            value.totalEnviar = value.itens.filter(i => !i.enviado).length; value.totalEnviado = value.itens.filter(i => i.enviado).length;
+        }
+        return value;
+    }
+    function targets(action, data, store) {
+        const entries = [...store.cache.values()]; const findViews = a => entries.filter(e => e.action === a).map(e => store.project(e.action, e.params, e.value));
+        let table, rows;
+        if (['atualizarCartao', 'atualizarMultiplosCartoes', 'marcarWhatsappEnviado'].includes(action)) {
+            table = 'ENTREGAS';
+            const base = store.peek('baseBuscaLocalCRM');
+            const records = base?.itens || findViews('pesquisarCartoes').flatMap(v => v.resultados || []);
+            rows = (data.linhas || [data.linha]).map(Number).map(line => {
+                const item = records.find(r => Number(r.linha) === line);
+                if (!item) throw new Error('Abra a busca novamente: falta a referência deste cartão.');
+                const target = { table, line, values: Object.fromEntries(fields.map((f, i) => [i, item[f] ?? ''])) };
+                if (item._localId) target.localId = item._localId;
+                if (line < 2) {
+                    if (!item._localId) throw new Error('Referência do novo cartão indisponível.');
+                    const [id, offset] = item._localId.split(':');
+                    target.dependsOn = { id, offset: Number(offset) };
+                }
+                return target;
+            });
+        }
+        if (['salvarMoradorCesta', 'editarNomeMoradorCesta', 'deletarMoradorCesta'].includes(action)) {
+            table = 'CESTA'; const record = findViews('buscarMoradorCesta').find(v => Number(v?.linha) === Number(data.linha));
+            if (record) rows = [{ table, line: Number(data.linha), values: Object.fromEntries(record.dados.map(f => [f.id, f.value])), header: true }];
+            else {
+                const item = (store.peek('listarPendentesMesAtual') || store.peek('carregarDashboard')?.pendentes || []).find(i => Number(i.linha) === Number(data.linha));
+                if (item) rows = [{ table, line: Number(data.linha), values: { 0: item.nome }, header: false }];
+            }
+        }
+        if (action === 'salvarMoradorCarteirinhas') {
+            table = 'CARTEIRINHAS'; const record = findViews('buscarMoradorCarteirinhas').find(v => Number(v?.linha) === Number(data.linha));
+            if (record) rows = [{ table, line: Number(data.linha), values: Object.fromEntries(record.dados.map(f => [norm(f.coluna).replace(/ /g, '_'), f.valor])), header: true }];
+        }
+        if (table && !rows?.length) throw new Error('Abra o cadastro novamente antes de editar. A referência local não está disponível.');
+        return rows || [];
+    }
+    function local(action, params, store) {
+        if (action === 'buscarCurriculoCRM') {
+            const op = [...store.queue].reverse().find(op => op.action === 'salvarCurriculoCRM' && norm(op.data.nome) === norm(params.nome));
+            if (op) return { success: true, encontrado: true, registro: clone(op.data) };
+        }
+        if (['buscarMoradorCesta', 'buscarMoradorCarteirinhas'].includes(action)) {
+            for (const entry of store.cache.values()) {
+                if (entry.action !== action) continue;
+                const value = store.project(action, entry.params, entry.value);
+                const name = action === 'buscarMoradorCesta' ? value?.dados?.find(f => f.id === 'NOME')?.value : value?.dados?.find(f => norm(f.coluna) === 'NOME')?.valor;
+                if (name && norm(name) === norm(params.nome)) return value;
+            }
+        }
+        return undefined;
+    }
+    root.CRMData = { reduce, targets, deliveries, fields, norm, local };
+})(window);
+// === FIM crm-data.js ===
+;
+
+// === INICIO crm-sync-ui.js ===
+(function (root) {
+    'use strict';
+    let installed = false, renderTimer;
+    const escape = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    root.inicializarSincronizacaoCRM = function () {
+        if (installed) { root.crmStore.start(); return; }
+        installed = true;
+        const bar = document.createElement('div'); bar.className = 'crm-sync-bar';
+        bar.innerHTML = '<button id="crm-sync-status" type="button" aria-haspopup="dialog">Preparando dados locais…</button><span id="crm-sync-detail" role="status" aria-live="polite"></span><button id="crm-sync-refresh" type="button">Atualizar dados</button>';
+        document.getElementById('dashboard-screen').prepend(bar);
+        const dialog = document.createElement('dialog'); dialog.id = 'crm-sync-dialog'; dialog.className = 'crm-sync-dialog';
+        dialog.innerHTML = '<div class="crm-sync-title"><h2>Sincronização</h2><button type="button" aria-label="Fechar">×</button></div><p>As edições ficam neste navegador até a confirmação do Google Planilhas. Mantenha o CRM aberto para enviar a fila.</p><div id="crm-sync-items"></div><div class="crm-sync-actions"><button id="crm-sync-retry" type="button">Sincronizar agora</button><button id="crm-sync-export" type="button">Baixar cópia das pendências</button></div>';
+        document.body.appendChild(dialog);
+        dialog.querySelector('.crm-sync-title button').onclick = () => dialog.close();
+        dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
+        document.getElementById('crm-sync-status').onclick = () => dialog.showModal();
+        document.getElementById('crm-sync-retry').onclick = () => root.crmStore.kick();
+        document.getElementById('crm-sync-refresh').onclick = async function () {
+            this.disabled = true;
+            try {
+                if (root.crmStore.queue.length) { dialog.showModal(); return; }
+                await Promise.all([root.crmStore.refresh('carregarDashboard'), root.crmStore.refresh('listarPendentesMesAtual'), root.crmStore.refresh('listarLembretes')]);
+                await carregarDashboard();
+                if (typeof carregarBaseBuscaLocalCRM === 'function') await carregarBaseBuscaLocalCRM(true);
+            } catch (err) { alert('Não foi possível atualizar: ' + err.message); }
+            finally { this.disabled = false; }
+        };
+        document.getElementById('crm-sync-export').onclick = () => {
+            const blob = new Blob([JSON.stringify({ versao: 1, exportadoEm: new Date().toISOString(), operacoes: root.crmStore.queue }, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'CRM_pendencias_' + new Date().toISOString().slice(0, 10) + '.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 10000);
+        };
+        root.crmStore.subscribe(event => {
+            update();
+            if (!['queued', 'synced', 'discarded', 'external', 'cache'].includes(event.type)) return;
+            clearTimeout(renderTimer);
+            renderTimer = setTimeout(() => {
+                // Update lists, never replace an open editing form.
+                const d = root.crmStore.peek('carregarDashboard');
+                if (d) { state.dadosAgenda = d.agenda || []; state.dadosCartoes = d.cartoes || []; state.responsaveis = d.responsaveis || [];
+                    renderizarAgendaComDados(state.dadosAgenda); renderizarCartoesComDados(state.dadosCartoes, state.responsaveis); }
+                if (root.crmStore.peek('listarPendentesMesAtual')) renderizarPendentesCestaHome();
+                if (root.crmStore.peek('listarLembretes')) carregarLembretesCRM(false);
+                if (event.type === 'synced' && root.crmStore.queue.length === 0 && typeof carregarBaseBuscaLocalCRM === 'function') carregarBaseBuscaLocalCRM(true);
+            }, 100);
+        });
+        function update() {
+            const store = root.crmStore, count = store.queue.length, blocked = store.queue.some(op => op.state === 'blocked');
+            const button = document.getElementById('crm-sync-status');
+            button.textContent = blocked ? '⚠ Edição precisa de revisão' : count ? `${navigator.onLine ? '↻' : '○'} ${count} edição(ões) neste computador` : '✓ Sem edições pendentes';
+            button.dataset.state = blocked ? 'error' : count ? 'pending' : 'ok';
+            const cached = store.cache.size > 0;
+            document.getElementById('crm-sync-detail').textContent = !navigator.onLine ? 'Sem conexão. As edições ficam na fila.' : store.message || (count ? 'Salvo neste computador · sincronização em segundo plano' : cached ? 'Dados locais prontos · consultas atualizadas em segundo plano' : 'Carregando a primeira cópia dos dados…');
+            const list = document.getElementById('crm-sync-items'); list.replaceChildren();
+            if (!count) list.textContent = 'Nenhuma edição aguardando envio.';
+            for (const op of store.queue) {
+                const item = document.createElement('div'); item.className = 'crm-sync-item';
+                item.innerHTML = `<strong>${escape(op.action)}</strong><small>${escape(new Date(op.at).toLocaleString('pt-BR'))}</small><p>${escape(op.error || 'Salvo neste computador. Aguardando confirmação da planilha.')}</p>`;
+                if (op.state === 'blocked') {
+                    const button = document.createElement('button'); button.type = 'button'; button.textContent = 'Remover da fila após conferência';
+                    button.onclick = async () => {
+                        if (!confirm('Confira primeiro essa edição na planilha. Remover da fila descarta a versão local e não desfaz o que já foi gravado. Continuar?')) return;
+                        try { await store.discard(op.id); } catch (err) { alert(err.message); }
+                    };
+                    item.appendChild(button);
+                }
+                list.appendChild(item);
+            }
+        }
+        root.addEventListener('offline', update);
+        root.crmStore.ready.then(() => { update(); root.crmStore.start(); }).catch(err => { document.getElementById('crm-sync-detail').textContent = err.message; });
+    };
+})(window);
+// === FIM crm-sync-ui.js ===
+;
+
+// === INICIO crm-search-core.js ===
+/* Compartilhado entre navegador, Apps Script e testes. */
+function crmTexto(valor) {
+    return String(valor == null ? '' : valor).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function crmEndereco(valor) {
+    return crmTexto(valor).replace(/^(?:r|rua)\s+/, '').replace(/^(?:av|avenida)\s+/, '')
+        .replace(/^(?:tv|trav|trv|travessa)\s+/, '').replace(/^(?:est|estr|estrada)\s+/, '')
+        .replace(/\b(?:s|sao|santo|santa)\s+(?=[a-z])/g, 's ')
+        .replace(/\bjd\b/g, 'jardim').replace(/\bpq\b/g, 'parque')
+        .replace(/\b(?:num|numero|n)\s+(?=\d)/g, '').replace(/\s+/g, ' ').trim();
+}
+function crmTokensNome(valor) { return crmTexto(valor).split(' ').filter(t => t && !['da','de','do','das','dos','e'].includes(t)); }
+function crmSepararNome(valor) {
+    const text = String(valor || '');
+    const m = /\b(?:ref(?:erencia)?|sub(?:stituto|stituta)?|aos cuidados)(?:\s*[:.\-/]|\s+)/i.exec(crmTexto(text));
+    if (!m) return { principal: crmTexto(text), referencia: '' };
+    const clean = crmTexto(text); return { principal: clean.slice(0, m.index).trim(), referencia: clean.slice(m.index + m[0].length).trim() };
+}
+function crmDistancia(a, b) {
+    if (Math.abs(a.length - b.length) > 2) return 3;
+    let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+        const next = [i]; for (let j = 1; j <= b.length; j++) next[j] = Math.min(next[j-1] + 1, prev[j] + 1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1)); prev = next;
+    }
+    return prev[b.length];
+}
+function crmTokenScore(a, b, fuzzy) {
+    if (a === b) return 100;
+    if (a.length === 1 || b.length === 1) return a[0] === b[0] ? 66 : 0;
+    if (a.startsWith(b) || b.startsWith(a)) return Math.min(a.length, b.length) >= 2 ? 76 : 0;
+    if (fuzzy && Math.min(a.length, b.length) >= 4 && crmDistancia(a, b) <= 1) return 52;
+    return 0;
+}
+function crmNomeScore(nome, consulta) {
+    const a = crmTokensNome(consulta), b = crmTokensNome(nome);
+    if (!a.length || !b.length || a.length > b.length) return 0;
+    const used = new Set(); let sum = 0;
+    for (const token of a) {
+        let best = 0, index = -1;
+        b.forEach((word, i) => { if (!used.has(i)) { const score = crmTokenScore(token, word, true); if (score > best) { best = score; index = i; } } });
+        if (!best) return 0; used.add(index); sum += best;
+    }
+    const quality = sum / a.length;
+    if (a.join(' ') === b.join(' ')) return 1000;
+    if (quality === 100) return 850;
+    if (quality >= 66) return 700;
+    return 500;
+}
+function crmPessoasCompativeis(a, b) {
+    a = crmTokensNome(crmSepararNome(a).principal); b = crmTokensNome(crmSepararNome(b).principal);
+    if (a.length < 2 || b.length < 2) return false;
+    if (!crmTokenScore(a[0], b[0], false) || !crmTokenScore(a[a.length-1], b[b.length-1], false)) return false;
+    const short = a.length <= b.length ? a : b, long = a.length <= b.length ? b : a;
+    // Não confundir João Paulo Silva com João Pedro Silva.
+    let position = 0;
+    for (const token of short) {
+        let found = -1;
+        for (let i = position; i < long.length; i++) if (crmTokenScore(token, long[i], false) >= 66) { found = i; break; }
+        if (found < 0) return false; position = found + 1;
+    }
+    return true;
+}
+function crmDataTimestamp(value) {
+    const t = String(value || ''), br = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (br) return new Date(Number(br[3]), Number(br[2])-1, Number(br[1]), 12).getTime();
+    const result = Date.parse(t); return isNaN(result) ? 0 : result;
+}
+function crmEnderecoScore(endereco, consulta) {
+    const text = crmEndereco(endereco), query = crmEndereco(consulta), tokens = query.split(' ').filter(Boolean), words = text.split(' ');
+    if (!tokens.length) return 0;
+    if (!tokens.every(token => words.some(w => /^\d/.test(token) ? token === w : crmTokenScore(token, w, true) > 0))) return 0;
+    return text === query ? 160 : 110;
+}
+function crmConsultaCombinada(termo, endereco) {
+    let nome = String(termo || '').trim(), rua = String(endereco || '').trim();
+    if (!rua) {
+        const parts = nome.split(/\s*[;|]\s*|\s+\/\s+/);
+        if (parts.length > 1) { nome = parts.shift(); rua = parts.join(' '); }
+        else {
+            const m = /\s+(?:rua\b|r\.?(?=\s)|av(?:enida)?\.?\s|trav(?:essa)?\.?\s|tv\.?\s|estr(?:ada)?\.?\s)/i.exec(nome);
+            if (m) { rua = nome.slice(m.index).trim(); nome = nome.slice(0, m.index).trim(); }
+        }
+    }
+    return { nome: nome, endereco: rua };
+}
+function crmPrepararIndice(items) {
+    const records = items.filter(i => i.nome && crmTexto(i.status) !== 'entregue').map(item => ({ ...item, _nome: crmSepararNome(item.nome), _endereco: crmEndereco(item.endereco), _data: crmDataTimestamp(item.data), duplicados: [] }));
+    const addresses = new Map(), blocks = new Map();
+    for (const item of records) {
+        if (item._endereco) { if (!addresses.has(item._endereco)) addresses.set(item._endereco, []); addresses.get(item._endereco).push(item); }
+        const block = String(item.numero || '').trim(); if (!blocks.has(block)) blocks.set(block, []); blocks.get(block).push(item);
+    }
+    for (const rows of blocks.values()) rows.sort((a, b) => Number(b.linha) - Number(a.linha)).forEach((item, i) => { item.posicao = i + 1; item.totalBloco = rows.length; });
+    for (const rows of addresses.values()) {
+        for (const item of rows) {
+            item.qtdEndereco = rows.length;
+            item.duplicados = rows.filter(other => other.linha !== item.linha && crmPessoasCompativeis(item.nome, other.nome)).map(other => other.linha);
+        }
+    }
+    return records;
+}
+function crmBuscarCartoes(items, termo, filtros, prepared) {
+    filtros = filtros || {}; const campo = filtros.campo || 'todos';
+    const query = crmConsultaCombinada(termo, filtros.endereco || filtros.rua || '');
+    const digits = String(termo || '').replace(/\D/g, '');
+    const records = prepared || crmPrepararIndice(items); const matches = [];
+    for (const item of records) {
+        if (filtros.status && crmTexto(item.status) !== crmTexto(filtros.status)) continue;
+        if (filtros.tipo && crmTexto(item.tipo) !== crmTexto(filtros.tipo)) continue;
+        if (filtros.ano && new Date(item._data).getFullYear() !== Number(filtros.ano)) continue;
+        let score = 0, referencia = false, addressScore = query.endereco ? crmEnderecoScore(item.endereco, query.endereco) : 0;
+        if (query.endereco && !addressScore) continue;
+        if (!query.nome) score = addressScore || 1;
+        else if (campo === 'endereco') score = crmEnderecoScore(item.endereco, termo);
+        else if (['cpf', 'telefone', 'numero'].includes(campo)) {
+            const target = campo === 'numero' ? crmTexto(item.numero) : String(item[campo] || '').replace(/\D/g, '');
+            const search = campo === 'numero' ? crmTexto(termo) : digits;
+            if (search && target.includes(search)) score = target === search ? 1000 : 700;
+        } else {
+            score = crmNomeScore(item._nome.principal, query.nome);
+            if (!score && item._nome.referencia) { score = crmNomeScore(item._nome.referencia, query.nome); referencia = score > 0; }
+            if (!score && campo === 'todos' && !query.endereco) {
+                score = crmEnderecoScore(item.endereco, termo);
+                if (digits && /^\d[\d\s().+/-]*$/.test(termo)) {
+                    for (const key of ['numero', 'cpf', 'telefone']) {
+                        const val = String(item[key] || '').replace(/\D/g, ''); if (val.includes(digits)) score = Math.max(score, val === digits ? 1000 : 700);
+                    }
+                }
+            }
+            // Nome seguido de rua sem separador: tenta partições somente se o nome inteiro não casou.
+            if (!score && !query.endereco && ['todos', 'nome'].includes(campo)) {
+                const words = String(termo).trim().split(/\s+/);
+                for (let cut = 1; cut < words.length; cut++) {
+                    const n = crmNomeScore(item._nome.principal, words.slice(0, cut).join(' '));
+                    const e = crmEnderecoScore(item.endereco, words.slice(cut).join(' '));
+                    if (n && e) score = Math.max(score, n + e - 40);
+                }
+            }
+        }
+        if (score) {
+            const { _nome, _endereco, _data, ...publicItem } = item;
+            matches.push({ ...publicItem, score: score + addressScore, referencia, correspondencia: referencia ? 'Referência / substituto' : score >= 850 ? 'Nome correspondente' : 'Nome ou endereço semelhante', _data });
+        }
+    }
+    matches.sort((a, b) => Number(a.referencia) - Number(b.referencia) || Math.floor(b.score/100) - Math.floor(a.score/100) || b._data - a._data || Number(b.linha) - Number(a.linha));
+    return { resultados: matches.map(({ _data, ...item }) => item), total: matches.length, completo: true, campo, limite: matches.length, porStatus: {}, porTipo: {}, porRua: {}, porAno: {} };
+}
+if (typeof module !== 'undefined' && module.exports) module.exports = { crmTexto, crmEndereco, crmNomeScore, crmPessoasCompativeis, crmDataTimestamp, crmPrepararIndice, crmBuscarCartoes, crmConsultaCombinada };
+// === FIM crm-search-core.js ===
+;
+
+// === INICIO crm-search.js ===
+(function (root) {
+    'use strict';
+    let loading, generation = 0, indexBase, indexValue, refreshTimer;
+    root.carregarBaseBuscaLocalCRM = async function (force = false) {
+        if (loading) return loading;
+        loading = (async () => {
+            await root.crmStore.ready;
+            const cached = root.crmStore.peek('baseBuscaLocalCRM');
+            if (!force && cached?.completo && Date.now() - cached.atualizadoEm < 60000) return cached;
+            if (!navigator.onLine || root.crmStore.queue.length) return cached;
+            const backend = await root.crmStore.options.network('statusBackendCRM', {});
+            if (backend?.filaVersao !== 1) return cached;
+            const epoch = root.crmStore.epoch;
+            let start = 2, rows = [], last;
+            for (let page = 0; page < 10000; page++) {
+                const result = await root.crmStore.options.network('baseBuscaCRM', { inicio: start, limite: 400 });
+                if (!result?.success) throw new Error(result?.error || result?.message || 'Não foi possível atualizar a base de busca.');
+                if (last !== undefined && last !== result.ultimaLinha) throw new Error('A base mudou durante a leitura. A atualização será repetida.');
+                last = result.ultimaLinha; rows.push(...result.itens);
+                if (result.completo) break;
+                if (!(result.proximaLinha > start)) throw new Error('Página de busca inválida.');
+                start = result.proximaLinha;
+            }
+            if (root.crmStore.epoch !== epoch || root.crmStore.queue.length) return cached;
+            const value = { itens: rows, completo: true, atualizadoEm: Date.now() };
+            await root.crmStore.setCache('baseBuscaLocalCRM', {}, value, epoch);
+            root.crmStore.emit('base');
+            if (document.getElementById('modal-busca')?.classList.contains('active') && document.getElementById('busca-input')?.value) root.crmExecutarBusca();
+            return value;
+        })();
+        try { return await loading; } catch (err) { console.warn('Base local: ', err.message); return root.crmStore.peek('baseBuscaLocalCRM'); }
+        finally { loading = null; }
+    };
+    root.crmExecutarBusca = async function () {
+        clearTimeout(debounceTimerBusca);
+        const seq = ++generation;
+        if (buscaRequestController) buscaRequestController.abort();
+        const input = document.getElementById('busca-input'), address = document.getElementById('busca-endereco');
+        const termo = input?.value.trim() || '', endereco = address?.value.trim() || '', campo = document.getElementById('busca-tipo')?.value || 'todos';
+        if (!termo && !endereco) { limparBusca(false); return; }
+        if ((termo || endereco).length < minimoCaracteresBusca(campo)) return;
+        const area = document.getElementById('busca-resultados'); area.style.display = 'flex';
+        await root.crmStore.ready;
+        const base = root.crmStore.peek('baseBuscaLocalCRM');
+        let result;
+        try {
+            if (base?.completo) {
+                // Memoize the parsed index by queue revision + snapshot version.
+                const key = `${base.atualizadoEm}:${root.crmStore.epoch}`;
+                if (indexBase !== key) { indexValue = crmPrepararIndice(base.itens); indexBase = key; }
+                result = crmBuscarCartoes(base.itens, termo, { campo, endereco }, indexValue);
+                result.cacheLocal = true;
+            } else {
+                area.innerHTML = '<div class="busca-empty" role="status">Buscando na planilha · preparando próximas buscas neste computador…</div>';
+                const controller = buscaRequestController = new AbortController();
+                result = await fetchFromGS('pesquisarCartoes', { termo, campo, endereco }, controller.signal);
+                if (result?.error || result?.success === false) throw new Error(result.message || result.error);
+            }
+            if (seq !== generation) return;
+            processarResultados(result); root.crmRenderizarBusca();
+        } catch (err) {
+            if (seq !== generation || err.name === 'AbortError') return;
+            area.innerHTML = '<div class="busca-empty">Não foi possível consultar. Confira a conexão e a publicação do Apps Script.</div>';
+        }
+    };
+    root.crmRenderizarBusca = function () {
+        const area = document.getElementById('busca-resultados');
+        if (!area) return;
+        const records = todosResultadosBusca;
+        area.replaceChildren();
+        if (!records.length) { area.innerHTML = '<div class="busca-empty">Nenhum cartão pendente encontrado. Tente abreviar o nome ou acrescentar o endereço.</div>'; return; }
+        const list = document.createDocumentFragment();
+        const max = 200;
+        for (const item of records.slice(0, max)) {
+            const duplicate = item.duplicados?.length || 0;
+            const card = document.createElement('article'); card.className = 'busca-card-v2';
+            const pending = !!item._pendingNew;
+            card.innerHTML = `<div class="busca-position"><small>BLOCO</small><strong>${escapeHtml(item.numero || '—')}</strong><span>${item.posicao ? `${Number(item.posicao)}º de ${Number(item.totalBloco)}` : 'Posição ao abrir'}</span></div>
+                <div class="busca-person"><button type="button" class="busca-person-name">${escapeHtml(item.nome)}</button><p>${escapeHtml(item.endereco || 'Sem endereço')}</p><div class="busca-meta"><span>${escapeHtml(item.data || '')}</span><span>${escapeHtml(item.tipo || 'CARTÃO')}</span>${item.referencia ? '<span>Referência / substituto</span>' : ''}${duplicate ? `<span class="busca-dup">Possível DUP · ${duplicate + 1} cartões</span>` : ''}${pending ? '<span>Aguardando sincronização</span>' : ''}${item.status ? `<span>${escapeHtml(item.status)}</span>` : ''}</div></div>
+                <div class="busca-card-actions"><button type="button" class="busca-recebido" >✓ Recebido</button><button type="button" class="busca-edit" >Editar dados</button></div>`;
+            card.querySelector('.busca-person-name').onclick = () => root.crmAbrirRecebimento(item.linha).catch(err => alert('Não foi possível abrir o recebimento: ' + err.message));
+            card.querySelector('.busca-recebido').onclick = () => root.crmAbrirRecebimento(item.linha).catch(err => alert('Não foi possível abrir o recebimento: ' + err.message));
+            card.querySelector('.busca-edit').onclick = () => abrirEditorBuscaRapido(item.linha);
+            list.appendChild(card);
+        }
+        area.appendChild(list);
+        if (records.length > max) { const note = document.createElement('p'); note.className = 'busca-empty'; note.textContent = `Exibindo os primeiros ${max} de ${records.length}. Acrescente o endereço para localizar mais rápido.`; area.appendChild(note); }
+    };
+    function localRows() { return root.crmStore.peek('baseBuscaLocalCRM')?.itens || [...todosResultadosBusca, ...buscaResultadosAuxiliares.values()]; }
+    root.crmAbrirRecebimento = async function (line) {
+        const selected = obterResultadoBuscaPorLinha(line) || localRows().find(i => Number(i.linha) === Number(line));
+        if (!selected) return;
+        let rows = localRows();
+        if (!root.crmStore.peek('baseBuscaLocalCRM')?.completo) {
+            // Never decide that a card is unique from a truncated search result.
+            const result = await fetchFromGS('pesquisarCartoes', { termo: selected.endereco, campo: 'endereco' });
+            if (!result?.completo) { alert('A busca do endereço está incompleta. Aguarde a preparação da base local antes de registrar o recebimento.'); return; }
+            rows = result.resultados || []; incluirResultadosAuxiliaresBusca(rows);
+        }
+        const duplicateRows = rows.filter(i => crmTexto(i.status) !== 'entregue' && crmEndereco(i.endereco) === crmEndereco(selected.endereco) && (Number(i.linha) === Number(line) || crmPessoasCompativeis(i.nome, selected.nome)));
+        if (!duplicateRows.some(i => Number(i.linha) === Number(line))) duplicateRows.unshift(selected);
+        const area = document.getElementById('busca-editor-area'); area.style.display = 'block'; document.getElementById('busca-resultados').style.display = 'none';
+        if (duplicateRows.length > 1) {
+            area.innerHTML = `<button type="button" class="btn-voltar" onclick="cancelarEdicaoBusca()">← Voltar</button><h4>Confira os possíveis duplicados</h4><p>Compare nome e endereço. Selecione somente os cartões que estão sendo entregues.</p><div id="crm-dup-select"></div><button type="button" class="busca-recebido" id="crm-dup-next">Continuar recebimento</button>`;
+            const list = document.getElementById('crm-dup-select');
+            for (const item of duplicateRows) {
+                const label = document.createElement('label'); label.className = 'busca-dup-option';
+                const check = document.createElement('input'); check.type = 'checkbox'; check.value = item.linha; check.checked = Number(item.linha) === Number(line);
+                const text = document.createElement('span'); text.textContent = `${item.nome} · ${item.endereco} · bloco ${item.numero} · ${item.data}`;
+                label.append(check, text); list.appendChild(label);
+            }
+            document.getElementById('crm-dup-next').onclick = () => {
+                const lines = [...list.querySelectorAll('input:checked')].map(c => Number(c.value));
+                if (!lines.length) { alert('Selecione pelo menos um cartão.'); return; }
+                receiptForm(duplicateRows.filter(i => lines.includes(Number(i.linha))));
+            };
+        } else receiptForm([selected]);
+    };
+    function receiptForm(items) {
+        const area = document.getElementById('busca-editor-area');
+        area.innerHTML = `<button type="button" class="btn-voltar" onclick="cancelarEdicaoBusca()">← Voltar</button><h4>Registrar recebimento</h4><p>${items.map(i => `${escapeHtml(i.nome)} · bloco ${escapeHtml(i.numero)}`).join('<br>')}</p><form id="crm-receipt-form"><div class="editor-grid"><div class="editor-full"><label for="crm-receipt-name">Quem recebeu?</label><input id="crm-receipt-name" required autocomplete="name" placeholder="Nome de quem recebeu"></div><div class="editor-full"><label for="crm-receipt-phone">Telefone (opcional)</label><input id="crm-receipt-phone" type="tel" autocomplete="tel" placeholder="DDD + telefone"></div></div><button type="submit" class="busca-recebido">✓ Confirmar recebimento</button><p class="busca-help">O recebimento será salvo neste computador e sincronizado em segundo plano.</p></form>`;
+        document.getElementById('crm-receipt-name').focus();
+        document.getElementById('crm-receipt-form').onsubmit = async function (e) {
+            e.preventDefault(); const button = this.querySelector('button[type=submit]'); button.disabled = true;
+            const name = document.getElementById('crm-receipt-name').value.trim(), phone = document.getElementById('crm-receipt-phone').value.trim();
+            if (!name) { button.disabled = false; return; }
+            const date = new Date().toLocaleDateString('pt-BR');
+            try {
+                // Each explicitly selected row keeps its own immutable reference and full original fields.
+                // Save all selected commands in one IndexedDB transaction before closing this form.
+                await root.crmStore.enqueueMany(items.map(item => ({ action: 'atualizarCartao', data: { linha: Number(item.linha), dados: { ...Object.fromEntries(CRMData.fields.slice(0, 12).map(k => [k, item[k] ?? ''])), status: 'ENTREGUE', entregueA: name, dataEntrega: date, telefone: phone || item.telefone || '' } } })));
+                buscaCacheMemoria.clear(); cancelarEdicaoBusca(); await root.crmExecutarBusca();
+            } catch (err) { alert('Não foi possível salvar o recebimento: ' + err.message); button.disabled = false; }
+        };
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+        const address = document.getElementById('busca-endereco');
+        address.addEventListener('input', () => { clearTimeout(debounceTimerBusca); debounceTimerBusca = setTimeout(root.crmExecutarBusca, 180); });
+        address.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); root.crmExecutarBusca(); } });
+        root.crmStore.subscribe(event => {
+            if (!['queued', 'synced', 'discarded', 'external', 'base'].includes(event.type)) return;
+            const modal = document.getElementById('modal-busca');
+            if (modal?.classList.contains('active') && document.getElementById('busca-editor-area').style.display === 'none' && (document.getElementById('busca-input').value || address.value)) root.crmExecutarBusca();
+        });
+        refreshTimer = setInterval(() => {
+            if (document.getElementById('dashboard-screen')?.style.display === 'block' && !document.hidden && navigator.onLine) root.carregarBaseBuscaLocalCRM(true);
+        }, 60000);
+    });
+})(window);
+// === FIM crm-search.js ===
+;
+
+// Inicializa os recursos depois de carregar suas definições.
+const crmStore = window.crmStore = new CRMStore({
+    name: 'crm-associacao-' + URL_API_GS.split('/s/')[1].split('/')[0],
+    network: fetchFromGSRemoto,
+    send: (body, signal) => fetch(URL_API_GS, { method: 'POST', mode: 'no-cors', body, signal, credentials: 'omit' }),
+    reduce: CRMData.reduce,
+    local: CRMData.local,
+    targets: CRMData.targets
+});
+crmStore.ready.catch(error => console.error(error));
