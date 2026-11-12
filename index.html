@@ -9,13 +9,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js"></script>
 
-    <link rel="stylesheet" href="styles.css?v=20261110-mobile">
+    <link rel="stylesheet" href="styles.css?v=20261112-quatro-arquivos">
 </head>
 <body>
 
@@ -133,7 +128,7 @@
             <div class="busca-header">
                 <div>
                     <h2 class="busca-titulo">🔍 Busca Inteligente</h2>
-                    <p class="busca-subtitulo">Somente cartões <strong>pendentes</strong> são exibidos. Resultados ordenados por relevância.</p>
+                    <p class="busca-subtitulo">Somente cartões <strong>pendentes</strong> são exibidos. Nomes correspondentes primeiro, mais recentes dentro de cada grupo; referências e substitutos depois.</p>
                 </div>
                 <div class="contador" id="busca-contador" style="background:#196E3A; color:#fff; padding:6px 18px; border-radius:30px; font-weight:700; font-size:14px;">⏳ ...</div>
             </div>
@@ -149,9 +144,10 @@
                 </select>
                 <div class="busca-divider"></div>
                 <i class="fas fa-search" style="color:#94a3b8; font-size:18px; margin-left:4px;"></i>
-                <input id="busca-input" type="text" placeholder="Digite nome, rua, número, CPF, telefone..." autocomplete="off">
+                <input id="busca-input" type="text" aria-label="Nome, número, CPF ou telefone" placeholder="Nome ou nome + rua. Ex.: Maria Rua São José 25" autocomplete="off">
                 <button id="busca-btnSearch" type="button">🔎 Buscar</button>
             </div>
+            <div class="busca-address-field"><label for="busca-endereco">Cruzar com endereço <span>(opcional)</span></label><input id="busca-endereco" placeholder="Rua e número. Ex.: S José 25" autocomplete="off"><p class="busca-help">Digite nome e endereço nos campos ou juntos: Maria ; S José 25. Abreviações são aceitas. Possíveis duplicados precisam ser conferidos.</p></div>
             <div id="busca-resultados" class="busca-resultados">
                 <div style="text-align:center; padding:40px; color:#999; font-size:16px;">Digite algo para iniciar a busca.</div>
             </div>
@@ -402,6 +398,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=20261110-mobile"></script>
+    <script src="script.js?v=20261112-quatro-arquivos"></script>
 </body>
 </html>
