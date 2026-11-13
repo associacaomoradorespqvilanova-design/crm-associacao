@@ -978,5 +978,104 @@ body.cartoes-modal-open {
 #crm-sync-status{font-weight:700}#crm-sync-status[data-state=pending]{background:#fff4d8;color:#835606}#crm-sync-status[data-state=error]{background:#fff0ec;color:#a82b19}
 #crm-sync-detail{font-size:12px;color:#53614f;flex:1}#crm-sync-refresh{font-size:12px}.crm-sync-dialog{border:1px solid #d9e4d5;border-radius:18px;width:min(650px,92vw);max-height:85dvh;box-sizing:border-box;padding:24px;color:#253b29}.crm-sync-dialog::backdrop{background:#15201699}.crm-sync-title{display:flex;align-items:center;justify-content:space-between}.crm-sync-title h2{margin:0}.crm-sync-dialog p{line-height:1.5}.crm-sync-dialog small{display:block;color:#66735f;margin-top:5px}.crm-sync-item{border:1px solid #e2e8df;border-radius:10px;padding:12px;margin:10px 0}.crm-sync-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}#crm-sync-items{max-height:45vh;overflow:auto}.crm-sync-dialog button:focus-visible,.crm-sync-bar button:focus-visible{outline:3px solid #86ba6e;outline-offset:2px}@media print{.crm-sync-bar,.crm-sync-dialog{display:none!important}}
 
-/* Busca por nome + endereço, posição visível e recebimento direto */
-.busca-address-field{margin:4px 0 14px}.busca-address-field label{display:block;font-size:13px;font-weight:700;color:#31513b;margin:7px 0}.busca-address-field label span{font-weight:400;color:#6b786e}.busca-address-field input{box-sizing:border-box;width:100%;border:1px solid #d3dfd4;border-radius:10px;padding:11px 13px;font:inherit;font-size:14px}.busca-help{color:#64726b;font-size:12px;line-height:1.5;margin:7px 0}.busca-empty{padding:30px;text-align:center;color:#64736a;line-height:1.5}.busca-card-v2{display:grid;grid-template-columns:100px minmax(0,1fr) 145px;gap:16px;align-items:center;border:1px solid #dce6da;border-radius:13px;background:white;padding:14px;margin:3px 0}.busca-position{display:flex;flex-direction:column;align-items:center;gap:4px;border-right:1px solid #e4ebe1;padding-right:12px}.busca-position small{font-size:10px;letter-spacing:1px;color:#698064}.busca-position strong{font-size:25px;color:#24552e;overflow-wrap:anywhere;max-width:100%}.busca-position span{font-size:13px;font-weight:800;background:#eaf4df;border-radius:6px;padding:5px;color:#3a5a19}.busca-person{min-width:0}.busca-person-name{font:inherit;font-size:15px;font-weight:800;color:#203f2b;border:0;background:none;text-align:left;padding:0;cursor:pointer;overflow-wrap:anywhere}.busca-person p{margin:5px 0;font-size:13px;color:#4a5b50;overflow-wrap:anywhere}.busca-meta{display:flex;gap:6px;flex-wrap:wrap}.busca-meta span{font-size:10px;border-radius:5px;padding:3px 6px;background:#f0f4ef;color:#52634d}.busca-meta .busca-dup{background:#fff0cd;color:#8b5200;font-weight:700}.busca-card-actions{display:flex;flex-direction:column;gap:7px}.busca-recebido{font:inherit;font-weight:700;border:0;border-radius:10px;background:#1c703e;color:white;padding:13px 16px;cursor:pointer;min-height:46px}.busca-recebido:disabled{opacity:.5;cursor:wait}.busca-recebido:focus-visible,.busca-person-name:focus-visible,.busca-edit:focus-visible{outline:3px solid #8dbb70;outline-offset:2px}.busca-edit{font:inherit;font-size:12px;border:1px solid #d8e1d3;background:#fff;color:#547047;border-radius:8px;padding:7px;cursor:pointer}.busca-dup-option{display:flex!important;align-items:center;gap:12px;padding:13px;background:#f6f9f3;border:1px solid #dbe6d7;border-radius:10px;margin:8px 0!important;font-size:13px!important;text-transform:none!important}.busca-dup-option input{width:22px!important;height:22px;flex:none}.busca-resultados{max-height:55dvh}.posicao-badge{font-size:15px;font-weight:800}@media(max-width:600px){.busca-card-v2{grid-template-columns:76px minmax(0,1fr);gap:11px;padding:11px}.busca-card-actions{grid-column:1/-1;flex-direction:row}.busca-card-actions button{flex:1}.busca-position{padding-right:8px}.busca-position strong{font-size:22px}.busca-position span{font-size:11px}.busca-modal-container{padding:18px!important}.busca-titulo{font-size:22px}.busca-resultados{max-height:52dvh}.busca-subtitulo{max-width:92%}}
+/* Busca compacta: cabeçalho fixo e somente a lista tem rolagem. */
+#modal-busca .busca-modal-container {
+    box-sizing: border-box;
+    width: calc(100vw - 24px) !important;
+    max-width: 1280px !important;
+    height: calc(100dvh - 20px);
+    max-height: 900px;
+    min-height: 0;
+    margin: auto;
+    padding: 14px 18px;
+    border-radius: 18px;
+    background: #f5f8f3;
+    overflow: hidden;
+    gap: 0;
+}
+#modal-busca .busca-header { flex: 0 0 auto; flex-wrap: nowrap; gap: 12px; margin: 0 0 10px; }
+#modal-busca .busca-titulo { flex: 1; min-width: 0; font-size: 21px; line-height: 1.3; gap: 8px; }
+#modal-busca .busca-count { flex-shrink: 0; background: #196e3a; color: #fff; padding: 6px 10px; border-radius: 7px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+#modal-busca .busca-close { flex-shrink: 0; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: #e6eee3; color: #3d5944; font: inherit; font-size: 23px; cursor: pointer; }
+#modal-busca .busca-controls { flex: 0 0 auto; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 104px; align-items: center; gap: 8px; }
+#modal-busca .busca-bar { min-width: 0; flex-wrap: nowrap; border: 1px solid #cddbcc; border-radius: 9px; padding: 0; margin: 0; height: 40px; box-sizing: border-box; box-shadow: none; }
+#modal-busca .busca-tipo-select { width: 118px; max-width: 118px; padding: 8px 10px; margin: 0; border: 0; border-right: 1px solid #dde7d9; border-radius: 8px 0 0 8px; background: #fff; height: 100%; font-size: 12px; }
+#modal-busca #busca-input { min-width: 0; width: 0; height: 100%; box-sizing: border-box; margin: 0; padding: 8px 11px; border: 0; border-radius: 0 8px 8px 0; background: #fff; font-size: 14px; }
+#modal-busca .busca-address-field { min-width: 0; margin: 0; }
+#modal-busca #busca-endereco { display: block; width: 100%; box-sizing: border-box; height: 40px; margin: 0; padding: 8px 11px; border: 1px solid #cddbcc; border-radius: 9px; background: #fff; font: inherit; font-size: 13px; color: #263f2d; }
+#modal-busca .busca-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+#modal-busca #busca-btnSearch { width: 100%; min-width: 0; height: 40px; margin: 0; padding: 8px 12px; border-radius: 9px; font-size: 13px; }
+#modal-busca .busca-assist { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 25px; margin: 3px 0 5px; color: #637460; font-size: 11px; line-height: 1.4; }
+#modal-busca .busca-tips { position: relative; flex-shrink: 0; z-index: 3; }
+#modal-busca .busca-tips summary { cursor: pointer; color: #356644; font-weight: 600; }
+#modal-busca .busca-tips p { position: absolute; right: 0; top: 13px; width: min(360px, 78vw); box-sizing: border-box; padding: 14px; margin: 8px 0; border: 1px solid #d0dec9; border-radius: 10px; background: #fff; box-shadow: 0 8px 24px #1c3b2520; color: #475e4c; line-height: 1.6; font-size: 12px; }
+#modal-busca .busca-columns, #modal-busca .busca-card-v2 { display: grid; grid-template-columns: 128px minmax(0, 1fr) 118px 156px; column-gap: 10px; }
+#modal-busca .busca-columns { flex: 0 0 auto; padding: 5px 11px; margin-right: 10px; color: #71816b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+#modal-busca #busca-resultados { flex: 1 1 0; min-height: 0; max-height: none; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 0 4px 0 0; gap: 5px; }
+#modal-busca .busca-card-v2 { flex: 0 0 auto; align-items: center; min-height: 58px; box-sizing: border-box; margin: 0; padding: 8px 10px; border: 1px solid #dce5d6; border-radius: 9px; background: #fff; }
+#modal-busca .busca-card-v2:hover { background: #fbfdf9; border-color: #a9c39c; }
+#modal-busca .busca-position { display: grid; grid-template-columns: 43px minmax(0, 1fr); grid-template-rows: 11px 24px; gap: 1px 6px; align-items: center; padding-right: 9px; border-right: 1px solid #e1e9dc; min-width: 0; }
+#modal-busca .busca-position small { grid-column: 1; grid-row: 1; font-size: 8px; letter-spacing: .5px; color: #6d8563; }
+#modal-busca .busca-position strong { grid-column: 1; grid-row: 2; font-size: 21px; line-height: 1; font-weight: 800; color: #24552e; overflow-wrap: anywhere; }
+#modal-busca .busca-position > span { grid-column: 2; grid-row: 1 / 3; padding: 5px 4px; border-radius: 5px; background: #eaf3df; color: #3c5c22; font-size: 12px; font-weight: 800; line-height: 1.3; text-align: center; }
+#modal-busca .busca-person { min-width: 0; }
+#modal-busca .busca-name-line { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 7px; }
+#modal-busca .busca-person-name { max-width: 100%; padding: 0; border: 0; background: transparent; text-align: left; font: inherit; font-size: 13px; font-weight: 800; line-height: 1.4; color: #203f2b; overflow-wrap: anywhere; cursor: pointer; }
+#modal-busca .busca-person p { margin: 2px 0 0; color: #60705f; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+#modal-busca .busca-dup { flex: 0 0 auto; background: #fff0cb; color: #8b560a; border: 1px solid #eedba9; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 800; }
+#modal-busca .busca-meta { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; color: #6d7c65; font-size: 10px; line-height: 1.3; overflow-wrap: anywhere; }
+#modal-busca .busca-meta span:first-child { font-size: 11px; color: #4c624c; font-weight: 600; }
+#modal-busca .busca-flags { display: flex; flex-wrap: wrap; gap: 4px 7px; margin-top: 2px; color: #926726; font-size: 10px; line-height: 1.3; }
+#modal-busca .busca-card-actions { display: flex; align-items: center; justify-content: flex-end; gap: 5px; }
+#modal-busca .busca-recebido { flex: 1; border: 0; border-radius: 7px; background: #1c703e; color: #fff; padding: 8px 9px; min-height: 34px; font: inherit; font-weight: 700; font-size: 12px; line-height: 1.3; white-space: nowrap; cursor: pointer; }
+#modal-busca .busca-edit { border: 1px solid #d4dfcd; background: #fff; border-radius: 7px; padding: 8px; min-height: 34px; font: inherit; font-size: 11px; line-height: 1.3; color: #547047; cursor: pointer; }
+#modal-busca .busca-recebido:disabled { opacity: .5; cursor: wait; }
+#modal-busca button:focus-visible, #modal-busca summary:focus-visible { outline: 3px solid #8dbb70; outline-offset: 2px; }
+#modal-busca .busca-empty { padding: 25px 15px; text-align: center; font-size: 13px; line-height: 1.5; color: #64736a; }
+#modal-busca .busca-help { font-size: 12px; line-height: 1.5; color: #637460; }
+#modal-busca #busca-editor-area { flex: 1 1 0; min-height: 0; max-height: none; margin: 0 !important; padding: 14px !important; box-shadow: none; border-radius: 10px; }
+#modal-busca .busca-modal-container:has(#busca-resultados[style*="display: none"]) .busca-columns { display: none; }
+#modal-busca .busca-dup-option { display: flex; align-items: center; gap: 10px; padding: 11px; background: #f6f9f3; border: 1px solid #dbe6d7; border-radius: 8px; margin: 7px 0; font-size: 13px; text-transform: none; }
+#modal-busca .busca-dup-option input { width: 22px; height: 22px; flex-shrink: 0; margin: 0; }
+@media (max-width: 800px) {
+    #modal-busca .busca-columns, #modal-busca .busca-card-v2 { grid-template-columns: 114px minmax(0, 1fr) 98px 142px; column-gap: 8px; }
+    #modal-busca .busca-position { grid-template-columns: 36px minmax(0, 1fr); padding-right: 7px; gap: 1px 4px; }
+    #modal-busca .busca-position > span { font-size: 11px; }
+    #modal-busca .busca-controls { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 94px; }
+    #modal-busca .busca-tipo-select { width: 94px; max-width: 94px; }
+}
+@media (max-width: 650px) {
+    #modal-busca .busca-modal-container { width: calc(100vw - 12px) !important; height: calc(100dvh - 12px); padding: 11px 10px; border-radius: 13px; }
+    #modal-busca .busca-header { gap: 7px; margin-bottom: 8px; }
+    #modal-busca .busca-titulo { font-size: 17px; }
+    #modal-busca .busca-count { padding: 5px 7px; font-size: 10px; }
+    #modal-busca .busca-close { width: 30px; height: 30px; font-size: 22px; }
+    #modal-busca .busca-controls { grid-template-columns: minmax(0, 1fr) 94px; gap: 6px; }
+    #modal-busca .busca-bar { grid-column: 1 / -1; }
+    #modal-busca .busca-tipo-select { width: 108px; max-width: 108px; }
+    #modal-busca .busca-assist { font-size: 10px; gap: 6px; min-height: 26px; }
+    #modal-busca .busca-assist > span { max-width: 75%; }
+    #modal-busca .busca-columns { display: none; }
+    #modal-busca .busca-card-v2 { grid-template-columns: 63px minmax(0, 1fr) 88px; gap: 4px 8px; padding: 8px; }
+    #modal-busca .busca-position { grid-column: 1; grid-row: 1 / 3; display: flex; flex-direction: column; align-items: center; gap: 2px; padding-right: 7px; }
+    #modal-busca .busca-position strong { font-size: 20px; }
+    #modal-busca .busca-position > span { width: 100%; box-sizing: border-box; padding: 3px; font-size: 11px; }
+    #modal-busca .busca-person { grid-column: 2; grid-row: 1; }
+    #modal-busca .busca-person-name { font-size: 12px; }
+    #modal-busca .busca-person p { font-size: 11px; }
+    #modal-busca .busca-meta { grid-column: 2; grid-row: 2; flex-direction: row; align-items: center; flex-wrap: wrap; gap: 2px 7px; font-size: 9px; }
+    #modal-busca .busca-meta span:first-child { font-size: 10px; }
+    #modal-busca .busca-card-actions { grid-column: 3; grid-row: 1 / 3; flex-direction: column; align-items: stretch; gap: 4px; }
+    #modal-busca .busca-card-actions .busca-recebido { font-size: 11px; padding: 9px 5px; }
+    #modal-busca .busca-card-actions .busca-edit { min-height: 29px; padding: 5px; }
+}
+@media (pointer: coarse) {
+    #modal-busca .busca-recebido { min-height: 44px; }
+    #modal-busca .busca-close { min-width: 40px; min-height: 40px; }
+}
+@media (max-height: 480px) and (min-width: 651px) {
+    #modal-busca .busca-modal-container { padding: 8px 12px; }
+    #modal-busca .busca-header { margin-bottom: 5px; }
+    #modal-busca .busca-titulo { font-size: 18px; }
+    #modal-busca .busca-assist { min-height: 20px; margin: 1px 0; }
+}
