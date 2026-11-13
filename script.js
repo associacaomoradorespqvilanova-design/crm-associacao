@@ -1,8 +1,8 @@
 // ============================================================
 // CONFIGURA\u00C7\u00C3O DA API
 // ============================================================
-const URL_API_GS = "https://script.google.com/macros/s/AKfycbwv2jY88cRIyUWwNk9koNq4tJlKswmMz572uM7pa1gPKScnqPgGeCNW6_3WBh-f365q1g/exec";
-const CRM_BACKEND_VERSAO = '20261112-fila-1';
+const URL_API_GS = "https://script.google.com/macros/s/AKfycbx4XO5lYbbKl58eQyZi7WqbfXaFmrLeU5UtyS_5asA4VxBHBL7YstIESrFynQ-hcUQHJQ/exec";
+const CRM_BACKEND_VERSAO = '20261113-impressao-2';
 
 // ============================================================
 // GET VIA JSONP
@@ -3182,7 +3182,53 @@ function formatarCPFPrint(i){ i.value=i.value.replace(/\D/g,'').replace(/(\d{3})
 function formatarRGPrint(i){ i.value=i.value.replace(/\D/g,'').replace(/(\d{1,2})(\d{3})(\d{3})(\d{1})$/,'$1.$2.$3-$4'); }
 function autoBuscarCEP(el){ const cep=el.value.replace(/\D/g,''); if(cep.length===8) buscarCEPPrint(); }
 function autoBuscarCPF(el){ const cpf=el.value.replace(/\D/g,''); if(cpf.length===11){ if(state.lastSearchedCPF!==cpf){state.lastSearchedCPF=cpf;buscarCPFPrint();} }else{state.lastSearchedCPF='';} }
-async function abrirComprovantePrint(tipo){ state.tipoComprovanteAtual=tipo; const menu=document.getElementById('menu-comprovante'); if(menu) menu.style.display='none'; const bgImage=tipo==='assinatura'?"https://i.imgur.com/lFhk0Hq.png":"https://i.imgur.com/l47wlMJ.png"; const comprovanteBg=document.getElementById('comprovante-bg'); if(comprovanteBg) comprovanteBg.style.backgroundImage=`url('${bgImage}')`; const modal=document.getElementById('modal-comprovante-print'); if(modal) modal.style.display='flex'; const idsLimpar=['print-nome','print-endereco','print-numero_endereco','print-complemento','print-cep','print-bairro','print-uf','print-nacionalidade','print-estado_civil','print-cpf','print-rg']; idsLimpar.forEach(id=>{const el=document.getElementById(id); if(el) el.value='';}); const emissor=document.getElementById('print-emissor'); if(emissor) emissor.value='DETRAN/RJ'; const proprias=['print-propria','print-alugada','print-emprestada']; proprias.forEach(id=>{const chk=document.getElementById(id); if(chk) chk.checked=false;}); const m=["JANEIRO","FEVEREIRO","MAR\u00C7O","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"]; const h=new Date(); const printData=document.getElementById("print-data"); if(printData) printData.value=`${String(h.getDate()).padStart(2,'0')} DE ${m[h.getMonth()]}`; const printAno=document.getElementById("print-ano"); if(printAno) printAno.value=h.getFullYear(); try{ const dados=await fetchFromGS('getNumero'); const numeroEl=document.getElementById('print-numero'); if(numeroEl) numeroEl.value=dados.numero||'0000001'; }catch(e){console.error(e);alert("Erro ao buscar o n\u00FAmero da declara\u00E7\u00E3o."); const numeroEl=document.getElementById('print-numero'); if(numeroEl) numeroEl.value='0000001'; } }
+const CAMPOS_DECLARACAO_CRM = ['print-numero', 'print-data', 'print-ano', 'print-nome', 'print-endereco', 'print-numero_endereco', 'print-complemento', 'print-cep', 'print-bairro', 'print-uf', 'print-nacionalidade', 'print-estado_civil', 'print-cpf', 'print-rg', 'print-emissor'];
+function preencherDeclaracaoRecuperadaCRM(dados) {
+    CAMPOS_DECLARACAO_CRM.forEach((id, i) => { const input = document.getElementById(id); if (input) input.value = String(dados[i] ?? ''); });
+    ['print-propria', 'print-alugada', 'print-emprestada'].forEach((id, i) => { document.getElementById(id).checked = Boolean(dados[i + 15]); });
+}
+async function recuperarDeclaracaoPendenteCRM() {
+    await crmStore.ready;
+    // A recuperação não repete gravações de resultado incerto: só o erro antigo de numeração.
+    await crmStore.recoverDeclarationNumbers();
+    const drafts = (await crmStore.getAll('meta')).filter(item => item.key.startsWith('declaracao:rascunho:') && Array.isArray(item.data));
+    for (const op of crmStore.queue.filter(item => item.action === 'salvarDeclaracao')) {
+        const key = 'declaracao:rascunho:' + op.id;
+        if (!drafts.some(item => item.key === key)) drafts.push({ key, data: op.data, at: op.at });
+    }
+    drafts.sort((a, b) => a.at - b.at);
+    if (!drafts.length || document.getElementById('print-nome').value.trim()) return false;
+    const draft = drafts[0];
+    preencherDeclaracaoRecuperadaCRM(draft.data);
+    state.declaracaoRecuperadaId = draft.key;
+    return true;
+}
+async function abrirComprovantePrint(tipo) {
+    const sequence = state.declaracaoFormSeq = (state.declaracaoFormSeq || 0) + 1;
+    state.tipoComprovanteAtual = tipo;
+    state.declaracaoRecuperadaId = null;
+    const menu = document.getElementById('menu-comprovante'); if (menu) menu.style.display = 'none';
+    document.getElementById('comprovante-bg').style.backgroundImage = `url('${tipo === 'assinatura' ? 'https://i.imgur.com/lFhk0Hq.png' : 'https://i.imgur.com/l47wlMJ.png'}')`;
+    document.getElementById('modal-comprovante-print').style.display = 'flex';
+    CAMPOS_DECLARACAO_CRM.forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('print-emissor').value = 'DETRAN/RJ';
+    ['print-propria', 'print-alugada', 'print-emprestada'].forEach(id => { document.getElementById(id).checked = false; });
+    const months = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+    const today = new Date();
+    document.getElementById('print-data').value = `${String(today.getDate()).padStart(2, '0')} DE ${months[today.getMonth()]}`;
+    document.getElementById('print-ano').value = today.getFullYear();
+    try {
+        if (await recuperarDeclaracaoPendenteCRM()) return;
+        const response = await fetchFromGS('getNumero');
+        if (sequence !== state.declaracaoFormSeq) return;
+        if (!/^\d{1,7}$/.test(String(response?.numero || ''))) throw new Error(response?.error || 'Numeração indisponível.');
+        document.getElementById('print-numero').value = String(response.numero).padStart(7, '0');
+    } catch (error) {
+        // Nunca usar 0000001 como substituto para uma falha de comunicação.
+        // O salvamento tentará obter o número correto novamente, sob o lock do servidor.
+        console.warn('Numeração da declaração: ' + error.message);
+    }
+}
 async function buscarCEPPrint(){ const cep=document.getElementById('print-cep').value.replace(/\D/g,''); if(cep.length!==8){alert("CEP inv\u00E1lido");return;} try{ const resp=await fetch(`https://viacep.com.br/ws/${cep}/json/`); const dados=await resp.json(); if(dados.erro){alert("CEP n\u00E3o encontrado na API dos Correios");return;} const enderecoEl=document.getElementById('print-endereco'); if(enderecoEl) enderecoEl.value=(dados.logradouro||'').toUpperCase(); const bairro=(dados.bairro||'').toUpperCase(); const cidade=(dados.localidade||'').toUpperCase(); const bairroEl=document.getElementById('print-bairro'); if(bairroEl) bairroEl.value=bairro+'/'+cidade; const ufEl=document.getElementById('print-uf'); if(ufEl) ufEl.value=(dados.uf||'').toUpperCase(); }catch(e){console.error(e);alert("Erro de conex\u00E3o ao buscar o CEP.");} }
 async function buscarCPFPrint(){ const cpf=document.getElementById('print-cpf').value.replace(/\D/g,''); if(cpf.length!==11){alert("CPF inv\u00E1lido");return;} try{ const r=await fetchFromGS('buscarCPF',{cpf}); if(r.erro){alert("ERRO DO APPS SCRIPT: "+r.erro);return;} if(!r.encontrado){alert("CPF N\u00C3O LOCALIZADO na planilha.");return;} const d=r.dados; const nomeEl=document.getElementById('print-nome'); if(nomeEl) nomeEl.value=d.nome||''; const enderecoEl=document.getElementById('print-endereco'); if(enderecoEl) enderecoEl.value=d.endereco||''; const numEndEl=document.getElementById('print-numero_endereco'); if(numEndEl) numEndEl.value=d.numero_endereco||''; const complEl=document.getElementById('print-complemento'); if(complEl) complEl.value=d.complemento||''; const cepEl=document.getElementById('print-cep'); if(cepEl) cepEl.value=d.cep||''; const bairroEl=document.getElementById('print-bairro'); if(bairroEl) bairroEl.value=d.bairro||''; const ufEl=document.getElementById('print-uf'); if(ufEl) ufEl.value=d.uf||''; const nacEl=document.getElementById('print-nacionalidade'); if(nacEl) nacEl.value=d.nacionalidade||''; const civilEl=document.getElementById('print-estado_civil'); if(civilEl) civilEl.value=d.estado_civil||''; const cpfEl=document.getElementById('print-cpf'); if(cpfEl) cpfEl.value=d.cpf||''; const rgEl=document.getElementById('print-rg'); if(rgEl) rgEl.value=d.rg||''; const emissorEl=document.getElementById('print-emissor'); if(emissorEl) emissorEl.value=d.emissor||''; const propEl=document.getElementById('print-propria'); if(propEl) propEl.checked=d.propria||false; const alugEl=document.getElementById('print-alugada'); if(alugEl) alugEl.checked=d.alugada||false; const empEl=document.getElementById('print-emprestada'); if(empEl) empEl.checked=d.emprestada||false; }catch(e){console.error(e);alert("Erro de comunica\u00E7\u00E3o: "+e.message);} }
 function detectarGeneroENacionalidadeComprovante(){ const nomeInput=document.getElementById('print-nome'); const nome=nomeInput.value.trim().toUpperCase(); if(nome.length<2)return; const primeiroNome=nome.split(' ')[0].toLowerCase(); let genero='MASCULINO'; const excecoesMasculinas=['joaquim','luca','noa','nicola']; if(excecoesMasculinas.includes(primeiroNome))genero='MASCULINO'; else if(['mar','luz','flor','marjorie','alice','constance'].includes(primeiroNome))genero='FEMININO'; else if(primeiroNome.endsWith('a')||primeiroNome.endsWith('e')||primeiroNome.endsWith('i')||primeiroNome.endsWith('ad')||primeiroNome.endsWith('ra')||primeiroNome.endsWith('na')||primeiroNome.endsWith('la')||primeiroNome.endsWith('da')||primeiroNome.endsWith('ia'))genero='FEMININO'; else genero='MASCULINO'; if(genero==='FEMININO'){ const nacEl=document.getElementById('print-nacionalidade'); if(nacEl) nacEl.value='BRASILEIRA'; const civilEl=document.getElementById('print-estado_civil'); if(civilEl) civilEl.value='SOLTEIRA'; }else{ const nacEl=document.getElementById('print-nacionalidade'); if(nacEl) nacEl.value='BRASILEIRO'; const civilEl=document.getElementById('print-estado_civil'); if(civilEl) civilEl.value='SOLTEIRO'; } }
@@ -3440,9 +3486,78 @@ function gerarHTMLImpressaoCRM(v, tipo = state.tipoComprovanteAtual) {
 
     return `<!DOCTYPE html><html><head><style>body{margin:0;padding:0;font-family:Arial,sans-serif;}.popup{position:relative;width:794px;height:1123px;background-color:white;overflow:hidden;margin:0 auto;}.popup-content{position:relative;width:100%;height:100%;}.popup-content img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;z-index:0;}.input-field{position:absolute;font-size:13px;padding:2px 4px;z-index:1;font-weight:bold;background:transparent;border:none;outline:none;color:black;text-transform:uppercase;}.input-field[type="checkbox"]{width:16px;height:16px;accent-color:black;}@media print{body{margin:0!important;padding:0!important;}}</style></head><body><div class="popup"><div class="popup-content"><img src="${bgImage}" alt="Declaração de residência"><input class="input-field" style="top:386px;left:230px;width:80px" value="${v.numero}" readonly><input class="input-field" style="top:386px;left:390px;width:130px" value="${v.data}" readonly><input class="input-field" style="top:386px;left:580px;width:80px" value="${v.ano}" readonly><input class="input-field" style="top:437px;left:167px;width:500px;font-size:18px" value="${v.nome}" readonly><input class="input-field" style="top:508px;left:216px;width:350px" value="${v.endereco}" readonly><input class="input-field" style="top:508px;left:629px;width:90px" value="${v.numero_endereco}" readonly><input class="input-field" style="top:568px;left:240px;width:210px" value="${v.complemento}" readonly><input class="input-field" style="top:568px;left:530px;width:150px" value="${v.cep}" readonly><input class="input-field" style="top:633px;left:165px;width:350px" value="${v.bairro}" readonly><input class="input-field" style="top:633px;left:630px;width:80px" value="${v.uf}" readonly><input class="input-field" style="top:695px;left:247px;width:150px" value="${v.nacionalidade}" readonly><input class="input-field" style="top:695px;left:555px;width:150px" value="${v.estado_civil}" readonly><input class="input-field" style="top:758px;left:135px;width:188px" value="${v.cpf}" readonly><input class="input-field" style="top:758px;left:395px;width:100px" value="${v.rg}" readonly><input class="input-field" style="top:758px;left:625px;width:120px" value="${v.emissor}" readonly><input type="checkbox" class="input-field" style="top:844px;left:249px" ${v.propria?'checked':''} readonly><input type="checkbox" class="input-field" style="top:844px;left:425px" ${v.alugada?'checked':''} readonly><input type="checkbox" class="input-field" style="top:844px;left:652px" ${v.emprestada?'checked':''} readonly></div></div></body></html>`;
 }
-async function salvarDadosComprovante(){ const dados=[document.getElementById('print-numero').value,document.getElementById('print-data').value,document.getElementById('print-ano').value,document.getElementById('print-nome').value.toUpperCase(),document.getElementById('print-endereco').value.toUpperCase(),document.getElementById('print-numero_endereco').value.toUpperCase(),document.getElementById('print-complemento').value.toUpperCase(),document.getElementById('print-cep').value,document.getElementById('print-bairro').value.toUpperCase(),document.getElementById('print-uf').value.toUpperCase(),document.getElementById('print-nacionalidade').value.toUpperCase(),document.getElementById('print-estado_civil').value.toUpperCase(),document.getElementById('print-cpf').value,document.getElementById('print-rg').value,document.getElementById('print-emissor').value.toUpperCase(),document.getElementById('print-propria').checked?"Casa Pr\u00F3pria":"",document.getElementById('print-alugada').checked?"Alugada":"",document.getElementById('print-emprestada').checked?"Emprestada":""]; await postParaGoogleSheets('salvarDeclaracao',dados); }
-async function salvarApenas(){ const btn=document.querySelector('#modal-comprovante-print .btn-save'); if(!btn)return; btn.innerText='Salvando...'; btn.disabled=true; try{ await salvarDadosComprovante(); alert("Dados salvos neste computador. Sincronização em segundo plano."); fecharComprovantePrint(); }catch(e){alert("Erro ao salvar: "+e.message);}finally{btn.innerText='\uD83D\uDCBE Salvar';btn.disabled=false;} }
-async function salvarEImprimir(){ const btn=document.querySelector('#modal-comprovante-print .btn-print'); if(!btn)return; btn.innerText='Salvando...'; btn.disabled=true; try{ await salvarDadosComprovante(); const v=obterValoresComprovante(); let htmlPrint=gerarHTMLImpressaoCRM(v, state.tipoComprovanteAtual); htmlPrint=htmlPrint.replace('</body>',`<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},800);});<\/script></body>`); const win=window.open('','_blank'); if(win){win.document.write(htmlPrint);win.document.close();win.focus();}else{alert("Pop-up bloqueado! Permita pop-ups.");} fecharComprovantePrint(); }catch(e){alert("Erro ao salvar e imprimir: "+e.message);}finally{btn.innerText='\uD83D\uDDA8\uFE0F Imprimir';btn.disabled=false;} }
+function dadosDeclaracaoCRM(valores) {
+    return [valores.numero, valores.data, valores.ano, valores.nome, valores.endereco, valores.numero_endereco,
+        valores.complemento, valores.cep, valores.bairro, valores.uf, valores.nacionalidade, valores.estado_civil,
+        valores.cpf, valores.rg, valores.emissor, valores.propria ? 'Casa Própria' : '', valores.alugada ? 'Alugada' : '', valores.emprestada ? 'Emprestada' : ''];
+}
+async function salvarDadosComprovante(valores = obterValoresComprovante(), sequence = state.declaracaoFormSeq) {
+    if (!String(valores.nome || '').trim()) throw new Error('Preencha o nome antes de salvar.');
+    const resultado = await postParaGoogleSheets('salvarDeclaracao', dadosDeclaracaoCRM(valores));
+    if (!resultado?.confirmado || !/^\d{1,7}$/.test(String(resultado.numero || ''))) {
+        throw new Error('A numeração não foi confirmada. Publique a versão corrigida do Apps Script e tente novamente.');
+    }
+    resultado.numero = String(resultado.numero).padStart(7, '0');
+    if (sequence === state.declaracaoFormSeq) document.getElementById('print-numero').value = resultado.numero;
+    return resultado;
+}
+async function concluirRascunhoDeclaracaoCRM(resultado, recoveredKey = state.declaracaoRecuperadaId) {
+    const keys = [recoveredKey, resultado?.operacaoId ? 'declaracao:rascunho:' + resultado.operacaoId : null].filter(Boolean);
+    try {
+        await crmStore.transaction(['meta'], tx => keys.forEach(key => tx.objectStore('meta').delete(key)));
+        if (state.declaracaoRecuperadaId === recoveredKey) state.declaracaoRecuperadaId = null;
+    } catch (error) {
+        // O documento já foi confirmado. Uma falha ao limpar o rascunho não cancela a impressão.
+        console.warn('O rascunho foi mantido neste navegador: ' + error.message);
+    }
+}
+
+function ocuparBotoesDeclaracaoCRM(ocupado) {
+    state.declaracaoSalvando = ocupado;
+    document.querySelectorAll('#modal-comprovante-print .btn-save, #modal-comprovante-print .btn-print').forEach(button => { button.disabled = ocupado; });
+}
+async function salvarApenas() {
+    if (state.declaracaoSalvando) return;
+    const sequence = state.declaracaoFormSeq, recoveredKey = state.declaracaoRecuperadaId;
+    ocuparBotoesDeclaracaoCRM(true);
+    const button = document.querySelector('#modal-comprovante-print .btn-save');
+    const original = button.textContent; button.textContent = 'Confirmando…';
+    try {
+        const resultado = await salvarDadosComprovante();
+        await concluirRascunhoDeclaracaoCRM(resultado, recoveredKey);
+        alert('Declaração nº ' + resultado.numero + ' confirmada na planilha.');
+        if (sequence === state.declaracaoFormSeq) fecharComprovantePrint();
+    } catch (error) { alert('Erro ao salvar: ' + error.message); }
+    finally { button.textContent = original; ocuparBotoesDeclaracaoCRM(false); }
+}
+async function salvarEImprimir() {
+    if (state.declaracaoSalvando) return;
+    const sequence = state.declaracaoFormSeq, recoveredKey = state.declaracaoRecuperadaId;
+    const valores = obterValoresComprovante(), tipo = state.tipoComprovanteAtual;
+    if (!String(valores.nome || '').trim()) { alert('Preencha o nome antes de imprimir.'); return; }
+    // Abrir durante o clique conserva a autorização do navegador para o pop-up.
+    const win = window.open('', '_blank');
+    if (!win) { alert('O navegador bloqueou a impressão. Permita pop-ups para este site e clique em Imprimir novamente.'); return; }
+    const button = document.querySelector('#modal-comprovante-print .btn-print');
+    const original = button.textContent;
+    ocuparBotoesDeclaracaoCRM(true); button.textContent = 'Confirmando…';
+    try {
+        win.document.write('<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Preparando impressão</title><body><p>Confirmando a declaração na planilha. Aguarde…</p></body></html>');
+        win.document.close();
+        const resultado = await salvarDadosComprovante(valores, sequence);
+        valores.numero = resultado.numero;
+        // Imprimir exatamente a cópia enviada, usando o número confirmado pelo servidor.
+        let htmlPrint = gerarHTMLImpressaoCRM(valores, tipo);
+        htmlPrint = htmlPrint.replace('</body>', `<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},800);});</script></body>`);
+        if (win.closed) throw new Error('A janela de impressão foi fechada. Seus dados continuam no formulário; clique em Imprimir novamente.');
+        win.document.open(); win.document.write(htmlPrint); win.document.close(); win.focus();
+        await concluirRascunhoDeclaracaoCRM(resultado, recoveredKey);
+        if (sequence === state.declaracaoFormSeq) fecharComprovantePrint();
+    } catch (error) {
+        if (!win.closed) win.close();
+        alert('Erro ao salvar e imprimir: ' + error.message);
+    } finally { button.textContent = original; ocuparBotoesDeclaracaoCRM(false); }
+}
 function fecharModal(id){
     const modal=document.getElementById(id);
     if(modal) modal.classList.remove('active');
@@ -3623,6 +3738,7 @@ function prepararModalBusca() {
         }
         const enderecoBusca = document.getElementById('busca-endereco'); if (enderecoBusca) enderecoBusca.value = '';
         todosResultadosBusca = [];
+        if (buscaResultados) buscaResultados.scrollTop = 0;
         if (contadorBusca) contadorBusca.textContent = '\u23F3 ...';
         const editorArea = document.getElementById('busca-editor-area');
         if (editorArea) { editorArea.style.display = 'none'; editorArea.innerHTML = ''; }
@@ -7624,8 +7740,9 @@ function continuarCompraVendaAposConsultaCRM() {
                     op.targets = this.options.targets(action, op.data, this);
                     additions.push(op); records.push(op);
                 }
-                await this.transaction(['queue'], tx => {
+                await this.transaction(['queue', 'meta'], tx => {
                     for (const op of additions) {
+                        if (op.action === 'salvarDeclaracao') tx.objectStore('meta').put({ key: 'declaracao:rascunho:' + op.id, data: copy(op.data), at: op.at });
                         const req = tx.objectStore('queue').add(op);
                         req.onsuccess = () => { op.seq = req.result; };
                     }
@@ -7638,9 +7755,43 @@ function continuarCompraVendaAposConsultaCRM() {
             });
         }
         async enqueue(action, data) {
+            if (action === 'salvarDeclaracao') await this.recoverDeclarationNumbers();
+            if (critical.has(action)) {
+                await this.ready;
+                if (this.queue[0]?.state === 'blocked') throw new Error('Há uma operação parada para revisão em Sincronização: ' + this.queue[0].error);
+            }
             const [record] = await this.enqueueMany([{ action, data }]);
-            if (critical.has(action)) return this.waitFor(record.id);
+            if (critical.has(action)) return { ...await this.waitFor(record.id), operacaoId: record.id };
             return { success: true, status: 'queued', queued: true, id: record.id };
+        }
+        async recoverDeclarationNumbers() {
+            if (this.recoveringDeclarations) return this.recoveringDeclarations;
+            const recover = async () => {
+                await this.ready;
+                await this.serialize(() => this.reload());
+                const oldError = 'Esse número de documento já foi utilizado. Atualize o número antes de emitir.';
+                const matches = this.queue.filter(op => op.action === 'salvarDeclaracao' && op.state === 'blocked' && op.error === oldError);
+                if (!matches.length || !navigator.onLine) return;
+                const backend = await this.options.network('statusBackendCRM', {});
+                if (backend?.declaracaoNumeracaoVersao !== 2) throw new Error('Publique primeiro a correção do Code.gs para recuperar a declaração e imprimir.');
+                await this.serialize(async () => {
+                    await this.reload();
+                    const blocked = this.queue.filter(op => matches.some(item => item.id === op.id) && op.state === 'blocked' && op.error === oldError);
+                    const restored = blocked.map(op => ({ ...op, state: 'pending', error: '' }));
+                    await this.transaction(['queue', 'meta'], tx => {
+                        for (const op of restored) {
+                            tx.objectStore('queue').put(op);
+                            tx.objectStore('meta').put({ key: 'declaracao:rascunho:' + op.id, data: copy(op.data), at: op.at });
+                        }
+                    });
+                    this.queue = this.queue.map(op => restored.find(item => item.id === op.id) || op);
+                    this.epoch++; this.backendReady = { value: backend, at: Date.now() };
+                    if (restored.length) { this.emit('recovered'); this.channel?.postMessage('change'); }
+                });
+            };
+            this.recoveringDeclarations = recover();
+            try { return await this.recoveringDeclarations; }
+            finally { this.recoveringDeclarations = null; }
         }
         async waitFor(id) {
             for (let i = 0; i < 140; i++) {
@@ -7674,7 +7825,10 @@ function continuarCompraVendaAposConsultaCRM() {
                 req.onsuccess = () => { if (req.result?.owner === this.owner) store.delete('lease'); };
             });
         }
-        start() { this.enabled = true; this.kick(); }
+        start() {
+            this.enabled = true;
+            this.recoverDeclarationNumbers().catch(error => { this.message = error.message; this.emit('status'); }).finally(() => this.kick());
+        }
         pause() { this.enabled = false; }
         kick() {
             clearTimeout(this.timer);
@@ -7740,11 +7894,16 @@ function continuarCompraVendaAposConsultaCRM() {
             await this.serialize(async () => {
                 await this.reload();
                 const current = this.queue.find(item => item.id === op.id); if (!current) return;
+                const draft = current.action === 'salvarDeclaracao' ? ((await this.getAll('meta')).find(item => item.key === 'declaracao:rascunho:' + current.id) || { key: 'declaracao:rascunho:' + current.id, data: copy(current.data), at: current.at }) : null;
                 const entries = [...this.cache.values()].map(entry => ({ ...entry,
                     value: this.options.reduce(entry.action, entry.params, copy(entry.value), { ...current, result }), at: Date.now() }));
                 await this.transaction(['cache', 'queue', 'meta'], tx => {
                     for (const entry of entries) tx.objectStore('cache').put(entry);
                     tx.objectStore('queue').delete(current.seq);
+                    if (draft) {
+                        const data = copy(draft.data); if (result?.numero) data[0] = String(result.numero).padStart(7, '0');
+                        tx.objectStore('meta').put({ ...draft, data, result: copy(result) });
+                    }
                     tx.objectStore('meta').put({ key: 'receipt:' + op.id, result: result || { success: true }, at: Date.now() });
                 });
                 this.cache = new Map(entries.map(entry => [entry.key, entry]));
@@ -8205,7 +8364,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { crmTexto
 // === INICIO crm-search.js ===
 (function (root) {
     'use strict';
-    let loading, generation = 0, indexBase, indexValue, refreshTimer;
+    let loading, generation = 0, indexBase, indexValue, refreshTimer, previousQuery = null;
     root.carregarBaseBuscaLocalCRM = async function (force = false) {
         if (loading) return loading;
         loading = (async () => {
@@ -8245,6 +8404,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { crmTexto
         if (!termo && !endereco) { limparBusca(false); return; }
         if ((termo || endereco).length < minimoCaracteresBusca(campo)) return;
         const area = document.getElementById('busca-resultados'); area.style.display = 'flex';
+        const queryKey = JSON.stringify([termo, endereco, campo]);
+        const queryChanged = queryKey !== previousQuery;
         await root.crmStore.ready;
         const base = root.crmStore.peek('baseBuscaLocalCRM');
         let result;
@@ -8262,7 +8423,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { crmTexto
                 if (result?.error || result?.success === false) throw new Error(result.message || result.error);
             }
             if (seq !== generation) return;
-            processarResultados(result); root.crmRenderizarBusca();
+            processarResultados(result);
+            if (queryChanged) area.scrollTop = 0;
+            previousQuery = queryKey;
         } catch (err) {
             if (seq !== generation || err.name === 'AbortError') return;
             area.innerHTML = '<div class="busca-empty">Não foi possível consultar. Confira a conexão e a publicação do Apps Script.</div>';
@@ -8272,6 +8435,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { crmTexto
         const area = document.getElementById('busca-resultados');
         if (!area) return;
         const records = todosResultadosBusca;
+        const previousScroll = area.scrollTop;
         area.replaceChildren();
         if (!records.length) { area.innerHTML = '<div class="busca-empty">Nenhum cartão pendente encontrado. Tente abreviar o nome ou acrescentar o endereço.</div>'; return; }
         const list = document.createDocumentFragment();
@@ -8281,14 +8445,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { crmTexto
             const card = document.createElement('article'); card.className = 'busca-card-v2';
             const pending = !!item._pendingNew;
             card.innerHTML = `<div class="busca-position"><small>BLOCO</small><strong>${escapeHtml(item.numero || '—')}</strong><span>${item.posicao ? `${Number(item.posicao)}º de ${Number(item.totalBloco)}` : 'Posição ao abrir'}</span></div>
-                <div class="busca-person"><button type="button" class="busca-person-name">${escapeHtml(item.nome)}</button><p>${escapeHtml(item.endereco || 'Sem endereço')}</p><div class="busca-meta"><span>${escapeHtml(item.data || '')}</span><span>${escapeHtml(item.tipo || 'CARTÃO')}</span>${item.referencia ? '<span>Referência / substituto</span>' : ''}${duplicate ? `<span class="busca-dup">Possível DUP · ${duplicate + 1} cartões</span>` : ''}${pending ? '<span>Aguardando sincronização</span>' : ''}${item.status ? `<span>${escapeHtml(item.status)}</span>` : ''}</div></div>
-                <div class="busca-card-actions"><button type="button" class="busca-recebido" >✓ Recebido</button><button type="button" class="busca-edit" >Editar dados</button></div>`;
+                <div class="busca-person"><div class="busca-name-line"><button type="button" class="busca-person-name">${escapeHtml(item.nome)}</button>${duplicate ? `<span class="busca-dup" title="Confira os possíveis duplicados antes de entregar">DUP · ${duplicate + 1} cartões</span>` : ''}</div><p>${escapeHtml(item.endereco || 'Sem endereço')}</p>${item.referencia || pending || item.status ? `<div class="busca-flags">${item.referencia ? '<span>Referência / substituto</span>' : ''}${pending ? '<span>Aguardando sincronização</span>' : ''}${item.status ? `<span>${escapeHtml(item.status)}</span>` : ''}</div>` : ''}</div>
+                <div class="busca-meta"><span>${escapeHtml(item.data || 'Sem data')}</span><span>${escapeHtml(item.tipo || 'CARTÃO')}</span></div>
+                <div class="busca-card-actions"><button type="button" class="busca-recebido">✓ Recebido</button><button type="button" class="busca-edit" aria-label="Editar dados de ${escapeHtml(item.nome)}" title="Editar dados">Editar</button></div>`;
             card.querySelector('.busca-person-name').onclick = () => root.crmAbrirRecebimento(item.linha).catch(err => alert('Não foi possível abrir o recebimento: ' + err.message));
             card.querySelector('.busca-recebido').onclick = () => root.crmAbrirRecebimento(item.linha).catch(err => alert('Não foi possível abrir o recebimento: ' + err.message));
             card.querySelector('.busca-edit').onclick = () => abrirEditorBuscaRapido(item.linha);
             list.appendChild(card);
         }
         area.appendChild(list);
+        area.scrollTop = previousScroll;
         if (records.length > max) { const note = document.createElement('p'); note.className = 'busca-empty'; note.textContent = `Exibindo os primeiros ${max} de ${records.length}. Acrescente o endereço para localizar mais rápido.`; area.appendChild(note); }
     };
     function localRows() { return root.crmStore.peek('baseBuscaLocalCRM')?.itens || [...todosResultadosBusca, ...buscaResultadosAuxiliares.values()]; }
