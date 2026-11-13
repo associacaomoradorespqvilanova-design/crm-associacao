@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
 
-    <link rel="stylesheet" href="styles.css?v=20261112-quatro-arquivos">
+    <link rel="stylesheet" href="styles.css?v=20261113-impressao-2">
 </head>
 <body>
 
@@ -124,30 +124,37 @@
     <!-- ====================================================== -->
     <div id="modal-busca" class="modal-overlay">
         <div class="modal-box modal-box-xl busca-modal-container">
-            <span class="close-btn" onclick="fecharModal('modal-busca')" style="top:15px; right:20px; font-size:28px;">×</span>
             <div class="busca-header">
-                <div>
-                    <h2 class="busca-titulo">🔍 Busca Inteligente</h2>
-                    <p class="busca-subtitulo">Somente cartões <strong>pendentes</strong> são exibidos. Nomes correspondentes primeiro, mais recentes dentro de cada grupo; referências e substitutos depois.</p>
-                </div>
-                <div class="contador" id="busca-contador" style="background:#196E3A; color:#fff; padding:6px 18px; border-radius:30px; font-weight:700; font-size:14px;">⏳ ...</div>
+                <h2 class="busca-titulo">🔍 Busca Inteligente</h2>
+                <div class="busca-count" id="busca-contador" role="status" aria-live="polite">Carregando…</div>
+                <button type="button" class="busca-close" onclick="fecharModal('modal-busca')" aria-label="Fechar busca">×</button>
             </div>
-            
-            <div class="busca-bar">
-                <select id="busca-tipo" class="busca-tipo-select">
-                    <option value="todos">✨ Tudo</option>
-                    <option value="nome">👤 Nome</option>
-                    <option value="endereco">🏠 Endereço</option>
-                    <option value="numero">🔢 Nº do cartão</option>
-                    <option value="cpf">🪪 CPF</option>
-                    <option value="telefone">📞 Telefone</option>
-                </select>
-                <div class="busca-divider"></div>
-                <i class="fas fa-search" style="color:#94a3b8; font-size:18px; margin-left:4px;"></i>
-                <input id="busca-input" type="text" aria-label="Nome, número, CPF ou telefone" placeholder="Nome ou nome + rua. Ex.: Maria Rua São José 25" autocomplete="off">
+            <div class="busca-controls">
+                <div class="busca-bar">
+                    <select id="busca-tipo" class="busca-tipo-select" aria-label="Buscar por">
+                        <option value="todos">✨ Tudo</option>
+                        <option value="nome">👤 Nome</option>
+                        <option value="endereco">🏠 Endereço</option>
+                        <option value="numero">🔢 Nº do cartão</option>
+                        <option value="cpf">🪪 CPF</option>
+                        <option value="telefone">📞 Telefone</option>
+                    </select>
+                    <input id="busca-input" type="text" aria-label="Nome, número, CPF ou telefone" placeholder="Nome ou nome + rua" autocomplete="off">
+                </div>
+                <div class="busca-address-field">
+                    <label for="busca-endereco" class="busca-sr-only">Cruzar com endereço (opcional)</label>
+                    <input id="busca-endereco" placeholder="Cruzar com endereço (opcional)" autocomplete="off">
+                </div>
                 <button id="busca-btnSearch" type="button">🔎 Buscar</button>
             </div>
-            <div class="busca-address-field"><label for="busca-endereco">Cruzar com endereço <span>(opcional)</span></label><input id="busca-endereco" placeholder="Rua e número. Ex.: S José 25" autocomplete="off"><p class="busca-help">Digite nome e endereço nos campos ou juntos: Maria ; S José 25. Abreviações são aceitas. Possíveis duplicados precisam ser conferidos.</p></div>
+            <div class="busca-assist">
+                <span>Somente pendentes · mais parecidos e recentes primeiro</span>
+                <details class="busca-tips">
+                    <summary>Como buscar</summary>
+                    <p>Use nome e endereço nos campos ou juntos: <b>Maria ; S José 25</b>. Abreviações são aceitas. Referências e substitutos aparecem depois dos nomes correspondentes. Confira os possíveis duplicados antes de entregar.</p>
+                </details>
+            </div>
+            <div class="busca-columns" aria-hidden="true"><span>Bloco / posição</span><span>Morador / endereço</span><span>Data / tipo</span><span>Ações</span></div>
             <div id="busca-resultados" class="busca-resultados">
                 <div style="text-align:center; padding:40px; color:#999; font-size:16px;">Digite algo para iniciar a busca.</div>
             </div>
@@ -398,6 +405,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=20261112-quatro-arquivos"></script>
+    <script src="script.js?v=20261113-impressao-2"></script>
 </body>
 </html>
