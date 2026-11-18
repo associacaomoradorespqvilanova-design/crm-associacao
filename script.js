@@ -7636,6 +7636,45 @@ function continuarCompraVendaAposConsultaCRM() {
         'confirmarGravacaoDocumentoCRM', 'confirmarLoteCartoesEntrega', 'atualizarTelefonesWhatsapp']);
     const critical = new Set(['salvarDeclaracao', 'salvarCompraVenda',
         'incrementarNumeroContratoCompraVenda', 'incrementarNumeroNotaCompraVenda', 'reservarNumeroNotaCompraVenda']);
+    const review = op => ['blocked', 'review'].includes(op.state);
+    const normalizedKey = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+    // Chaves conservadoras: nunca passa uma edição pendente do MESMO cadastro.
+    // Exclusões por período e ações desconhecidas funcionam como barreiras amplas.
+    function resources(op) {
+        const d = op.data ?? {}, targets = op.targets || [], keys = [];
+        const add = (table, key) => keys.push([table, String(key)]);
+        for (const target of targets) {
+            const table = target.table || '*';
+            if (target.line != null) add(table, 'linha:' + target.line);
+            if (target.localId) add(table, 'local:' + target.localId);
+            if (target.dependsOn) add(table, 'inclusao:' + target.dependsOn.id);
+            const v = target.values || {};
+            if (table === 'ENTREGAS') add(table, 'cartao:' + JSON.stringify([v[0], v[1], v[6], v[7]].map(normalizedKey)));
+            if (['CESTA', 'CARTEIRINHAS'].includes(table) && (v.NOME || v[0])) add(table, 'nome:' + normalizedKey(v.NOME || v[0]));
+        }
+        switch (op.action) {
+            case 'atualizarCartao': case 'atualizarMultiplosCartoes': case 'marcarWhatsappEnviado':
+                if (!targets.length) add('ENTREGAS', '*'); break;
+            case 'salvarLoteCartoesEntrega': add('ENTREGAS', 'inclusao:' + op.id); break;
+            case 'salvarAgenda': add('AGENDA_QUADRA', d.id == null ? '*' : 'id:' + d.id); break;
+            case 'deletarAgenda': add('AGENDA_QUADRA', d == null ? '*' : 'id:' + d); break;
+            case 'salvarCartao': case 'editarLinhaCartao': case 'deletarLinhaCartao': add('CARTÕES', d.id == null ? '*' : 'id:' + d.id); break;
+            case 'deletarDiaCartao': case 'deletarMesGeral': add('CARTÕES', '*'); break;
+            case 'salvarResponsavel': case 'deletarResponsavel': add('RESPONSÁVEIS_CARTÕES', normalizedKey(d)); break;
+            case 'salvarMoradorCesta': case 'editarNomeMoradorCesta':
+                if (!targets.length) add('CESTA', d.linha == null ? '*' : 'linha:' + d.linha); break;
+            case 'deletarMoradorCesta': add('CESTA', '*'); break;
+            case 'salvarMoradorCarteirinhas':
+                if (!targets.length) add('CARTEIRINHAS', d.linha == null ? '*' : 'linha:' + d.linha); break;
+            case 'salvarTiposCesta': add('CONFIG', '*'); break;
+            case 'salvarCurriculoCRM': add('CURRICULOS', normalizedKey(d.nome) || '*'); break;
+            case 'salvarLembrete': case 'concluirLembrete': add('LEMBRETES_CRM', d.id == null ? '*' : 'id:' + d.id); break;
+            default: add('*', '*');
+        }
+        return keys;
+    }
+    const overlap = (a, b) => a.some(([table, key]) => b.some(([other, id]) =>
+        (table === '*' || other === '*' || table === other) && (key === '*' || id === '*' || key === id)));
     class CRMStore {
         constructor(options) {
             this.options = options;
@@ -7922,30 +7961,68 @@ function continuarCompraVendaAposConsultaCRM() {
             this.detachLegacyDocuments().catch(error => { this.message = error.message; this.emit('status'); }).finally(() => this.kick());
         }
         pause() { this.enabled = false; }
+        queuePlan() {
+            const batch = [], held = [], barriers = [], blocked = [];
+            for (const op of this.queue) {
+                const keys = resources(op);
+                if (review(op)) { blocked.push(op); barriers.push({ op, keys }); continue; }
+                const previous = barriers.find(item => overlap(keys, item.keys) || (op.targets || []).some(t => t.dependsOn?.id === item.op.id));
+                if (previous) { held.push({ op, dependsOn: previous.op.id }); barriers.push({ op, keys }); continue; }
+                if (batch.length >= 8 || (batch.length && JSON.stringify([...batch, op]).length > 350000)) break;
+                batch.push(op);
+            }
+            return { batch, held, blocked };
+        }
+        async syncNow() {
+            clearTimeout(this.timer);
+            if (!this.enabled) { this.message = 'Entre no CRM para sincronizar as edições deste computador.'; this.emit('status'); return; }
+            if (!navigator.onLine) { this.message = 'Sem conexão. As edições continuam salvas neste computador.'; this.emit('status'); return; }
+            if (this.running) { this.message = 'Já existe uma sincronização em andamento. Aguarde a confirmação.'; this.emit('status'); return; }
+            return this.flush({ manual: true });
+        }
+        async reconcileReviews(manual) {
+            const blocked = this.queue.filter(review);
+            if (!blocked.length || (!manual && Date.now() - (this.reviewCheckedAt || 0) < 30000)) return;
+            this.reviewCheckedAt = Date.now();
+            // Só consulta recibos. Nunca reenvia automaticamente um resultado incerto.
+            const start = (this.reviewCursor || 0) % blocked.length;
+            const selected = blocked.slice(start, start + 8);
+            this.reviewCursor = start + selected.length;
+            const status = await this.options.network('statusFilaCRM', { ids: JSON.stringify(selected.map(op => op.id)), _: String(Date.now()) }, undefined, 10000);
+            if (!Array.isArray(status?.operacoes)) throw new Error('Não foi possível consultar as confirmações. As edições foram preservadas.');
+            for (const receipt of status.operacoes) {
+                const op = selected.find(item => item.id === receipt.id);
+                if (op && receipt.state === 'applied') await this.commit(op, receipt.result);
+            }
+        }
         kick() {
             clearTimeout(this.timer);
             if (!this.enabled || this.running || !navigator.onLine) { this.emit('status'); return; }
             this.timer = setTimeout(() => this.flush().catch(err => { this.message = err.message; this.emit('status'); }), 250);
         }
-        async flush() {
+        async flush({ manual = false } = {}) {
             if (this.running || !this.enabled || !navigator.onLine) return;
             this.running = true; let leased = false; this.nextDelay = 15000;
+            clearTimeout(this.timer); this.message = 'Verificando as edições e as confirmações da planilha…'; this.emit('status');
+            let confirmed = 0;
             try {
                 await this.ready;
-                leased = await this.lease(); if (!leased) { this.nextDelay = 5000; return; }
+                leased = await this.lease(); if (!leased) { this.nextDelay = 5000; this.message = 'Outra aba está sincronizando. Nova verificação em alguns segundos.'; return; }
+                this.heartbeat = setInterval(() => this.lease().catch(console.error), 20000);
                 await this.serialize(() => this.reload());
-                if (!this.queue.length || this.queue[0].state === 'blocked') return;
+                if (!this.queue.length) { this.message = 'Nenhuma edição aguardando envio neste computador.'; return; }
+                try { await this.reconcileReviews(manual); }
+                catch (error) { if (!this.queuePlan().batch.length) throw error; }
+                const { batch } = this.queuePlan();
+                if (!batch.length) {
+                    const blocked = this.queue.filter(review).length;
+                    this.message = this.queue.length ? `${blocked} edição(ões) precisam de conferência; as demais aguardam esse mesmo cadastro. Tudo continua salvo neste computador.` : 'Todas as edições foram confirmadas na planilha.';
+                    return;
+                }
                 const backend = this.backendReady && Date.now() - this.backendReady.at < 60000 ? this.backendReady.value : await this.options.network('statusBackendCRM', {});
                 if (backend?.filaVersao !== 1) throw new Error('Fila preservada neste computador. Publique primeiro o novo Apps Script para sincronizar.');
                 this.backendReady = { at: Date.now(), value: backend };
-                const batch = [];
-                for (const op of this.queue) {
-                    if (op.state === 'blocked' || batch.length === 8) break;
-                    if (JSON.stringify([...batch, op]).length > 350000 && batch.length) break;
-                    batch.push(op);
-                }
-                this.message = 'Enviando alterações…'; this.emit('status');
-                this.heartbeat = setInterval(() => this.lease().catch(console.error), 20000);
+                this.message = `Enviando ${batch.length} edição(ões) sem conflito…`; this.emit('status');
                 // An opaque POST response is never a confirmation. Confirm by operation ID via JSONP.
                 const body = new URLSearchParams({ acao: 'sincronizarFilaCRM', dados: JSON.stringify({ protocolo: 1, operacoes: batch }) });
                 const abort = new AbortController(); const timer = setTimeout(() => abort.abort(), 45000);
@@ -7955,31 +8032,37 @@ function continuarCompraVendaAposConsultaCRM() {
                 for (let attempt = 0; attempt < 22 && remaining.length; attempt++) {
                     const status = await this.options.network('statusFilaCRM', { ids: JSON.stringify(remaining.map(op => op.id)), _: String(Date.now()) }, undefined, 10000);
                     if (!Array.isArray(status?.operacoes)) throw new Error('Confirmação da fila indisponível. As edições continuam salvas neste computador.');
+                    let rejected = false;
                     for (const receipt of status.operacoes) {
                         const op = remaining.find(item => item.id === receipt.id); if (!op) continue;
-                        if (receipt.state === 'applied') await this.commit(op, receipt.result);
+                        if (receipt.state === 'applied') { await this.commit(op, receipt.result); confirmed++; }
                         else if (receipt.state === 'blocked' || receipt.state === 'review') {
+                            rejected = true;
                             await this.serialize(async () => {
                                 const current = this.queue.find(item => item.id === op.id); if (!current) return;
-                                const next = { ...current, state: 'blocked', error: receipt.message || 'Esta edição precisa de revisão.' };
+                                const next = { ...current, state: 'blocked', serverState: receipt.state, error: receipt.message || 'Esta edição precisa de revisão.' };
                                 await this.transaction(['queue'], tx => tx.objectStore('queue').put(next));
                                 this.queue = this.queue.map(item => item.id === op.id ? next : item);
                                 this.emit('blocked'); this.channel?.postMessage('change');
                             });
                         }
                     }
-                    remaining = remaining.filter(op => this.queue.some(item => item.id === op.id && item.state !== 'blocked'));
-                    if (this.queue[0]?.state === 'blocked') break;
+                    remaining = remaining.filter(op => this.queue.some(item => item.id === op.id && !review(item)));
+                    if (rejected) break; // Recalcula dependências antes de enviar o restante do lote.
                     if (remaining.length) await sleep(2000);
                 }
-                this.message = remaining.length ? 'Aguardando confirmação. A fila será consultada novamente.' : '';
-                this.nextDelay = remaining.length ? 15000 : 250;
+                const blocked = this.queue.filter(review).length;
+                this.message = `${confirmed} edição(ões) confirmada(s) nesta tentativa.` + (blocked ? ` ${blocked} preservada(s) para conferência; outros cadastros continuam sincronizando.` : '') + (remaining.length ? ' Os envios restantes serão verificados automaticamente.' : '');
+                this.nextDelay = remaining.length && !blocked ? 15000 : 250;
             } catch (err) { this.message = err.message || 'Sem conexão com a planilha. Fila preservada.'; }
             finally {
                 clearInterval(this.heartbeat);
-                if (leased) await this.release();
-                this.running = false; this.emit('status');
-                if (this.enabled && this.queue.length && this.queue[0].state !== 'blocked') this.timer = setTimeout(() => this.kick(), this.nextDelay);
+                try { if (leased) await this.release(); }
+                catch (error) { this.message = 'As edições foram preservadas. Não foi possível concluir a verificação local: ' + error.message; }
+                finally {
+                    this.running = false; this.emit('status');
+                    if (this.enabled && this.queue.length) this.timer = setTimeout(() => this.kick(), this.queuePlan().batch.length ? this.nextDelay : 30000);
+                }
             }
         }
         async commit(op, result) {
@@ -8237,12 +8320,16 @@ function continuarCompraVendaAposConsultaCRM() {
         bar.innerHTML = '<button id="crm-sync-status" type="button" aria-haspopup="dialog">Preparando dados locais…</button><span id="crm-sync-detail" role="status" aria-live="polite"></span><button id="crm-sync-refresh" type="button">Atualizar dados</button>';
         document.getElementById('dashboard-screen').prepend(bar);
         const dialog = document.createElement('dialog'); dialog.id = 'crm-sync-dialog'; dialog.className = 'crm-sync-dialog';
-        dialog.innerHTML = '<div class="crm-sync-title"><h2>Sincronização</h2><button type="button" aria-label="Fechar">×</button></div><p>As edições ficam neste navegador até a confirmação do Google Planilhas. Mantenha o CRM aberto para enviar a fila.</p><div id="crm-sync-items"></div><details id="crm-documents-review"><summary>Documentos pendentes de conferência</summary><p>Documentos têm confirmação própria e não bloqueiam a fila de edições.</p><div id="crm-document-items"></div></details><div class="crm-sync-actions"><button id="crm-sync-retry" type="button">Sincronizar agora</button><button id="crm-sync-export" type="button">Baixar cópia das pendências</button></div>';
+        dialog.innerHTML = '<div class="crm-sync-title"><h2>Sincronização</h2><button type="button" aria-label="Fechar">×</button></div><p>O envio acontece automaticamente enquanto você está no CRM. Edições em conflito ficam preservadas; outros cadastros continuam sendo enviados.</p><p id="crm-sync-feedback" role="status" aria-live="polite"></p><div id="crm-sync-items"></div><details id="crm-documents-review"><summary>Documentos pendentes de conferência</summary><p>Documentos têm confirmação própria e não bloqueiam a fila de edições.</p><div id="crm-document-items"></div></details><div class="crm-sync-actions"><button id="crm-sync-retry" type="button">Sincronizar agora</button><button id="crm-sync-export" type="button">Baixar cópia das pendências</button></div>';
         document.body.appendChild(dialog);
         dialog.querySelector('.crm-sync-title button').onclick = () => dialog.close();
         dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
         document.getElementById('crm-sync-status').onclick = () => dialog.showModal();
-        document.getElementById('crm-sync-retry').onclick = () => root.crmStore.kick();
+        document.getElementById('crm-sync-retry').onclick = async () => {
+            try { await root.crmStore.syncNow(); }
+            catch (error) { root.crmStore.message = 'Não foi possível concluir a tentativa. As edições foram preservadas: ' + error.message; }
+            finally { update(); }
+        };
         document.getElementById('crm-sync-refresh').onclick = async function () {
             this.disabled = true;
             try {
@@ -8272,12 +8359,16 @@ function continuarCompraVendaAposConsultaCRM() {
             }, 100);
         });
         function update() {
-            const store = root.crmStore, count = store.queue.length, blocked = store.queue.some(op => op.state === 'blocked');
+            const store = root.crmStore, count = store.queue.length, blocked = store.queue.filter(op => ['blocked', 'review'].includes(op.state)).length;
+            const held = new Set(store.queuePlan().held.map(item => item.op.id));
             const button = document.getElementById('crm-sync-status');
-            button.textContent = blocked ? '⚠ Edição precisa de revisão' : count ? `${navigator.onLine ? '↻' : '○'} ${count} edição(ões) neste computador` : '✓ Sem edições pendentes';
+            button.textContent = blocked ? `⚠ ${blocked} para conferência · ${count - blocked} aguardando` : count ? `${navigator.onLine ? '↻' : '○'} ${count} edição(ões) neste computador` : '✓ Sem edições pendentes';
             button.dataset.state = blocked ? 'error' : count ? 'pending' : 'ok';
             const cached = store.cache.size > 0;
             document.getElementById('crm-sync-detail').textContent = !navigator.onLine ? 'Sem conexão. As edições ficam na fila.' : store.message || (count ? 'Salvo neste computador · sincronização em segundo plano' : cached ? 'Dados locais prontos · consultas atualizadas em segundo plano' : 'Carregando a primeira cópia dos dados…');
+            document.getElementById('crm-sync-feedback').textContent = document.getElementById('crm-sync-detail').textContent;
+            const retry = document.getElementById('crm-sync-retry'); retry.disabled = store.running;
+            retry.textContent = store.running ? 'Sincronizando…' : 'Sincronizar agora';
             const list = document.getElementById('crm-sync-items'); list.replaceChildren();
             if (!count) list.textContent = 'Nenhuma edição aguardando envio.';
             const docList = document.getElementById('crm-document-items');
@@ -8291,8 +8382,15 @@ function continuarCompraVendaAposConsultaCRM() {
             }
             for (const op of store.queue) {
                 const item = document.createElement('div'); item.className = 'crm-sync-item';
-                item.innerHTML = `<strong>${escape(op.action)}</strong><small>${escape(new Date(op.at).toLocaleString('pt-BR'))}</small><p>${escape(op.error || 'Salvo neste computador. Aguardando confirmação da planilha.')}</p>`;
+                const labels = { atualizarCartao: 'Alteração de cartão', atualizarMultiplosCartoes: 'Recebimento de cartões', marcarWhatsappEnviado: 'Aviso pelo WhatsApp', salvarAgenda: 'Agendamento', deletarAgenda: 'Exclusão de agendamento', salvarMoradorCesta: 'Cadastro de cesta', salvarMoradorCarteirinhas: 'Carteirinha', salvarCurriculoCRM: 'Currículo' };
+                const dados = op.data?.dados || op.data?.payload || op.data || {};
+                const nome = dados.nome || dados.NOME || op.targets?.[0]?.values?.[0] || op.targets?.[0]?.values?.NOME;
+                const endereco = dados.endereco || op.targets?.[0]?.values?.[7];
+                const title = labels[op.action] || op.action;
+                const status = op.error || (held.has(op.id) ? 'Preservada. Aguarda a conferência de uma alteração anterior deste mesmo cadastro.' : 'Salva neste computador. Envio automático aguardando confirmação da planilha.');
+                item.innerHTML = `<strong>${escape(title)}</strong>${nome ? `<div>${escape(nome)}</div>` : ''}${endereco ? `<small>${escape(endereco)}</small>` : ''}<small>${escape(new Date(op.at).toLocaleString('pt-BR'))}</small><p>${escape(status)}</p>`;
                 if (op.state === 'blocked') {
+                    const notice = document.createElement('p'); notice.textContent = 'Esta edição não será sobrescrita nem reenviada sem conferência. Outros cadastros podem sincronizar normalmente.'; item.appendChild(notice);
                     const button = document.createElement('button'); button.type = 'button'; button.textContent = 'Remover da fila após conferência';
                     button.onclick = async () => {
                         if (!confirm('Confira primeiro essa edição na planilha. Remover da fila descarta a versão local e não desfaz o que já foi gravado. Continuar?')) return;
